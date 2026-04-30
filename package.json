@@ -3,10 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node ./scripts/run-next-with-port.mjs dev",
     "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "start": "node ./scripts/run-next-with-port.mjs start",
+    "lint": "eslint",
+    "build-start": "next build && node ./scripts/run-next-with-port.mjs start"
   },
   "dependencies": {
     "next": "16.2.4",

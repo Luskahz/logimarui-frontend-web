@@ -2,7 +2,13 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+First, define the frontend port in `.env.local`:
+
+```bash
+FRONTEND_PORT=8091
+```
+
+Then run the development server:
 
 ```bash
 npm run dev
@@ -14,7 +20,9 @@ pnpm dev
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:<FRONTEND_PORT>` with your browser to see the result.
+
+For production mode, `npm run start` uses the same `FRONTEND_PORT` variable.
 
 You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
 
