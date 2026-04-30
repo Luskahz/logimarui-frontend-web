@@ -88,6 +88,33 @@ export function saveAuthSession(tokens, profile = null) {
   return snapshot;
 }
 
+export function replaceAuthSession(snapshot) {
+  if (!snapshot || typeof snapshot !== "object") {
+    return null;
+  }
+
+  const nextSnapshot = {
+    ...snapshot,
+    savedAt: new Date().toISOString(),
+  };
+
+  writeStorageValue(SESSION_KEY, JSON.stringify(nextSnapshot));
+  return nextSnapshot;
+}
+
+export function updateAuthSessionProfile(profile) {
+  const currentSession = readAuthSession();
+
+  if (!currentSession) {
+    return null;
+  }
+
+  return replaceAuthSession({
+    ...currentSession,
+    profile,
+  });
+}
+
 export function clearAuthSession() {
   removeStorageValue(SESSION_KEY);
 }

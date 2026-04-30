@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { formatCpf } from "@/features/auth/lib/cpf";
 import { validateAuthForm } from "@/features/auth/lib/validators";
 import { getAuthService } from "@/features/auth/services";
 
@@ -26,6 +27,14 @@ function removeFieldError(currentErrors, fieldName) {
   return nextErrors;
 }
 
+function formatInputValue(field, value) {
+  if (field?.format === "cpf") {
+    return formatCpf(value);
+  }
+
+  return value;
+}
+
 export function useAuthForm({
   mode,
   fields,
@@ -39,10 +48,12 @@ export function useAuthForm({
 
   function handleChange(event) {
     const { name, value } = event.target;
+    const field = fields.find((candidate) => candidate.name === name);
+    const formattedValue = formatInputValue(field, value);
 
     setValues((currentValues) => ({
       ...currentValues,
-      [name]: value,
+      [name]: formattedValue,
     }));
     setErrors((currentErrors) => removeFieldError(currentErrors, name));
 
@@ -85,6 +96,10 @@ export function useAuthForm({
 
       if (response?.resetForm) {
         setValues(buildInitialValues(fields));
+      }
+
+      if (response?.redirectTo) {
+        window.location.assign(response.redirectTo);
       }
     } catch (error) {
       setFeedback({

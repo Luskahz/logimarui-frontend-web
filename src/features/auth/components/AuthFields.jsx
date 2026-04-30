@@ -18,6 +18,7 @@ export default function AuthFields({
       error={errors[field.name]}
       autoComplete={field.autoComplete}
       inputMode={field.inputMode}
+      maxLength={field.maxLength}
       required={field.required}
       onChange={onChange}
     />

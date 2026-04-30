@@ -44,3 +44,87 @@ input {
 ::selection {
   background: rgba(15, 118, 110, 0.18);
 }
+
+.home-shell {
+  --shell-page-background:
+    radial-gradient(circle at top left, rgba(15, 118, 110, 0.12), transparent 28%),
+    linear-gradient(180deg, #fcf8f2 0%, #f4ece0 100%);
+  --shell-surface-strong: rgba(255, 250, 242, 0.92);
+  --shell-surface: #ffffff;
+  --shell-surface-muted: rgba(245, 238, 227, 0.92);
+  --shell-line: rgba(20, 32, 43, 0.1);
+  --shell-line-strong: rgba(20, 32, 43, 0.16);
+  --shell-text: #14202b;
+  --shell-muted: rgba(20, 32, 43, 0.64);
+  --shell-accent: #115e59;
+  --shell-accent-soft: rgba(15, 118, 110, 0.14);
+  --shell-contrast: #14202b;
+  --shell-contrast-ink: #ffffff;
+  --shell-overlay: rgba(15, 23, 42, 0.24);
+  --shell-danger: #be123c;
+  --shell-danger-bg: rgba(225, 29, 72, 0.08);
+  --dpo-house-fill: rgba(255, 250, 242, 0.92);
+  --dpo-house-shadow: rgba(20, 32, 43, 0.16);
+  --dpo-house-ink: #14202b;
+  --dpo-outline: rgba(20, 32, 43, 0.2);
+  min-height: 100vh;
+  background: var(--shell-page-background);
+  color: var(--shell-text);
+}
+
+html[data-ui-theme="dark"] .home-shell {
+  --shell-page-background:
+    radial-gradient(circle at top left, rgba(45, 212, 191, 0.1), transparent 26%),
+    linear-gradient(180deg, #09111a 0%, #0f1722 100%);
+  --shell-surface-strong: rgba(15, 23, 34, 0.92);
+  --shell-surface: #17212c;
+  --shell-surface-muted: rgba(27, 39, 52, 0.96);
+  --shell-line: rgba(148, 163, 184, 0.18);
+  --shell-line-strong: rgba(148, 163, 184, 0.28);
+  --shell-text: #f8fafc;
+  --shell-muted: rgba(226, 232, 240, 0.7);
+  --shell-accent: #5eead4;
+  --shell-accent-soft: rgba(45, 212, 191, 0.14);
+  --shell-contrast: #f8fafc;
+  --shell-contrast-ink: #0f1722;
+  --shell-overlay: rgba(2, 6, 23, 0.56);
+  --shell-danger: #fda4af;
+  --shell-danger-bg: rgba(251, 113, 133, 0.12);
+  --dpo-house-fill: rgba(27, 39, 52, 0.94);
+  --dpo-house-shadow: rgba(2, 6, 23, 0.34);
+  --dpo-house-ink: #f8fafc;
+  --dpo-outline: rgba(248, 250, 252, 0.16);
+}
+
+.home-shell code {
+  border-radius: 999px;
+  background: var(--shell-accent-soft);
+  color: var(--shell-accent);
+  padding: 0.12rem 0.5rem;
+}
+
+.home-shell .shell-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--shell-line-strong) transparent;
+  scrollbar-gutter: stable;
+}
+
+.home-shell .shell-scrollbar::-webkit-scrollbar {
+  width: 10px;
+}
+
+.home-shell .shell-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.home-shell .shell-scrollbar::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: var(--shell-line-strong);
+  background-clip: padding-box;
+}
+
+.home-shell .shell-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--shell-muted);
+  background-clip: padding-box;
+}

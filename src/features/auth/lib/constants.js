@@ -6,7 +6,7 @@ export const AUTH_PAGE_CONTENT = {
     footer: "portal de acesso logimarui",
     formTitle: "Entrar na plataforma",
     formDescription:
-      "Informe sua matricula e senha para acessar o ambiente.",
+      "Informe seu CPF e senha para acessar o ambiente.",
     submitLabel: "Entrar",
     helperText:
       "Em caso de indisponibilidade ou duvida de acesso, procure o time responsavel pela operacao.",
@@ -19,15 +19,17 @@ export const AUTH_PAGE_CONTENT = {
     auxiliaryLinks: [{ label: "Recuperar senha", href: "/forgot-password" }],
     fields: [
       {
-        name: "employeeId",
-        label: "Matricula",
+        name: "cpf",
+        label: "CPF",
         type: "text",
         inputMode: "numeric",
-        placeholder: "Ex.: 12345",
-        hint: "Informe a matricula corporativa vinculada ao seu acesso.",
+        placeholder: "000.000.000-00",
+        hint: "Informe o CPF vinculado ao seu acesso.",
         autoComplete: "username",
+        maxLength: 14,
+        format: "cpf",
         required: true,
-        validation: { isPositiveInteger: true },
+        validation: { isCpf: true, allowTestValue: "cpf" },
       },
       {
         name: "password",
@@ -37,7 +39,7 @@ export const AUTH_PAGE_CONTENT = {
         hint: "Use a senha cadastrada para o seu perfil.",
         autoComplete: "current-password",
         required: true,
-        validation: { minLength: 6 },
+        validation: { minLength: 6, allowTestValue: "password" },
       },
     ],
   },
@@ -46,7 +48,7 @@ export const AUTH_PAGE_CONTENT = {
     footer: "portal de acesso logimarui",
     formTitle: "Cadastrar novo usuario",
     formDescription:
-      "Informe a matricula autorizada, o nome do usuario e a senha inicial para liberar o acesso.",
+      "Informe o CPF, o nome do usuario e a senha inicial para liberar o acesso.",
     submitLabel: "Cadastrar",
     helperText:
       "Use este fluxo para preparar acessos de novos colaboradores ou perfis previamente autorizados.",
@@ -61,15 +63,17 @@ export const AUTH_PAGE_CONTENT = {
     ],
     fields: [
       {
-        name: "employeeId",
-        label: "Matricula",
+        name: "cpf",
+        label: "CPF",
         type: "text",
         inputMode: "numeric",
-        placeholder: "Ex.: 12345",
-        hint: "Informe uma matricula autorizada para criacao de acesso.",
+        placeholder: "000.000.000-00",
+        hint: "Informe o CPF do usuario que sera cadastrado.",
         autoComplete: "username",
+        maxLength: 14,
+        format: "cpf",
         required: true,
-        validation: { isPositiveInteger: true },
+        validation: { isCpf: true },
       },
       {
         name: "username",
@@ -108,7 +112,7 @@ export const AUTH_PAGE_CONTENT = {
     footer: "portal de acesso logimarui",
     formTitle: "Recuperar acesso",
     formDescription:
-      "Informe a matricula do usuario para registrar a solicitacao de troca de senha.",
+      "Informe o CPF do usuario para registrar a solicitacao de troca de senha.",
     submitLabel: "Registrar solicitacao",
     helperText:
       "Depois do registro, a equipe pode acompanhar o status da solicitacao e orientar a proxima etapa do atendimento.",
@@ -121,15 +125,17 @@ export const AUTH_PAGE_CONTENT = {
     auxiliaryLinks: [{ label: "Criar conta", href: "/register" }],
     fields: [
       {
-        name: "employeeId",
-        label: "Matricula",
+        name: "cpf",
+        label: "CPF",
         type: "text",
         inputMode: "numeric",
-        placeholder: "Ex.: 12345",
-        hint: "Informe a matricula do colaborador que precisa redefinir a senha.",
+        placeholder: "000.000.000-00",
+        hint: "Informe o CPF do colaborador que precisa redefinir a senha.",
         autoComplete: "username",
+        maxLength: 14,
+        format: "cpf",
         required: true,
-        validation: { isPositiveInteger: true },
+        validation: { isCpf: true },
       },
     ],
   },

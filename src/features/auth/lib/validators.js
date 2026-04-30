@@ -1,13 +1,15 @@
+import { isValidCpf } from "@/features/auth/lib/cpf";
+import {
+  isTestCpfValue,
+  isTestPasswordValue,
+} from "@/features/auth/lib/testAuth";
+
 function isBlank(value) {
   return String(value ?? "").trim() === "";
 }
 
 function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value ?? "").trim());
-}
-
-function isPositiveInteger(value) {
-  return /^[1-9]\d*$/.test(String(value ?? "").trim());
 }
 
 export function validateAuthForm(fields, values) {
@@ -26,13 +28,21 @@ export function validateAuthForm(fields, values) {
       continue;
     }
 
+    if (rules.allowTestValue === "cpf" && isTestCpfValue(value)) {
+      continue;
+    }
+
+    if (rules.allowTestValue === "password" && isTestPasswordValue(value)) {
+      continue;
+    }
+
     if (rules.isEmail && !isValidEmail(value)) {
       errors[field.name] = "Informe um e-mail valido.";
       continue;
     }
 
-    if (rules.isPositiveInteger && !isPositiveInteger(value)) {
-      errors[field.name] = "Informe uma matricula numerica valida.";
+    if (rules.isCpf && !isValidCpf(value)) {
+      errors[field.name] = "Informe um CPF valido.";
       continue;
     }
 

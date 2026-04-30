@@ -4,6 +4,12 @@ import {
   readAuthSession,
   saveAuthSession,
 } from "@/features/auth/lib/authSession";
+import {
+  buildTestAuthProfile,
+  buildTestAuthTokens,
+  isTestAccessToken,
+  isTestAuthSession,
+} from "@/features/auth/lib/testAuth";
 
 const DEFAULT_LOCAL_API_ORIGIN = "http://127.0.0.1";
 const LOCAL_DEV_HOSTNAMES = new Set(["localhost", "127.0.0.1"]);
@@ -91,14 +97,18 @@ function extractErrorMessage(body, response) {
 
 function buildForbiddenMessage(path) {
   if (path === "/auth/register") {
-    return "Cadastro recusado pelo servico de autenticacao. Verifique se a matricula esta autorizada para criacao de acesso.";
+    return "Cadastro recusado pelo servico de autenticacao. Verifique se o CPF informado esta autorizado para criacao de acesso.";
   }
 
   if (/^\/auth\/employees\/\d+\/name$/.test(path)) {
-    return "Nao foi possivel validar a matricula informada para cadastro.";
+    return "Nao foi possivel validar o dado informado para cadastro.";
   }
 
   return "A solicitacao foi recusada pelo servico de autenticacao.";
+}
+
+function buildStoredTestProfile(session) {
+  return session?.profile || buildTestAuthProfile();
 }
 
 async function request(path, options = {}) {
@@ -163,6 +173,10 @@ async function request(path, options = {}) {
 export async function refreshSession() {
   const session = readAuthSession();
 
+  if (isTestAuthSession(session)) {
+    return saveAuthSession(buildTestAuthTokens(), buildStoredTestProfile(session));
+  }
+
   if (!session?.refreshToken) {
     clearAuthSession();
     throw new Error("Sua sessao expirou. Entre novamente.");
@@ -204,6 +218,12 @@ export const authApi = {
     });
   },
   me({ accessToken } = {}) {
+    const storedSession = readAuthSession();
+
+    if (isTestAuthSession(storedSession) || isTestAccessToken(accessToken)) {
+      return Promise.resolve(buildStoredTestProfile(storedSession));
+    }
+
     return request("/auth/me", {
       authenticated: true,
       accessToken,
@@ -211,6 +231,10 @@ export const authApi = {
     });
   },
   logout() {
+    if (isTestAuthSession(readAuthSession())) {
+      return Promise.resolve(null);
+    }
+
     return request("/auth/logout", {
       method: "POST",
       authenticated: true,

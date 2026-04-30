@@ -8,6 +8,7 @@ export default function AuthInput({
   error,
   autoComplete,
   inputMode,
+  maxLength,
   required = false,
   onChange,
 }) {
@@ -34,6 +35,7 @@ export default function AuthInput({
         value={value}
         autoComplete={autoComplete}
         inputMode={inputMode}
+        maxLength={maxLength}
         required={required}
         aria-invalid={Boolean(error)}
         aria-describedby={hint || error ? descriptionId : undefined}

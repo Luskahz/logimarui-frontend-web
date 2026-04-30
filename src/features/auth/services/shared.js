@@ -1,14 +1,15 @@
 import { authApi } from "@/features/auth/lib/authApi";
 import { saveAuthSession } from "@/features/auth/lib/authSession";
+import { isValidCpf, onlyDigits } from "@/features/auth/lib/cpf";
 
-export function toEmployeeId(value) {
-  const normalizedValue = String(value ?? "").trim();
+export function normalizeCpf(value) {
+  const normalizedValue = onlyDigits(value);
 
-  if (!/^[1-9]\d*$/.test(normalizedValue)) {
-    throw new Error("Informe uma matricula numerica valida.");
+  if (!isValidCpf(normalizedValue)) {
+    throw new Error("Informe um CPF valido.");
   }
 
-  return Number(normalizedValue);
+  return normalizedValue;
 }
 
 export async function persistSession(tokens) {
