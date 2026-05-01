@@ -69,6 +69,10 @@ export default function DpoHouse({ activeSlug = "" }) {
     DPO_PILLARS.map((pillar) => [pillar.slug, pillar]),
   );
 
+  const goToIntro = () => {
+    router.push("/dpo");
+  };
+
   const goToPillar = (slug) => {
     router.push(`/dpo/${slug}`);
   };
@@ -89,9 +93,9 @@ export default function DpoHouse({ activeSlug = "" }) {
       <div className="mt-6 px-2 py-1">
         <svg viewBox="0 0 760 690" className="w-full overflow-visible">
           <Segment
-            active={activeSlug === "sustentabilidade"}
-            label="Abrir pilar Sustentabilidade"
-            onClick={() => goToPillar("sustentabilidade")}
+            active={activeSlug === "dpo"}
+            label="Abrir introducao DPO"
+            onClick={goToIntro}
           >
             <polygon
               points="120,246 390,96 660,246"
@@ -101,7 +105,7 @@ export default function DpoHouse({ activeSlug = "" }) {
             <polygon
               points="108,234 378,84 648,234"
               fill="var(--dpo-house-fill)"
-              stroke={activeSlug === "sustentabilidade" ? "var(--shell-accent)" : "var(--dpo-outline)"}
+              stroke={activeSlug === "dpo" ? "var(--shell-accent)" : "var(--dpo-outline)"}
               strokeWidth="4"
             />
             <text

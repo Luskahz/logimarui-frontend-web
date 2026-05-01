@@ -1,4 +1,4 @@
-﻿export const DPO_PILLARS = [
+export const DPO_PILLARS = [
   {
     slug: "gente",
     label: "Gente",
@@ -41,12 +41,6 @@
     shortLabel: "Gestao",
     description: "Camada de coordenacao e governanca da auditoria.",
   },
-  {
-    slug: "sustentabilidade",
-    label: "Sustentabilidade",
-    shortLabel: "Sustentabilidade 2026",
-    description: "Direcao superior do modelo, simbolizada pelo telhado da casa.",
-  },
 ];
 
 export const DPO_PILLAR_MAP = Object.fromEntries(
@@ -56,6 +50,44 @@ export const DPO_PILLAR_MAP = Object.fromEntries(
 export function getDpoPillarBySlug(slug) {
   return DPO_PILLAR_MAP[slug] || null;
 }
+
+export const DPO_INTRO_SUMMARY = [
+  {
+    label: "Gente",
+    slug: "gente",
+    summary: "Base cultural e operacional que sustenta a leitura do DPO.",
+  },
+  {
+    label: "Seguranca",
+    slug: "seguranca",
+    summary: "Disciplina, padroes e protecao na rotina da operacao.",
+  },
+  {
+    label: "Planejamento",
+    slug: "planejamento",
+    summary: "Preparacao e previsibilidade para reduzir variacao na execucao.",
+  },
+  {
+    label: "Entrega",
+    slug: "entrega",
+    summary: "Atendimento, consistencia e execucao da ponta operacional.",
+  },
+  {
+    label: "Frota",
+    slug: "frota",
+    summary: "Disponibilidade e controle dos ativos moveis da operacao.",
+  },
+  {
+    label: "Armazem",
+    slug: "armazem",
+    summary: "Fluxo e sustentacao fisica dos processos de armazenagem.",
+  },
+  {
+    label: "Gestao",
+    slug: "gestao",
+    summary: "Coordenacao, governanca e acompanhamento dos demais pilares.",
+  },
+];
 
 export const DPO_QUESTION_GROUPS = Array.from({ length: 10 }, (_, groupIndex) => {
   const groupNumber = groupIndex + 1;
