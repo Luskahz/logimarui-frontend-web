@@ -8,6 +8,7 @@ import {
   readAuthSession,
   updateAuthSessionProfile,
 } from "@/features/auth/lib/authSession";
+import { APP_ROUTES } from "@/features/navigation/lib/appRoutes";
 
 const REFRESH_BUFFER_MS = 60_000;
 
@@ -47,7 +48,7 @@ export function useHomeSession() {
         setStatus("unauthenticated");
         setSession(null);
         setProfile(null);
-        router.replace("/login");
+        router.replace(APP_ROUTES.LOGIN);
         return null;
       }
 
@@ -79,7 +80,7 @@ export function useHomeSession() {
         setSession(null);
         setProfile(null);
         setError(syncError?.message || "Sua sessao expirou.");
-        router.replace("/login");
+        router.replace(APP_ROUTES.LOGIN);
         return null;
       } finally {
         setIsRefreshing(false);
@@ -110,13 +111,17 @@ export function useHomeSession() {
       setStatus("unauthenticated");
       setSession(null);
       setProfile(null);
-      router.replace("/login");
+      router.replace(APP_ROUTES.LOGIN);
       setIsLoggingOut(false);
     }
   }, [router]);
 
   const roles = useMemo(() => {
-    return Array.isArray(profile?.roles) ? profile.roles : [];
+    if (Array.isArray(profile?.roles) && profile.roles.length > 0) {
+      return profile.roles;
+    }
+
+    return Array.isArray(profile?.authorities) ? profile.authorities : [];
   }, [profile]);
 
   return {

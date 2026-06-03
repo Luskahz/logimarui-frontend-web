@@ -1,4 +1,5 @@
 import { AUTH_FORM_MODES } from "@/features/auth/types";
+import { APP_ROUTES } from "@/features/navigation/lib/appRoutes";
 
 export const AUTH_PAGE_CONTENT = {
   login: {
@@ -6,17 +7,17 @@ export const AUTH_PAGE_CONTENT = {
     footer: "portal de acesso logimarui",
     formTitle: "Entrar na plataforma",
     formDescription:
-      "Informe seu CPF e senha para acessar o ambiente.",
+      "Informe seu CPF e a senha atual para acessar o ambiente.",
     submitLabel: "Entrar",
     helperText:
-      "Em caso de indisponibilidade ou duvida de acesso, procure o time responsavel pela operacao.",
+      "Se o acesso estiver com senha provisoria, o proximo passo sera a definicao de uma nova senha antes da sessao final.",
     successPrefix: "Sessao iniciada com sucesso.",
     secondaryLink: {
       label: "Precisa de acesso ao ambiente?",
       cta: "Cadastrar usuario",
-      href: "/register",
+      href: APP_ROUTES.REGISTER,
     },
-    auxiliaryLinks: [{ label: "Recuperar senha", href: "/forgot-password" }],
+    auxiliaryLinks: [{ label: "Recuperar senha", href: APP_ROUTES.FORGOT_PASSWORD }],
     fields: [
       {
         name: "cpf",
@@ -39,7 +40,7 @@ export const AUTH_PAGE_CONTENT = {
         hint: "Use a senha cadastrada para o seu perfil.",
         autoComplete: "current-password",
         required: true,
-        validation: { minLength: 6, allowTestValue: "password" },
+        validation: { minLength: 8, allowTestValue: "password" },
       },
     ],
   },
@@ -48,18 +49,18 @@ export const AUTH_PAGE_CONTENT = {
     footer: "portal de acesso logimarui",
     formTitle: "Cadastrar novo usuario",
     formDescription:
-      "Informe o CPF, o nome do usuario e a senha inicial para liberar o acesso.",
+      "Informe os dados basicos do usuario, incluindo o e-mail que podera ser usado no recovery de senha.",
     submitLabel: "Cadastrar",
     helperText:
-      "Use este fluxo para preparar acessos de novos colaboradores ou perfis previamente autorizados.",
+      "Use este fluxo para preparar acessos de novos colaboradores ou perfis previamente autorizados, com dados suficientes para autenticacao e recovery.",
     successPrefix: "Cadastro concluido com sucesso.",
     secondaryLink: {
       label: "Ja possui acesso?",
       cta: "Voltar para login",
-      href: "/login",
+      href: APP_ROUTES.LOGIN,
     },
     auxiliaryLinks: [
-      { label: "Esqueci minha senha", href: "/forgot-password" },
+      { label: "Esqueci minha senha", href: APP_ROUTES.FORGOT_PASSWORD },
     ],
     fields: [
       {
@@ -76,24 +77,43 @@ export const AUTH_PAGE_CONTENT = {
         validation: { isCpf: true },
       },
       {
-        name: "username",
-        label: "Nome do usuario",
+        name: "name",
+        label: "Nome completo",
         type: "text",
-        placeholder: "Nome completo ou identificacao do usuario",
+        placeholder: "Nome completo do usuario",
         hint: "Este nome sera usado para identificar o usuario no ambiente.",
         autoComplete: "name",
         required: true,
         validation: { minLength: 3 },
       },
       {
+        name: "email",
+        label: "E-mail",
+        type: "email",
+        placeholder: "usuario@empresa.com",
+        hint: "Quando informado, permite o envio de link de redefinicao por e-mail.",
+        autoComplete: "email",
+        required: false,
+        validation: { isEmail: true },
+      },
+      {
+        name: "phoneNumber",
+        label: "Telefone",
+        type: "tel",
+        placeholder: "(00) 00000-0000",
+        hint: "Campo opcional para contato do usuario.",
+        autoComplete: "tel",
+        required: false,
+      },
+      {
         name: "password",
         label: "Senha",
         type: "password",
         placeholder: "Crie uma senha",
-        hint: "Defina uma senha inicial com no minimo 6 caracteres.",
+        hint: "Defina uma senha inicial com no minimo 8 caracteres.",
         autoComplete: "new-password",
         required: true,
-        validation: { minLength: 6 },
+        validation: { minLength: 8 },
       },
       {
         name: "confirmPassword",
@@ -110,19 +130,19 @@ export const AUTH_PAGE_CONTENT = {
   forgotPassword: {
     mode: AUTH_FORM_MODES.FORGOT_PASSWORD,
     footer: "portal de acesso logimarui",
-    formTitle: "Recuperar acesso",
+    formTitle: "Iniciar recovery de senha",
     formDescription:
-      "Informe o CPF do usuario para registrar a solicitacao de troca de senha.",
-    submitLabel: "Registrar solicitacao",
+      "Informe o CPF do usuario e escolha se o processo deve apenas abrir a solicitacao ou disparar o link por e-mail.",
+    submitLabel: "Registrar recovery",
     helperText:
-      "Depois do registro, a equipe pode acompanhar o status da solicitacao e orientar a proxima etapa do atendimento.",
+      "O envio por e-mail depende de um endereco ja cadastrado para o usuario. Sem isso, use apenas o registro da solicitacao.",
     successPrefix: "Solicitacao registrada com sucesso.",
     secondaryLink: {
       label: "Lembrou da senha?",
       cta: "Voltar para login",
-      href: "/login",
+      href: APP_ROUTES.LOGIN,
     },
-    auxiliaryLinks: [{ label: "Criar conta", href: "/register" }],
+    auxiliaryLinks: [{ label: "Criar conta", href: APP_ROUTES.REGISTER }],
     fields: [
       {
         name: "cpf",
@@ -136,6 +156,52 @@ export const AUTH_PAGE_CONTENT = {
         format: "cpf",
         required: true,
         validation: { isCpf: true },
+      },
+      {
+        name: "sendEmailToken",
+        label: "Enviar link por e-mail agora",
+        type: "checkbox",
+        hint: "Ative para usar o endpoint de envio do token por e-mail cadastrado.",
+        defaultValue: false,
+      },
+    ],
+  },
+  passwordRecoveryReset: {
+    mode: AUTH_FORM_MODES.PASSWORD_RECOVERY_RESET,
+    footer: "portal de acesso logimarui",
+    formTitle: "Definir nova senha",
+    formDescription:
+      "Informe a nova senha para concluir a redefinicao ou a troca obrigatoria exigida no login.",
+    submitLabel: "Salvar nova senha",
+    helperText:
+      "Esta tela depende do token presente na URL atual. Se o link estiver incompleto ou expirado, o backend recusara a operacao.",
+    successPrefix: "Senha atualizada com sucesso.",
+    secondaryLink: {
+      label: "Voltar sem alterar agora?",
+      cta: "Ir para login",
+      href: APP_ROUTES.LOGIN,
+    },
+    auxiliaryLinks: [{ label: "Criar conta", href: APP_ROUTES.REGISTER }],
+    fields: [
+      {
+        name: "password",
+        label: "Nova senha",
+        type: "password",
+        placeholder: "Digite a nova senha",
+        hint: "Use uma senha com no minimo 8 caracteres.",
+        autoComplete: "new-password",
+        required: true,
+        validation: { minLength: 8 },
+      },
+      {
+        name: "confirmPassword",
+        label: "Confirmar nova senha",
+        type: "password",
+        placeholder: "Repita a nova senha",
+        hint: "Repita a senha para confirmar a alteracao.",
+        autoComplete: "new-password",
+        required: true,
+        validation: { matchesField: "password" },
       },
     ],
   },

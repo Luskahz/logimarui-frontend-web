@@ -1,5 +1,8 @@
 import { authApi } from "@/features/auth/lib/authApi";
-import { buildSessionResult } from "@/features/auth/lib/authResult";
+import {
+  buildPasswordChangeChallengeResult,
+  buildSessionResult,
+} from "@/features/auth/lib/authResult";
 import { saveAuthSession } from "@/features/auth/lib/authSession";
 import {
   buildTestAuthProfile,
@@ -9,6 +12,16 @@ import {
   isTestPasswordValue,
 } from "@/features/auth/lib/testAuth";
 import { normalizeCpf, persistSession } from "@/features/auth/services/shared";
+import { APP_ROUTES } from "@/features/navigation/lib/appRoutes";
+
+function buildRequiredPasswordChangeRoute(passwordChangeToken) {
+  const query = new URLSearchParams({
+    flow: "required-password-change",
+    token: passwordChangeToken,
+  });
+
+  return `${APP_ROUTES.PASSWORD_RECOVERY_RESET}?${query.toString()}`;
+}
 
 export async function loginService(payload) {
   const rawCpf = payload.cpf;
@@ -26,24 +39,40 @@ export async function loginService(payload) {
 
     return {
       ok: true,
-      redirectTo: "/home",
+      redirectTo: APP_ROUTES.HOME,
       message: "Sessao de teste iniciada com sucesso.",
       result: buildSessionResult(tokens, profile),
     };
   }
 
-  const tokens = await authApi.login({
+  const loginResponse = await authApi.login({
     cpf: normalizeCpf(rawCpf),
-    password,
+    senha: password,
   });
-  const { profile, profileLoaded } = await persistSession(tokens);
+
+  if (loginResponse?.status === "PASSWORD_CHANGE_REQUIRED") {
+    if (!loginResponse.passwordChangeToken) {
+      throw new Error("O servico exigiu troca de senha, mas nao retornou o token da operacao.");
+    }
+
+    return {
+      ok: true,
+      redirectTo: buildRequiredPasswordChangeRoute(
+        loginResponse.passwordChangeToken,
+      ),
+      message: "A senha atual precisa ser substituida antes da autenticacao final.",
+      result: buildPasswordChangeChallengeResult(loginResponse),
+    };
+  }
+
+  const { profile, profileLoaded } = await persistSession(loginResponse);
 
   return {
     ok: true,
-    redirectTo: "/home",
+    redirectTo: APP_ROUTES.HOME,
     message: profileLoaded
       ? "Sessao iniciada com sucesso."
       : "Sessao iniciada com sucesso. Os detalhes completos da sessao nao puderam ser carregados agora.",
-    result: buildSessionResult(tokens, profile),
+    result: buildSessionResult(loginResponse, profile),
   };
 }

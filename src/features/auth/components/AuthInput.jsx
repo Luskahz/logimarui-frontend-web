@@ -15,6 +15,54 @@ export default function AuthInput({
   const inputId = `auth-${name}`;
   const descriptionId = `${inputId}-description`;
 
+  if (type === "hidden") {
+    return (
+      <input
+        id={inputId}
+        name={name}
+        type="hidden"
+        value={value}
+        onChange={onChange}
+      />
+    );
+  }
+
+  if (type === "checkbox") {
+    return (
+      <label className="block">
+        <span className="flex items-start gap-3 rounded-2xl border border-black/10 bg-white px-4 py-3">
+          <input
+            id={inputId}
+            className="mt-0.5 h-4 w-4 rounded border border-black/20 text-slate-950 outline-none"
+            name={name}
+            type="checkbox"
+            checked={Boolean(value)}
+            required={required}
+            aria-invalid={Boolean(error)}
+            aria-describedby={hint || error ? descriptionId : undefined}
+            onChange={onChange}
+          />
+
+          <span className="min-w-0">
+            <span className="block text-sm font-medium text-slate-800">
+              {label}
+              {required ? <span className="ml-1 text-rose-600">*</span> : null}
+            </span>
+            <span
+              id={descriptionId}
+              role={error ? "alert" : undefined}
+              className={`mt-2 block text-xs leading-6 ${
+                error ? "text-rose-600" : "text-slate-500"
+              }`}
+            >
+              {error || hint}
+            </span>
+          </span>
+        </span>
+      </label>
+    );
+  }
+
   return (
     <label className="block">
       <span className="mb-2 block text-sm font-medium text-slate-800">

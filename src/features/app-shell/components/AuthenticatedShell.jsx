@@ -7,6 +7,11 @@ import { formatRoles } from "@/features/auth/lib/authFormatters";
 import { buildGatewayUrl } from "@/features/app-shell/lib/gatewayUrl";
 import { getDpoPillarBySlug } from "@/features/dpo/lib/dpoConfig";
 import { useHomeSession } from "@/features/home/hooks/useHomeSession";
+import {
+  APP_ROUTES,
+  getRouteSegment,
+  matchesRoute,
+} from "@/features/navigation/lib/appRoutes";
 import { useUiTheme } from "@/features/ui/hooks/useUiTheme";
 
 const SIDEBAR_ITEMS = [
@@ -22,8 +27,16 @@ const SIDEBAR_ITEMS = [
     label: "DPO",
     description: "Auditoria, casa de pilares e questionarios.",
     type: "link",
-    href: "/dpo",
+    href: APP_ROUTES.DPO,
     icon: "house",
+  },
+  {
+    id: "server-manager",
+    label: "Servidor",
+    description: "Status do gateway e controle dos processos gerenciados.",
+    type: "link",
+    href: APP_ROUTES.SERVER_MANAGER,
+    icon: "service",
   },
   {
     id: "sustainability-kpis",
@@ -394,12 +407,12 @@ function buildBreadcrumbs(pathname) {
     .filter(Boolean);
   const items = [
     {
-      href: "/home",
+      href: APP_ROUTES.HOME,
       label: "Home",
     },
   ];
 
-  if (segments.length === 0 || segments[0] === "home") {
+  if (segments.length === 0 || segments[0] === getRouteSegment(APP_ROUTES.HOME)) {
     return items;
   }
 
@@ -408,7 +421,7 @@ function buildBreadcrumbs(pathname) {
   for (const segment of segments) {
     currentPath += `/${segment}`;
 
-    if (segment === "dpo") {
+    if (segment === getRouteSegment(APP_ROUTES.DPO)) {
       items.push({
         href: currentPath,
         label: "DPO",
@@ -416,7 +429,7 @@ function buildBreadcrumbs(pathname) {
       continue;
     }
 
-    if (segments[0] === "dpo") {
+    if (segments[0] === getRouteSegment(APP_ROUTES.DPO)) {
       const pillar = getDpoPillarBySlug(segment);
 
       items.push({
@@ -574,7 +587,7 @@ export default function AuthenticatedShell({ children }) {
   const breadcrumbs = useMemo(() => buildBreadcrumbs(pathname), [pathname]);
   const roleSummary = useMemo(() => formatRoles(roles), [roles]);
   const showHeader = !headerHidden || sidebarOpen || profileMenuOpen;
-  const isDpoRoute = pathname.startsWith("/dpo");
+  const isDpoRoute = matchesRoute(pathname, APP_ROUTES.DPO);
   const overlayZClass = sidebarOpen ? "z-[55]" : "z-30";
   const sidebarPanelContent = useMemo(
     () => getSidebarPanelContent(activeSidebarPanel),
@@ -679,7 +692,7 @@ export default function AuthenticatedShell({ children }) {
               </IconButton>
 
               <Link
-                href="/home"
+                href={APP_ROUTES.HOME}
                 onClick={closePanels}
                 className="rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] px-4 py-2 transition hover:border-[color:var(--shell-line-strong)]"
               >
@@ -884,8 +897,12 @@ export default function AuthenticatedShell({ children }) {
           <div className="relative mt-5 min-h-0 flex-1">
             <div className="shell-scrollbar h-full space-y-2.5 overflow-x-hidden overflow-y-auto pr-2 pb-2">
               {SIDEBAR_ITEMS.map((item) => {
-                const isActive = item.id === "dpo"
-                  ? isDpoRoute
+                const isActive = item.type === "link"
+                  ? (
+                    item.id === "dpo"
+                      ? isDpoRoute
+                      : pathname === item.href || pathname.startsWith(`${item.href}/`)
+                  )
                   : activeSidebarPanel === item.id;
 
                 if (item.type === "panel") {

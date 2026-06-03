@@ -13,6 +13,9 @@ import {
 
 const DEFAULT_LOCAL_API_ORIGIN = "http://127.0.0.1";
 const LOCAL_DEV_HOSTNAMES = new Set(["localhost", "127.0.0.1"]);
+const AUTHENTICATION_BASE_PATH = "/authentication";
+const PASSWORD_RECOVERY_REQUESTS_PATH =
+  `${AUTHENTICATION_BASE_PATH}/password-recovery/requests`;
 
 function trimTrailingSlash(value) {
   return String(value ?? "").replace(/\/+$/, "");
@@ -56,6 +59,26 @@ function buildUrl(path) {
   return `${resolveApiBaseUrl()}${normalizedPath}`;
 }
 
+function normalizeProfilePayload(profile) {
+  if (!profile || typeof profile !== "object") {
+    return profile;
+  }
+
+  const authorities = Array.isArray(profile.authorities)
+    ? profile.authorities
+    : [];
+  const roles =
+    Array.isArray(profile.roles) && profile.roles.length > 0
+      ? profile.roles
+      : authorities;
+
+  return {
+    ...profile,
+    authorities,
+    roles,
+  };
+}
+
 async function parseResponseBody(response) {
   if (response.status === 204) {
     return null;
@@ -96,12 +119,12 @@ function extractErrorMessage(body, response) {
 }
 
 function buildForbiddenMessage(path) {
-  if (path === "/auth/register") {
+  if (path === `${AUTHENTICATION_BASE_PATH}/register`) {
     return "Cadastro recusado pelo servico de autenticacao. Verifique se o CPF informado esta autorizado para criacao de acesso.";
   }
 
-  if (/^\/auth\/employees\/\d+\/name$/.test(path)) {
-    return "Nao foi possivel validar o dado informado para cadastro.";
+  if (path.startsWith(PASSWORD_RECOVERY_REQUESTS_PATH)) {
+    return "A recuperacao de senha foi recusada pelo servico de autenticacao.";
   }
 
   return "A solicitacao foi recusada pelo servico de autenticacao.";
@@ -183,7 +206,7 @@ export async function refreshSession() {
   }
 
   try {
-    const tokens = await request("/auth/refresh", {
+    const tokens = await request(`${AUTHENTICATION_BASE_PATH}/refresh`, {
       method: "POST",
       body: {
         refreshToken: session.refreshToken,
@@ -200,19 +223,37 @@ export async function refreshSession() {
 
 export const authApi = {
   login(payload) {
-    return request("/auth/login", {
+    return request(`${AUTHENTICATION_BASE_PATH}/login`, {
+      method: "POST",
+      body: payload,
+    });
+  },
+  completeRequiredPasswordChange(payload) {
+    return request(`${AUTHENTICATION_BASE_PATH}/login/password-change`, {
       method: "POST",
       body: payload,
     });
   },
   register(payload) {
-    return request("/auth/register", {
+    return request(`${AUTHENTICATION_BASE_PATH}/register`, {
       method: "POST",
       body: payload,
     });
   },
-  forgotPassword(payload) {
-    return request("/auth/forgot-password", {
+  createPasswordRecoveryRequest(payload) {
+    return request(PASSWORD_RECOVERY_REQUESTS_PATH, {
+      method: "POST",
+      body: payload,
+    });
+  },
+  sendPasswordRecoveryEmailToken(payload) {
+    return request(`${PASSWORD_RECOVERY_REQUESTS_PATH}/email-token`, {
+      method: "POST",
+      body: payload,
+    });
+  },
+  resetPasswordByToken(payload) {
+    return request(`${PASSWORD_RECOVERY_REQUESTS_PATH}/token/reset`, {
       method: "POST",
       body: payload,
     });
@@ -221,29 +262,28 @@ export const authApi = {
     const storedSession = readAuthSession();
 
     if (isTestAuthSession(storedSession) || isTestAccessToken(accessToken)) {
-      return Promise.resolve(buildStoredTestProfile(storedSession));
+      return Promise.resolve(
+        normalizeProfilePayload(buildStoredTestProfile(storedSession)),
+      );
     }
 
-    return request("/auth/me", {
+    return request(`${AUTHENTICATION_BASE_PATH}/me`, {
       authenticated: true,
       accessToken,
       retryOnAuthFailure: !accessToken,
-    });
+    }).then(normalizeProfilePayload);
   },
   logout() {
     if (isTestAuthSession(readAuthSession())) {
       return Promise.resolve(null);
     }
 
-    return request("/auth/logout", {
+    return request(`${AUTHENTICATION_BASE_PATH}/logout`, {
       method: "POST",
       authenticated: true,
     });
   },
   refresh() {
     return refreshSession();
-  },
-  employeeName(employeeId) {
-    return request(`/auth/employees/${employeeId}/name`);
   },
 };

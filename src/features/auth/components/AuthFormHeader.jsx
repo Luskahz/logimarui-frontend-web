@@ -2,6 +2,7 @@ const MODE_LABELS = {
   login: "acesso",
   register: "cadastro",
   "forgot-password": "recuperacao",
+  "password-recovery-reset": "nova senha",
 };
 
 export default function AuthFormHeader({

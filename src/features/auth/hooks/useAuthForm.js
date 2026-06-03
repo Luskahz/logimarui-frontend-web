@@ -12,7 +12,8 @@ const IDLE_FEEDBACK = {
 
 function buildInitialValues(fields) {
   return fields.reduce((accumulator, field) => {
-    accumulator[field.name] = field.defaultValue ?? "";
+    accumulator[field.name] =
+      field.defaultValue ?? (field.type === "checkbox" ? false : "");
     return accumulator;
   }, {});
 }
@@ -47,9 +48,11 @@ export function useAuthForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   function handleChange(event) {
-    const { name, value } = event.target;
+    const { name } = event.target;
     const field = fields.find((candidate) => candidate.name === name);
-    const formattedValue = formatInputValue(field, value);
+    const rawValue =
+      field?.type === "checkbox" ? event.target.checked : event.target.value;
+    const formattedValue = formatInputValue(field, rawValue);
 
     setValues((currentValues) => ({
       ...currentValues,
