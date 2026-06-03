@@ -103,6 +103,8 @@ async function request(path, options = {}) {
     Accept: "application/json",
     Authorization: `Bearer ${session.accessToken}`,
     "X-Device-Id": getOrCreateDeviceId(),
+    "Cache-Control": "no-cache",
+    Pragma: "no-cache",
   };
 
   if (body !== undefined) {
@@ -116,6 +118,7 @@ async function request(path, options = {}) {
       method,
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
+      cache: "no-store",
     });
   } catch {
     throw new Error("Nao foi possivel conectar ao core-api de autorizacao.");
