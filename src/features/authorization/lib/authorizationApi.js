@@ -177,6 +177,22 @@ export const authorizationApi = {
       method: "DELETE",
     });
   },
+  findAllPermissions() {
+    return request(`${AUTHORIZATION_BASE_PATH}/permissions`);
+  },
+  findPermissionsByRole(roleId) {
+    return request(`${AUTHORIZATION_BASE_PATH}/roles/${roleId}/permissions`);
+  },
+  assignPermissionToRole(roleId, permissionId) {
+    return request(`${AUTHORIZATION_BASE_PATH}/roles/${roleId}/permissions/${permissionId}`, {
+      method: "POST",
+    });
+  },
+  removePermissionFromRole(roleId, permissionId) {
+    return request(`${AUTHORIZATION_BASE_PATH}/roles/${roleId}/permissions/${permissionId}`, {
+      method: "DELETE",
+    });
+  },
   findRolesByUser(userId) {
     return request(`${AUTHORIZATION_BASE_PATH}/users/${userId}/roles`);
   },
