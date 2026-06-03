@@ -37,6 +37,7 @@ const SIDEBAR_ITEMS = [
       type: "link",
       href: APP_ROUTES.AUTHORIZATION_ROLES,
       icon: "service",
+      requiredAuthorities: ["AUTHORIZATION_ROLE_READ"],
     },
   {
     id: "server-manager",
@@ -339,6 +340,28 @@ function resolveAvatarUrl(profile) {
 
   return imageSource ? imageSource.trim() : "";
 }
+function resolveAuthorities(profile, roles) {
+  const candidates = [
+    ...(Array.isArray(profile?.authorities) ? profile.authorities : []),
+    ...(Array.isArray(profile?.roles) ? profile.roles : []),
+    ...(Array.isArray(roles) ? roles : []),
+  ];
+
+  return Array.from(new Set(candidates.map(String)));
+}
+
+function canAccessSidebarItem(item, authorities) {
+  if (
+    !Array.isArray(item.requiredAuthorities) ||
+    item.requiredAuthorities.length === 0
+  ) {
+    return true;
+  }
+
+  return item.requiredAuthorities.every((authority) =>
+    authorities.includes(authority),
+  );
+}
 
 function getSidebarPanelContent(itemId) {
   switch (itemId) {
@@ -594,6 +617,15 @@ export default function AuthenticatedShell({ children }) {
   const profileHeading = useMemo(() => resolveProfileName(profile), [profile]);
   const breadcrumbs = useMemo(() => buildBreadcrumbs(pathname), [pathname]);
   const roleSummary = useMemo(() => formatRoles(roles), [roles]);
+  const authorities = useMemo(
+    () => resolveAuthorities(profile, roles),
+    [profile, roles],
+  );
+
+  const visibleSidebarItems = useMemo(
+    () => SIDEBAR_ITEMS.filter((item) => canAccessSidebarItem(item, authorities)),
+    [authorities],
+  );
   const showHeader = !headerHidden || sidebarOpen || profileMenuOpen;
   const isDpoRoute = matchesRoute(pathname, APP_ROUTES.DPO);
   const overlayZClass = sidebarOpen ? "z-[55]" : "z-30";
@@ -904,7 +936,7 @@ export default function AuthenticatedShell({ children }) {
 
           <div className="relative mt-5 min-h-0 flex-1">
             <div className="shell-scrollbar h-full space-y-2.5 overflow-x-hidden overflow-y-auto pr-2 pb-2">
-              {SIDEBAR_ITEMS.map((item) => {
+              {visibleSidebarItems.map((item) => {
                 const isActive = item.type === "link"
                   ? (
                     item.id === "dpo"
