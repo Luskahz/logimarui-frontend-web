@@ -1,136 +1,59 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { authApi } from "@/features/auth/lib/authApi";
-import {
-  clearAuthSession,
-  readAuthSession,
-  updateAuthSessionProfile,
-} from "@/features/auth/lib/authSession";
-import { APP_ROUTES } from "@/features/navigation/lib/appRoutes";
-
-const REFRESH_BUFFER_MS = 60_000;
-
-function hasStoredSession(session) {
-  return Boolean(session?.accessToken && session?.refreshToken);
-}
-
-function shouldRefreshSoon(session) {
-  if (!session?.refreshToken || !session?.expiresAt) {
-    return false;
-  }
-
-  const expiresAt = Date.parse(session.expiresAt);
-
-  if (!Number.isFinite(expiresAt)) {
-    return false;
-  }
-
-  return expiresAt - Date.now() <= REFRESH_BUFFER_MS;
-}
+import { resolveSessionRoles } from "@/features/auth/lib/sessionView";
+import { useSessionStore } from "@/features/auth/store/useSessionStore";
 
 export function useHomeSession() {
   const router = useRouter();
-  const [status, setStatus] = useState("loading");
-  const [error, setError] = useState("");
-  const [session, setSession] = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
-
-  const syncSession = useCallback(
-    async ({ forceRefresh = false } = {}) => {
-      const storedSession = readAuthSession();
-
-      if (!hasStoredSession(storedSession)) {
-        clearAuthSession();
-        setStatus("unauthenticated");
-        setSession(null);
-        setProfile(null);
-        router.replace(APP_ROUTES.LOGIN);
-        return null;
-      }
-
-      setSession(storedSession);
-      setProfile(storedSession.profile ?? null);
-
-      try {
-        if (forceRefresh || shouldRefreshSoon(storedSession)) {
-          setIsRefreshing(true);
-          await authApi.refresh();
-        }
-
-        const nextProfile = await authApi.me();
-        const nextSession =
-          updateAuthSessionProfile(nextProfile) || readAuthSession();
-
-        setSession(nextSession);
-        setProfile(nextProfile);
-        setError("");
-        setStatus("ready");
-
-        return {
-          session: nextSession,
-          profile: nextProfile,
-        };
-      } catch (syncError) {
-        clearAuthSession();
-        setStatus("unauthenticated");
-        setSession(null);
-        setProfile(null);
-        setError(syncError?.message || "Sua sessao expirou.");
-        router.replace(APP_ROUTES.LOGIN);
-        return null;
-      } finally {
-        setIsRefreshing(false);
-      }
-    },
-    [router],
-  );
+  const error = useSessionStore((state) => state.error);
+  const isLoggingOut = useSessionStore((state) => state.isLoggingOut);
+  const logoutAction = useSessionStore((state) => state.logout);
+  const profile = useSessionStore((state) => state.profile);
+  const session = useSessionStore((state) => state.session);
+  const status = useSessionStore((state) => state.status);
+  const syncSession = useSessionStore((state) => state.syncSession);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      void syncSession();
+      void syncSession(router);
     }, 0);
 
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [syncSession]);
+  }, [router, syncSession]);
 
-  const logout = useCallback(async () => {
-    setIsLoggingOut(true);
-
-    try {
-      await authApi.logout();
-    } catch {
-      // Se o backend rejeitar a sessao atual, ainda limpamos o navegador.
-    } finally {
-      clearAuthSession();
-      setStatus("unauthenticated");
-      setSession(null);
-      setProfile(null);
-      router.replace(APP_ROUTES.LOGIN);
-      setIsLoggingOut(false);
+  useEffect(() => {
+    function syncHiddenSession() {
+      if (document.visibilityState === "visible") {
+        void syncSession(router);
+      }
     }
-  }, [router]);
+
+    function handleWindowFocus() {
+      void syncSession(router);
+    }
+
+    document.addEventListener("visibilitychange", syncHiddenSession);
+    window.addEventListener("focus", handleWindowFocus);
+
+    return () => {
+      document.removeEventListener("visibilitychange", syncHiddenSession);
+      window.removeEventListener("focus", handleWindowFocus);
+    };
+  }, [router, syncSession]);
 
   const roles = useMemo(() => {
-    if (Array.isArray(profile?.roles) && profile.roles.length > 0) {
-      return profile.roles;
-    }
-
-    return Array.isArray(profile?.authorities) ? profile.authorities : [];
+    return resolveSessionRoles(profile);
   }, [profile]);
 
   return {
     error,
     isLoggingOut,
-    isRefreshing,
-    logout,
+    logout: () => logoutAction(router),
     profile,
-    refreshSession: () => syncSession({ forceRefresh: true }),
     roles,
     session,
     status,

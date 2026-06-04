@@ -3,8 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  buildAvatarLabel,
+  resolveAuthorities,
+  resolveAvatarUrl,
+  resolveProfileName,
+} from "@/features/auth/lib/sessionView";
 import { formatRoles } from "@/features/auth/lib/authFormatters";
 import { buildGatewayUrl } from "@/features/app-shell/lib/gatewayUrl";
+import { useShellStore } from "@/features/app-shell/store/useShellStore";
 import { getDpoPillarBySlug } from "@/features/dpo/lib/dpoConfig";
 import { useHomeSession } from "@/features/home/hooks/useHomeSession";
 import {
@@ -30,15 +37,15 @@ const SIDEBAR_ITEMS = [
     href: APP_ROUTES.DPO,
     icon: "house",
   },
-    {
-      id: "authorization-roles",
-      label: "Autorizacao",
-      description: "Controle de roles e acessos dos usuarios.",
-      type: "link",
-      href: APP_ROUTES.AUTHORIZATION_ROLES,
-      icon: "service",
-      requiredAuthorities: ["AUTHORIZATION_ROLE_READ"],
-    },
+  {
+    id: "authorization-roles",
+    label: "Autorizacao",
+    description: "Controle de roles e acessos dos usuarios.",
+    type: "link",
+    href: APP_ROUTES.AUTHORIZATION_ROLES,
+    icon: "service",
+    requiredAuthorities: ["AUTHORIZATION_ROLE_READ"],
+  },
   {
     id: "server-manager",
     label: "Servidor",
@@ -80,8 +87,8 @@ const SIDEBAR_ITEMS = [
 const SERVICE_ITEMS = [
   {
     id: "gerenciador-extracao",
-    label: "Gerenciador Extracao",
-    href: "/gerenciador-extracao/",
+    label: "Extrator",
+    href: APP_ROUTES.EXTRATOR_MANAGER,
   },
   {
     id: "gerenciador-database",
@@ -266,31 +273,6 @@ function LogoutIcon() {
   );
 }
 
-function RefreshIcon({ spinning = false }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className={`h-4 w-4 fill-none stroke-current ${spinning ? "animate-spin" : ""}`}
-    >
-      <path
-        d="M20 12a8 8 0 1 1-2.34-5.66"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-      <path d="M20 4v6h-6" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function UserIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current">
-      <circle cx="12" cy="8" r="3.5" strokeWidth="1.8" />
-      <path d="M5 19a7 7 0 0 1 14 0" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 function MoonIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current">
@@ -302,52 +284,6 @@ function MoonIcon() {
       />
     </svg>
   );
-}
-
-function buildAvatarLabel(profile) {
-  const nameSource = [
-    profile?.username,
-    profile?.name,
-    profile?.displayName,
-    profile?.fullName,
-  ].find((value) => typeof value === "string" && value.trim());
-
-  if (nameSource) {
-    return nameSource.trim().slice(0, 2).toUpperCase();
-  }
-
-  return "LG";
-}
-
-function resolveProfileName(profile) {
-  const nameSource = [
-    profile?.username,
-    profile?.name,
-    profile?.displayName,
-    profile?.fullName,
-  ].find((value) => typeof value === "string" && value.trim());
-
-  return nameSource ? nameSource.trim() : "Conta Logimarui";
-}
-
-function resolveAvatarUrl(profile) {
-  const imageSource = [
-    profile?.avatarUrl,
-    profile?.photoUrl,
-    profile?.imageUrl,
-    profile?.profileImageUrl,
-  ].find((value) => typeof value === "string" && value.trim());
-
-  return imageSource ? imageSource.trim() : "";
-}
-function resolveAuthorities(profile, roles) {
-  const candidates = [
-    ...(Array.isArray(profile?.authorities) ? profile.authorities : []),
-    ...(Array.isArray(profile?.roles) ? profile.roles : []),
-    ...(Array.isArray(roles) ? roles : []),
-  ];
-
-  return Array.from(new Set(candidates.map(String)));
 }
 
 function canAccessSidebarItem(item, authorities) {
@@ -597,19 +533,21 @@ export default function AuthenticatedShell({ children }) {
   const {
     error,
     isLoggingOut,
-    isRefreshing,
     logout,
     profile,
-    refreshSession,
     roles,
-    session,
     status,
   } = useHomeSession();
   const { isDark, toggleTheme } = useUiTheme();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [activeSidebarPanel, setActiveSidebarPanel] = useState("");
-  const [headerHidden, setHeaderHidden] = useState(false);
+  const activeSidebarPanel = useShellStore((state) => state.activeSidebarPanel);
+  const closePanels = useShellStore((state) => state.closePanels);
+  const headerHidden = useShellStore((state) => state.headerHidden);
+  const profileMenuOpen = useShellStore((state) => state.profileMenuOpen);
+  const setHeaderHidden = useShellStore((state) => state.setHeaderHidden);
+  const sidebarOpen = useShellStore((state) => state.sidebarOpen);
+  const toggleProfileMenu = useShellStore((state) => state.toggleProfileMenu);
+  const toggleSidebar = useShellStore((state) => state.toggleSidebar);
+  const toggleSidebarPanel = useShellStore((state) => state.toggleSidebarPanel);
   const lastScrollYRef = useRef(0);
 
   const avatarLabel = useMemo(() => buildAvatarLabel(profile), [profile]);
@@ -634,34 +572,6 @@ export default function AuthenticatedShell({ children }) {
     [activeSidebarPanel],
   );
 
-  const shellState = useMemo(() => ({
-    error,
-    isDark,
-    isLoggingOut,
-    isRefreshing,
-    logout,
-    profile,
-    profileHeading,
-    refreshSession,
-    roleSummary,
-    roles,
-    session,
-    status,
-  }), [
-    error,
-    isDark,
-    isLoggingOut,
-    isRefreshing,
-    logout,
-    profile,
-    profileHeading,
-    refreshSession,
-    roleSummary,
-    roles,
-    session,
-    status,
-  ]);
-
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
@@ -685,21 +595,11 @@ export default function AuthenticatedShell({ children }) {
     return () => {
       window.removeEventListener("scroll", handleScroll);
     };
-  }, []);
+  }, [setHeaderHidden]);
 
   if (status === "loading") {
     return <ShellLoadingState />;
   }
-
-  const closePanels = () => {
-    setSidebarOpen(false);
-    setProfileMenuOpen(false);
-    setActiveSidebarPanel("");
-  };
-
-  const renderedChildren = typeof children === "function"
-    ? children(shellState)
-    : children;
 
   return (
     <div className="home-shell">
@@ -723,10 +623,7 @@ export default function AuthenticatedShell({ children }) {
               <IconButton
                 active={sidebarOpen}
                 label="Abrir menu lateral"
-                onClick={() => {
-                  setSidebarOpen((current) => !current);
-                  setProfileMenuOpen(false);
-                }}
+                onClick={toggleSidebar}
               >
                 <MenuIcon />
               </IconButton>
@@ -790,11 +687,7 @@ export default function AuthenticatedShell({ children }) {
               <div className="relative">
                 <button
                   type="button"
-                  onClick={() => {
-                    setProfileMenuOpen((current) => !current);
-                    setSidebarOpen(false);
-                    setActiveSidebarPanel("");
-                  }}
+                  onClick={toggleProfileMenu}
                   aria-label="Abrir menu de perfil"
                   className="rounded-full border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-1.5 text-left transition hover:border-[color:var(--shell-text)]"
                 >
@@ -819,21 +712,12 @@ export default function AuthenticatedShell({ children }) {
                             {profileHeading}
                           </p>
                           <p className="mt-1 text-sm text-[var(--shell-muted)]">
-                            Perfil do dispositivo atual
+                            {roleSummary || "Perfil autenticado"}
                           </p>
                         </div>
                       </div>
 
                       <div className="mt-4 border-t border-[color:var(--shell-line)] pt-4">
-                        <MenuActionButton
-                          onClick={refreshSession}
-                          disabled={isRefreshing}
-                          label={isRefreshing ? "Atualizando sessao" : "Atualizar sessao"}
-                          trailing={<ChevronRightIcon />}
-                        >
-                          <RefreshIcon spinning={isRefreshing} />
-                        </MenuActionButton>
-
                         <MenuActionButton
                           onClick={toggleTheme}
                           label={isDark ? "Usar modo claro" : "Ativar modo escuro"}
@@ -845,16 +729,6 @@ export default function AuthenticatedShell({ children }) {
                         >
                           <MoonIcon />
                         </MenuActionButton>
-
-                        <div className="mt-1 rounded-2xl px-3 py-3 text-sm text-[var(--shell-text)]">
-                          <span className="inline-flex items-center gap-3">
-                            <UserIcon />
-                            Sessao atual
-                          </span>
-                          <p className="mt-2 pl-7 text-sm text-[var(--shell-muted)]">
-                            #{profile?.sessionId ?? profile?.userId ?? session?.profile?.sessionId ?? "-"}
-                          </p>
-                        </div>
 
                         <div className="mt-4 border-t border-[color:var(--shell-line)] pt-4">
                           <MenuActionButton
@@ -952,11 +826,7 @@ export default function AuthenticatedShell({ children }) {
                       active={isActive}
                       label={item.label}
                       description={item.description}
-                      onClick={() => {
-                        setActiveSidebarPanel((current) =>
-                          current === item.id ? "" : item.id,
-                        );
-                      }}
+                      onClick={() => toggleSidebarPanel(item.id)}
                     >
                       {renderSidebarItemIcon(item.icon)}
                     </SidebarItem>
@@ -967,10 +837,7 @@ export default function AuthenticatedShell({ children }) {
                   <Link
                     key={item.id}
                     href={item.href}
-                    onClick={() => {
-                      setSidebarOpen(false);
-                      setActiveSidebarPanel("");
-                    }}
+                    onClick={closePanels}
                     className={`flex items-start justify-between gap-3 rounded-[22px] border px-3.5 py-3 text-left transition ${
                       isActive
                         ? "border-[color:var(--shell-accent)] bg-[var(--shell-accent-soft)]"
@@ -1049,7 +916,7 @@ export default function AuthenticatedShell({ children }) {
 
       <main className="min-h-screen px-4 pb-6 pt-28 sm:px-6 sm:pb-8 sm:pt-32">
         <div className="mx-auto max-w-7xl rounded-[30px] border border-[color:var(--shell-line)] bg-[var(--shell-surface-strong)] p-4 shadow-[0_18px_60px_rgba(20,32,43,0.08)] sm:p-6">
-          {renderedChildren}
+          {children}
         </div>
       </main>
     </div>

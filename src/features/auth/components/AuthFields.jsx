@@ -1,11 +1,12 @@
 import AuthInput from "@/features/auth/components/AuthInput";
+import { useAuthFormStore } from "@/features/auth/store/useAuthFormStore";
 
-export default function AuthFields({
-  fields,
-  values,
-  errors,
-  onChange,
-}) {
+export default function AuthFields() {
+  const errors = useAuthFormStore((state) => state.errors);
+  const fields = useAuthFormStore((state) => state.content?.fields ?? []);
+  const handleChange = useAuthFormStore((state) => state.handleChange);
+  const values = useAuthFormStore((state) => state.values);
+
   return fields.map((field) => (
     <AuthInput
       key={field.name}
@@ -20,7 +21,7 @@ export default function AuthFields({
       inputMode={field.inputMode}
       maxLength={field.maxLength}
       required={field.required}
-      onChange={onChange}
+      onChange={handleChange}
     />
   ));
 }

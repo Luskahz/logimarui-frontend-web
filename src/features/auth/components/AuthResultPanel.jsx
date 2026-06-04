@@ -1,4 +1,8 @@
-export default function AuthResultPanel({ result }) {
+import { useAuthFormStore } from "@/features/auth/store/useAuthFormStore";
+
+export default function AuthResultPanel() {
+  const result = useAuthFormStore((state) => state.result);
+
   if (!result?.items?.length) {
     return null;
   }

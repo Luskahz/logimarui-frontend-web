@@ -5,11 +5,15 @@ const MODE_LABELS = {
   "password-recovery-reset": "nova senha",
 };
 
-export default function AuthFormHeader({
-  mode,
-  title,
-  description,
-}) {
+import { useAuthFormStore } from "@/features/auth/store/useAuthFormStore";
+
+export default function AuthFormHeader() {
+  const description = useAuthFormStore(
+    (state) => state.content?.formDescription || "",
+  );
+  const mode = useAuthFormStore((state) => state.content?.mode || "login");
+  const title = useAuthFormStore((state) => state.content?.formTitle || "");
+
   return (
     <div className="mb-8 space-y-3">
       <p className="inline-flex rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">

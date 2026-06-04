@@ -150,6 +150,9 @@ export const authorizationApi = {
   findAllRoles() {
     return request(`${AUTHORIZATION_BASE_PATH}/roles`);
   },
+  findAllPermissions() {
+    return request(`${AUTHORIZATION_BASE_PATH}/permissions`);
+  },
   createRole(payload) {
     return request(`${AUTHORIZATION_BASE_PATH}/roles`, {
       method: "POST",
@@ -176,9 +179,6 @@ export const authorizationApi = {
     return request(`${AUTHORIZATION_BASE_PATH}/roles/${roleId}`, {
       method: "DELETE",
     });
-  },
-  findAllPermissions() {
-    return request(`${AUTHORIZATION_BASE_PATH}/permissions`);
   },
   findPermissionsByRole(roleId) {
     return request(`${AUTHORIZATION_BASE_PATH}/roles/${roleId}/permissions`);

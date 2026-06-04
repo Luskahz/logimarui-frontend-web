@@ -7,6 +7,8 @@ export const APP_ROUTES = Object.freeze({
   PASSWORD_RECOVERY_RESET: "/password-recovery/reset",
   DPO: "/dpo",
   AUTHORIZATION_ROLES: "/app/roles",
+  EXTRATOR_MANAGER: "/app/extrator",
+  EXTRATOR_GLOBAL_QUEUE: "/app/extrator/fila",
   SERVER_MANAGER: "/servidor",
 });
 

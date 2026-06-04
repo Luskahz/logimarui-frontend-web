@@ -1,6 +1,13 @@
 "use client";
 
-import { formatDuration } from "@/features/auth/lib/authFormatters";
+import { useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { formatDuration, formatRoles } from "@/features/auth/lib/authFormatters";
+import {
+  resolveProfileName,
+  resolveSessionRoles,
+} from "@/features/auth/lib/sessionView";
+import { useSessionStore } from "@/features/auth/store/useSessionStore";
 
 function formatExpiry(session) {
   if (!session?.expiresAt) {
@@ -20,16 +27,22 @@ function formatExpiry(session) {
   return formatDuration(Math.floor(remainingMs / 1000));
 }
 
-export default function HomeDashboard({
-  error,
-  isRefreshing,
-  profile,
-  profileHeading,
-  refreshSession,
-  roleSummary,
-  roles,
-  session,
-}) {
+export default function HomeDashboard() {
+  const router = useRouter();
+  const error = useSessionStore((state) => state.error);
+  const isRefreshing = useSessionStore((state) => state.isRefreshing);
+  const profile = useSessionStore((state) => state.profile);
+  const session = useSessionStore((state) => state.session);
+  const syncSession = useSessionStore((state) => state.syncSession);
+
+  const profileHeading = useMemo(() => resolveProfileName(profile), [profile]);
+  const roles = useMemo(() => resolveSessionRoles(profile), [profile]);
+  const roleSummary = useMemo(() => formatRoles(roles), [roles]);
+
+  function refreshSession() {
+    void syncSession(router, { forceRefresh: true });
+  }
+
   return (
     <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
       <section className="rounded-[28px] border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-5 sm:p-6">

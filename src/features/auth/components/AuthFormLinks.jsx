@@ -1,10 +1,17 @@
 import Link from "next/link";
+import { useAuthFormStore } from "@/features/auth/store/useAuthFormStore";
 
-export default function AuthFormLinks({
-  helperText,
-  secondaryLink,
-  auxiliaryLinks = [],
-}) {
+export default function AuthFormLinks() {
+  const auxiliaryLinks = useAuthFormStore(
+    (state) => state.content?.auxiliaryLinks ?? [],
+  );
+  const helperText = useAuthFormStore(
+    (state) => state.content?.helperText || "",
+  );
+  const secondaryLink = useAuthFormStore(
+    (state) => state.content?.secondaryLink ?? null,
+  );
+
   return (
     <div className="mt-6 space-y-4">
       <p className="text-sm leading-7 text-slate-500">{helperText}</p>

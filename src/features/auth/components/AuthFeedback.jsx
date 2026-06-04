@@ -1,4 +1,8 @@
-export default function AuthFeedback({ feedback }) {
+import { useAuthFormStore } from "@/features/auth/store/useAuthFormStore";
+
+export default function AuthFeedback() {
+  const feedback = useAuthFormStore((state) => state.feedback);
+
   if (!feedback?.message) {
     return null;
   }

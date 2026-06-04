@@ -64,16 +64,34 @@ function normalizeProfilePayload(profile) {
     return profile;
   }
 
-  const authorities = Array.isArray(profile.authorities)
-    ? profile.authorities
-    : [];
+  const nestedProfile = [
+    profile.user,
+    profile.usuario,
+    profile.profile,
+    profile.principal,
+    profile.account,
+  ].find((candidate) => candidate && typeof candidate === "object");
+
+  const mergedProfile = nestedProfile
+    ? {
+        ...nestedProfile,
+        ...profile,
+      }
+    : profile;
+
+  const authorities = Array.isArray(mergedProfile.authorities)
+    ? mergedProfile.authorities
+    : Array.isArray(nestedProfile?.authorities)
+      ? nestedProfile.authorities
+      : [];
   const roles =
-    Array.isArray(profile.roles) && profile.roles.length > 0
-      ? profile.roles
+    Array.isArray(mergedProfile.roles) && mergedProfile.roles.length > 0
+      ? mergedProfile.roles
       : authorities;
 
   return {
-    ...profile,
+    ...nestedProfile,
+    ...mergedProfile,
     authorities,
     roles,
   };

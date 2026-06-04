@@ -1,45 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import {
-  UI_THEMES,
-  applyUiTheme,
-  persistUiTheme,
-  readDocumentUiTheme,
-  readStoredUiTheme,
-} from "@/features/ui/lib/uiTheme";
+import { useEffect } from "react";
+import { UI_THEMES } from "@/features/ui/lib/uiTheme";
+import { useUiThemeStore } from "@/features/ui/store/useUiThemeStore";
 
 export function useUiTheme() {
-  const [theme, setTheme] = useState(UI_THEMES.LIGHT);
-  const [ready, setReady] = useState(false);
+  const hydrateTheme = useUiThemeStore((state) => state.hydrateTheme);
+  const theme = useUiThemeStore((state) => state.theme);
+  const toggleTheme = useUiThemeStore((state) => state.toggleTheme);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      const nextTheme = readDocumentUiTheme() || readStoredUiTheme();
-      setTheme(nextTheme);
-      applyUiTheme(nextTheme);
-      setReady(true);
+      hydrateTheme();
     }, 0);
 
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, []);
-
-  useEffect(() => {
-    if (!ready) {
-      return;
-    }
-
-    applyUiTheme(theme);
-    persistUiTheme(theme);
-  }, [ready, theme]);
-
-  const toggleTheme = useCallback(() => {
-    setTheme((currentTheme) =>
-      currentTheme === UI_THEMES.DARK ? UI_THEMES.LIGHT : UI_THEMES.DARK,
-    );
-  }, []);
+  }, [hydrateTheme]);
 
   return {
     isDark: theme === UI_THEMES.DARK,

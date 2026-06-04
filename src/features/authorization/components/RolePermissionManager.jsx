@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { authorizationApi } from "@/features/authorization/lib/authorizationApi";
+import { useAuthorizationStore } from "@/features/authorization/store/useAuthorizationStore";
 
 function getRoleId(role) {
   return Number(role?.id ?? role?.roleId ?? 0);
@@ -16,48 +17,23 @@ function getPermissionId(permission) {
 }
 
 function getPermissionCode(permission) {
-  return String(permission?.code ?? permission?.permissionCode ?? "PERMISSION_SEM_CODIGO");
+  return String(permission?.code ?? "PERMISSION_CODE");
 }
 
 function getPermissionDescription(permission) {
-  return String(permission?.description ?? permission?.descricao ?? "Sem descricao cadastrada.");
+  return String(permission?.description ?? "Sem descricao cadastrada.");
 }
 
 function getPermissionModule(permission) {
-  return String(permission?.module ?? permission?.moduleCode ?? permission?.modulo ?? "OUTROS").toUpperCase();
-}
-
-function normalizeArray(value, fallbackKey) {
-  if (Array.isArray(value)) {
-    return value;
-  }
-
-  if (value && Array.isArray(value[fallbackKey])) {
-    return value[fallbackKey];
-  }
-
-  return [];
-}
-
-function groupPermissionsByModule(permissions) {
-  return permissions.reduce((groups, permission) => {
-    const module = getPermissionModule(permission);
-
-    if (!groups[module]) {
-      groups[module] = [];
-    }
-
-    groups[module].push(permission);
-    return groups;
-  }, {});
+  return String(permission?.module ?? "GERAL");
 }
 
 function sortPermissions(permissions) {
   return [...permissions].sort((first, second) => {
-    const moduleComparison = getPermissionModule(first).localeCompare(getPermissionModule(second), "pt-BR");
+    const moduleCompare = getPermissionModule(first).localeCompare(getPermissionModule(second), "pt-BR");
 
-    if (moduleComparison !== 0) {
-      return moduleComparison;
+    if (moduleCompare !== 0) {
+      return moduleCompare;
     }
 
     return getPermissionCode(first).localeCompare(getPermissionCode(second), "pt-BR");
@@ -87,93 +63,163 @@ function FeedbackBanner({ feedback, onDismiss }) {
   );
 }
 
-export default function RolePermissionManager({ role }) {
+function ActionButton({ children, disabled = false, onClick, tone = "default", type = "button" }) {
+  const toneClass = tone === "primary"
+    ? "border-[color:var(--shell-contrast)] bg-[var(--shell-contrast)] text-[var(--shell-contrast-ink)] hover:opacity-90"
+    : "border-[color:var(--shell-line)] bg-[var(--shell-surface)] text-[var(--shell-text)] hover:border-[color:var(--shell-line-strong)]";
+
+  return (
+    <button
+      type={type}
+      disabled={disabled}
+      onClick={onClick}
+      className={`inline-flex items-center justify-center rounded-2xl border px-3.5 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${toneClass}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function EmptyState() {
+  return (
+    <section className="rounded-[26px] border border-dashed border-[color:var(--shell-line-strong)] bg-[var(--shell-surface)] p-6 text-sm text-[var(--shell-muted)]">
+      Selecione uma role para carregar e editar as permissoes vinculadas.
+    </section>
+  );
+}
+
+export default function RolePermissionManager() {
+  const role = useAuthorizationStore((state) => state.selectedRole);
   const roleId = getRoleId(role);
-  const [permissions, setPermissions] = useState([]);
-  const [rolePermissionIds, setRolePermissionIds] = useState([]);
+  const [allPermissions, setAllPermissions] = useState([]);
+  const [selectedPermissionIds, setSelectedPermissionIds] = useState([]);
   const [feedback, setFeedback] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [permissionInProgress, setPermissionInProgress] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [actionPermissionId, setActionPermissionId] = useState(null);
 
   const groupedPermissions = useMemo(() => {
-    const sorted = sortPermissions(permissions);
-    return groupPermissionsByModule(sorted);
-  }, [permissions]);
+    const groups = new Map();
 
-  async function loadRolePermissions(targetRoleId = roleId) {
-    if (!targetRoleId) {
-      setRolePermissionIds([]);
-      return;
+    for (const permission of sortPermissions(allPermissions)) {
+      const moduleName = getPermissionModule(permission);
+
+      if (!groups.has(moduleName)) {
+        groups.set(moduleName, []);
+      }
+
+      groups.get(moduleName).push(permission);
     }
 
-    const result = await authorizationApi.findPermissionsByRole(targetRoleId);
-    const normalizedPermissions = normalizeArray(result, "permissions");
-    setRolePermissionIds(normalizedPermissions.map(getPermissionId).filter(Boolean));
+    return Array.from(groups.entries());
+  }, [allPermissions]);
+
+  const selectedCount = selectedPermissionIds.length;
+
+  async function fetchPermissionState(targetRoleId) {
+    const [permissions, rolePermissions] = await Promise.all([
+      authorizationApi.findAllPermissions(),
+      authorizationApi.findPermissionsByRole(targetRoleId),
+    ]);
+
+    return {
+      permissions: Array.isArray(permissions) ? permissions : [],
+      selectedIds: (Array.isArray(rolePermissions) ? rolePermissions : [])
+        .map(getPermissionId)
+        .filter(Boolean),
+    };
   }
 
-  async function loadPermissions() {
+  function syncPermissionState(permissionState) {
+    setAllPermissions(permissionState.permissions);
+    setSelectedPermissionIds(permissionState.selectedIds);
+  }
+
+  async function loadPermissions({ silent = false } = {}) {
     if (!roleId) {
+      setAllPermissions([]);
+      setSelectedPermissionIds([]);
       return;
     }
 
-    setIsLoading(true);
+    if (silent) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
+
     setFeedback(null);
 
     try {
-      const [allPermissionsResult] = await Promise.all([
-        authorizationApi.findAllPermissions(),
-        loadRolePermissions(roleId),
-      ]);
-
-      setPermissions(normalizeArray(allPermissionsResult, "permissions"));
+      const permissionState = await fetchPermissionState(roleId);
+      syncPermissionState(permissionState);
     } catch (error) {
       setFeedback({ type: "error", message: error?.message || "Nao foi possivel carregar as permissoes da role." });
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   }
 
   useEffect(() => {
-    loadPermissions();
+    const timeoutId = setTimeout(() => {
+      void (async () => {
+        if (!roleId) {
+          setAllPermissions([]);
+          setSelectedPermissionIds([]);
+          return;
+        }
+
+        setIsLoading(true);
+        setFeedback(null);
+
+        try {
+          const permissionState = await fetchPermissionState(roleId);
+          syncPermissionState(permissionState);
+        } catch (error) {
+          setFeedback({ type: "error", message: error?.message || "Nao foi possivel carregar as permissoes da role." });
+        } finally {
+          setIsLoading(false);
+        }
+      })();
+    }, 0);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
   }, [roleId]);
 
-  async function togglePermission(permission) {
+  async function handleTogglePermission(permission) {
     const permissionId = getPermissionId(permission);
 
     if (!roleId || !permissionId) {
-      setFeedback({ type: "error", message: "Role ou permissao sem ID valido." });
+      setFeedback({ type: "error", message: "Role ou permissao invalida." });
       return;
     }
 
-    const alreadyAssigned = rolePermissionIds.includes(permissionId);
-    setPermissionInProgress(permissionId);
+    const isSelected = selectedPermissionIds.includes(permissionId);
+    setActionPermissionId(permissionId);
     setFeedback(null);
 
     try {
-      if (alreadyAssigned) {
+      if (isSelected) {
         await authorizationApi.removePermissionFromRole(roleId, permissionId);
+        setSelectedPermissionIds((current) => current.filter((candidate) => candidate !== permissionId));
+        setFeedback({ type: "success", message: `Permissao ${getPermissionCode(permission)} removida da role.` });
       } else {
         await authorizationApi.assignPermissionToRole(roleId, permissionId);
+        setSelectedPermissionIds((current) => [...current, permissionId]);
+        setFeedback({ type: "success", message: `Permissao ${getPermissionCode(permission)} vinculada a role.` });
       }
-
-      await loadRolePermissions(roleId);
-      setFeedback({
-        type: "success",
-        message: alreadyAssigned ? "Permissao removida da role." : "Permissao adicionada a role.",
-      });
     } catch (error) {
       setFeedback({ type: "error", message: error?.message || "Nao foi possivel atualizar a permissao da role." });
     } finally {
-      setPermissionInProgress(null);
+      setActionPermissionId(null);
     }
   }
 
   if (!roleId) {
-    return (
-      <section className="rounded-[26px] border border-dashed border-[color:var(--shell-line-strong)] bg-[var(--shell-surface)] p-6 text-center text-sm text-[var(--shell-muted)]">
-        Selecione uma role para gerenciar as permissoes vinculadas.
-      </section>
-    );
+    return <EmptyState />;
   }
 
   return (
@@ -181,54 +227,67 @@ export default function RolePermissionManager({ role }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--shell-accent)]">
-            Permissoes da role
+            Permissoes
           </p>
           <h2 className="mt-2 font-serif text-2xl text-[var(--shell-text)]">
             {getRoleName(role)}
           </h2>
           <p className="mt-2 text-sm leading-6 text-[var(--shell-muted)]">
-            Marque ou desmarque permissoes para controlar o acesso desse grupo.
+            Selecione quais permissoes devem ficar vinculadas a role atual.
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={loadPermissions}
-          disabled={isLoading}
-          className="inline-flex items-center justify-center rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface)] px-3.5 py-2.5 text-sm font-semibold text-[var(--shell-text)] transition hover:border-[color:var(--shell-line-strong)] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {isLoading ? "Atualizando..." : "Atualizar permissoes"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <ActionButton onClick={() => loadPermissions({ silent: true })} disabled={isLoading || isRefreshing}>
+            {isRefreshing ? "Atualizando..." : "Atualizar"}
+          </ActionButton>
+          <div className="rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] px-4 py-3 text-right">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--shell-muted)]">
+              Vinculadas
+            </p>
+            <p className="mt-1 text-lg font-semibold text-[var(--shell-text)]">
+              {selectedCount}
+            </p>
+          </div>
+        </div>
       </div>
 
       <FeedbackBanner feedback={feedback} onDismiss={() => setFeedback(null)} />
 
       {isLoading ? (
-        <div className="mt-5 rounded-[22px] border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] p-5 text-sm text-[var(--shell-muted)]">
+        <div className="mt-5 rounded-[26px] border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] p-6 text-sm text-[var(--shell-muted)]">
           Carregando permissoes...
         </div>
-      ) : permissions.length === 0 ? (
-        <div className="mt-5 rounded-[22px] border border-dashed border-[color:var(--shell-line-strong)] bg-[var(--shell-surface-muted)] p-5 text-center text-sm text-[var(--shell-muted)]">
+      ) : groupedPermissions.length === 0 ? (
+        <div className="mt-5 rounded-[26px] border border-dashed border-[color:var(--shell-line-strong)] bg-[var(--shell-surface-muted)] p-6 text-sm text-[var(--shell-muted)]">
           Nenhuma permissao retornada pelo core-api.
         </div>
       ) : (
-        <div className="mt-5 space-y-4">
-          {Object.entries(groupedPermissions).map(([module, modulePermissions]) => (
-            <div key={module} className="rounded-[22px] border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] p-4">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--shell-text)]">
-                  {module}
-                </h3>
-                <span className="rounded-full border border-[color:var(--shell-line)] px-2.5 py-1 text-[11px] font-semibold text-[var(--shell-muted)]">
-                  {modulePermissions.length} permissoes
-                </span>
+        <div className="mt-5 grid gap-4">
+          {groupedPermissions.map(([module, permissions]) => (
+            <section
+              key={module}
+              className="rounded-[24px] border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] p-4"
+            >
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--shell-accent)]">
+                    Modulo
+                  </p>
+                  <h3 className="mt-1 text-lg font-semibold text-[var(--shell-text)]">
+                    {module}
+                  </h3>
+                </div>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--shell-muted)]">
+                  {permissions.length} permissoes
+                </p>
               </div>
 
               <div className="grid gap-2">
-                {modulePermissions.map((permission) => {
+                {permissions.map((permission) => {
                   const permissionId = getPermissionId(permission);
-                  const checked = rolePermissionIds.includes(permissionId);
-                  const disabled = permissionInProgress === permissionId;
+                  const checked = selectedPermissionIds.includes(permissionId);
+                  const disabled = actionPermissionId === permissionId;
 
                   return (
                     <label
@@ -237,17 +296,17 @@ export default function RolePermissionManager({ role }) {
                         checked
                           ? "border-[color:var(--shell-accent)] bg-[var(--shell-accent-soft)]"
                           : "border-[color:var(--shell-line)] bg-[var(--shell-surface)] hover:border-[color:var(--shell-line-strong)]"
-                      } ${disabled ? "opacity-60" : ""}`}
+                      } ${disabled ? "opacity-70" : ""}`}
                     >
                       <input
                         type="checkbox"
                         checked={checked}
                         disabled={disabled}
-                        onChange={() => togglePermission(permission)}
+                        onChange={() => handleTogglePermission(permission)}
                         className="mt-1 h-4 w-4 accent-[var(--shell-accent)]"
                       />
                       <span className="min-w-0">
-                        <span className="block break-words text-sm font-semibold text-[var(--shell-text)]">
+                        <span className="block text-sm font-semibold text-[var(--shell-text)]">
                           {getPermissionCode(permission)}
                         </span>
                         <span className="mt-1 block text-xs leading-5 text-[var(--shell-muted)]">
@@ -258,7 +317,7 @@ export default function RolePermissionManager({ role }) {
                   );
                 })}
               </div>
-            </div>
+            </section>
           ))}
         </div>
       )}

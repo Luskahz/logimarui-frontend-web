@@ -9,7 +9,7 @@ const SERVICE_METADATA = {
   "gerenciador-extracao": {
     label: "Gerenciador Extracao",
     description: "Worker Python de extracao e transferencia.",
-    accessPath: "/gerenciador-extracao/",
+    accessPath: APP_ROUTES.EXTRATOR_MANAGER,
   },
   "gerenciador-database-monitoring": {
     label: "Database Monitoring",
@@ -131,6 +131,22 @@ function StatusPill({ running, text }) {
       }`}
     >
       {text}
+    </span>
+  );
+}
+
+function ServiceModePill({ enabled, startOnBoot }) {
+  if (!enabled) {
+    return (
+      <span className="inline-flex rounded-full bg-[var(--shell-danger-bg)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--shell-danger)]">
+        Start manual
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex rounded-full bg-[var(--shell-surface-muted)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--shell-muted)]">
+      {startOnBoot ? "Boot automatico" : "Start manual"}
     </span>
   );
 }
@@ -320,9 +336,11 @@ function ServerManagerDashboard() {
           <div className="space-y-3">
             {services.map((service) => {
               const meta = resolveServiceMeta(service);
-              const hasAccessPath = Boolean(meta.accessPath);
+              const enabled = service.enabled !== false;
+              const hasAccessPath = Boolean(meta.accessPath) && service.running;
               const stopDisabled = bulkActionRunning || !service.running;
               const startDisabled = bulkActionRunning || service.running;
+              const restartDisabled = bulkActionRunning;
 
               return (
                 <article
@@ -346,9 +364,10 @@ function ServerManagerDashboard() {
                         <span className="inline-flex rounded-full bg-[var(--shell-surface-muted)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--shell-muted)]">
                           {formatServiceType(service.type)}
                         </span>
-                        <span className="inline-flex rounded-full bg-[var(--shell-surface-muted)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--shell-muted)]">
-                          {service.startOnBoot ? "Boot automatico" : "Start manual"}
-                        </span>
+                        <ServiceModePill
+                          enabled={enabled}
+                          startOnBoot={service.startOnBoot}
+                        />
                       </div>
 
                       <p className="mt-2 text-sm leading-6 text-[var(--shell-muted)]">
@@ -412,7 +431,7 @@ function ServerManagerDashboard() {
                       </ServiceActionButton>
                       <ServiceActionButton
                         onClick={() => void restartService(service)}
-                        disabled={bulkActionRunning}
+                        disabled={restartDisabled}
                       >
                         Reiniciar
                       </ServiceActionButton>
@@ -425,6 +444,11 @@ function ServerManagerDashboard() {
                       </ServiceActionButton>
                     </div>
                   </div>
+                  {!enabled ? (
+                    <div className="mt-4 rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] px-4 py-3 text-sm text-[var(--shell-muted)]">
+                      Este servico nao entra no boot nem nas acoes em massa do sistema, mas pode ser iniciado manualmente por esta tela quando for necessario.
+                    </div>
+                  ) : null}
                 </article>
               );
             })}
@@ -500,7 +524,7 @@ function ServerManagerDashboard() {
 export default function ServerManagerPage() {
   return (
     <AuthenticatedShell>
-      {() => <ServerManagerDashboard />}
+      <ServerManagerDashboard />
     </AuthenticatedShell>
   );
 }

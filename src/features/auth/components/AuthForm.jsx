@@ -5,53 +5,28 @@ import AuthFields from "@/features/auth/components/AuthFields";
 import AuthFormHeader from "@/features/auth/components/AuthFormHeader";
 import AuthFormLinks from "@/features/auth/components/AuthFormLinks";
 import AuthResultPanel from "@/features/auth/components/AuthResultPanel";
-import { useAuthForm } from "@/features/auth/hooks/useAuthForm";
+import { useAuthFormStore } from "@/features/auth/store/useAuthFormStore";
 
-export default function AuthForm({
-  content,
-}) {
-  const {
-    mode,
-    formTitle,
-    formDescription,
-    fields,
-    submitLabel,
-    helperText,
-    successPrefix,
-    secondaryLink,
-    auxiliaryLinks = [],
-  } = content;
-  const {
-    values,
-    errors,
-    feedback,
-    result,
-    isSubmitting,
-    handleChange,
-    handleSubmit,
-  } = useAuthForm({
-    mode,
-    fields,
-    successPrefix,
-  });
+export default function AuthForm() {
+  const isSubmitting = useAuthFormStore((state) => state.isSubmitting);
+  const submit = useAuthFormStore((state) => state.submit);
+  const submitLabel = useAuthFormStore(
+    (state) => state.content?.submitLabel || "Enviar",
+  );
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    void submit();
+  }
 
   return (
     <div className="rounded-[30px] border border-black/10 bg-[var(--panel-strong)] px-5 py-6 shadow-[0_18px_50px_rgba(20,32,43,0.08)] sm:px-8 sm:py-8">
-      <AuthFormHeader
-        mode={mode}
-        title={formTitle}
-        description={formDescription}
-      />
+      <AuthFormHeader />
 
       <form className="space-y-5" onSubmit={handleSubmit}>
-        <AuthFields
-          fields={fields}
-          values={values}
-          errors={errors}
-          onChange={handleChange}
-        />
+        <AuthFields />
 
-        <AuthFeedback feedback={feedback} />
+        <AuthFeedback />
 
         <button
           type="submit"
@@ -62,13 +37,9 @@ export default function AuthForm({
         </button>
       </form>
 
-      <AuthResultPanel result={result} />
+      <AuthResultPanel />
 
-      <AuthFormLinks
-        helperText={helperText}
-        secondaryLink={secondaryLink}
-        auxiliaryLinks={auxiliaryLinks}
-      />
+      <AuthFormLinks />
     </div>
   );
 }

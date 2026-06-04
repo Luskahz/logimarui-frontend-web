@@ -1,7 +1,8 @@
-export default function AuthCard({
-  footer,
-  children,
-}) {
+import { useAuthFormStore } from "@/features/auth/store/useAuthFormStore";
+
+export default function AuthCard({ children }) {
+  const footer = useAuthFormStore((state) => state.content?.footer || "");
+
   return (
     <main className="min-h-screen px-4 py-6 sm:px-6 sm:py-8">
       <div className="mx-auto flex min-h-screen max-w-3xl items-center justify-center">

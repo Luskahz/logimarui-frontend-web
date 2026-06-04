@@ -214,6 +214,10 @@ export function useManagedServices() {
     () => services.filter((service) => service.running).length,
     [services],
   );
+  const enabledServices = useMemo(
+    () => services.filter((service) => service.enabled !== false),
+    [services],
+  );
 
   const refreshOverview = useCallback(async () => {
     await loadOverview();
@@ -221,27 +225,27 @@ export function useManagedServices() {
 
   const startSystem = useCallback(async () => {
     await runBulkAction({
-      services: services.filter((service) => !service.running),
+      services: enabledServices.filter((service) => !service.running),
       label: "Ligando sistema",
       resolveAction: () => "start",
     });
-  }, [runBulkAction, services]);
+  }, [enabledServices, runBulkAction]);
 
   const stopSystem = useCallback(async () => {
     await runBulkAction({
-      services: orderForShutdown(services.filter((service) => service.running)),
+      services: orderForShutdown(enabledServices.filter((service) => service.running)),
       label: "Parando sistema",
       resolveAction: () => "stop",
     });
-  }, [runBulkAction, services]);
+  }, [enabledServices, runBulkAction]);
 
   const restartSystem = useCallback(async () => {
     await runBulkAction({
-      services: orderForShutdown(services),
+      services: orderForShutdown(enabledServices),
       label: "Reiniciando sistema",
       resolveAction: (service) => (service.running ? "restart" : "start"),
     });
-  }, [runBulkAction, services]);
+  }, [enabledServices, runBulkAction]);
 
   return {
     actionState,

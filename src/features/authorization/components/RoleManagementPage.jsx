@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import AuthenticatedShell from "@/features/app-shell/components/AuthenticatedShell";
 import { authorizationApi } from "@/features/authorization/lib/authorizationApi";
+import RolePermissionManager from "@/features/authorization/components/RolePermissionManager";
+import { useAuthorizationStore } from "@/features/authorization/store/useAuthorizationStore";
 
 const EMPTY_ROLE_FORM = {
   name: "",
@@ -88,6 +90,10 @@ function FeedbackBanner({ feedback, onDismiss }) {
       </button>
     </div>
   );
+}
+
+function normalizeRoles(result) {
+  return Array.isArray(result) ? result : [];
 }
 
 function TextField({ label, name, onChange, placeholder, value }) {
@@ -186,7 +192,17 @@ function RoleForm({ editingRole, form, isSubmitting, onCancel, onChange, onSubmi
   );
 }
 
-function RoleList({ actionInProgress, editingRoleId, onActivate, onDeactivate, onDelete, onEdit, roles }) {
+function RoleList({
+  actionInProgress,
+  editingRoleId,
+  onActivate,
+  onDeactivate,
+  onDelete,
+  onEdit,
+  onSelect,
+  roles,
+  selectedRoleId,
+}) {
   if (roles.length === 0) {
     return (
       <div className="rounded-[26px] border border-dashed border-[color:var(--shell-line-strong)] bg-[var(--shell-surface)] p-6 text-center text-sm text-[var(--shell-muted)]">
@@ -201,14 +217,18 @@ function RoleList({ actionInProgress, editingRoleId, onActivate, onDeactivate, o
         const roleId = getRoleId(role);
         const active = isRoleActive(role);
         const disabled = actionInProgress === roleId;
+        const selected = selectedRoleId === roleId;
+        const editing = editingRoleId === roleId;
 
         return (
           <article
             key={roleId || getRoleName(role)}
             className={`rounded-[24px] border p-4 transition ${
-              editingRoleId === roleId
+              selected
                 ? "border-[color:var(--shell-accent)] bg-[var(--shell-accent-soft)]"
-                : "border-[color:var(--shell-line)] bg-[var(--shell-surface)]"
+                : editing
+                  ? "border-[color:var(--shell-line-strong)] bg-[var(--shell-surface)]"
+                  : "border-[color:var(--shell-line)] bg-[var(--shell-surface)]"
             }`}
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -218,10 +238,17 @@ function RoleList({ actionInProgress, editingRoleId, onActivate, onDeactivate, o
                     {getRoleName(role)}
                   </h3>
                   <RoleStatusBadge role={role} />
+                  {selected ? (
+                    <span className="rounded-full border border-[color:var(--shell-accent)] bg-[var(--shell-surface)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--shell-accent)]">
+                      Selecionada
+                    </span>
+                  ) : null}
                 </div>
+
                 <p className="mt-2 text-sm leading-6 text-[var(--shell-muted)]">
                   {getRoleDescription(role)}
                 </p>
+
                 <p className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--shell-muted)]">
                   ID #{roleId || "-"}
                 </p>
@@ -229,9 +256,14 @@ function RoleList({ actionInProgress, editingRoleId, onActivate, onDeactivate, o
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
+              <ActionButton onClick={() => onSelect(role)} disabled={disabled}>
+                Permissoes
+              </ActionButton>
+
               <ActionButton onClick={() => onEdit(role)} disabled={disabled}>
                 Editar
               </ActionButton>
+
               {active ? (
                 <ActionButton onClick={() => onDeactivate(role)} disabled={disabled}>
                   Desativar
@@ -241,6 +273,7 @@ function RoleList({ actionInProgress, editingRoleId, onActivate, onDeactivate, o
                   Ativar
                 </ActionButton>
               )}
+
               <ActionButton tone="danger" onClick={() => onDelete(role)} disabled={disabled}>
                 Excluir
               </ActionButton>
@@ -252,7 +285,8 @@ function RoleList({ actionInProgress, editingRoleId, onActivate, onDeactivate, o
   );
 }
 
-function UserRolesManager({ roles }) {
+function UserRolesManager() {
+  const roles = useAuthorizationStore((state) => state.roles);
   const [userId, setUserId] = useState("");
   const [selectedRoleIds, setSelectedRoleIds] = useState([]);
   const [loadedUserId, setLoadedUserId] = useState("");
@@ -401,107 +435,40 @@ function UserRolesManager({ roles }) {
 }
 
 function RoleManagementContent() {
-  const [roles, setRoles] = useState([]);
-  const [roleForm, setRoleForm] = useState(EMPTY_ROLE_FORM);
-  const [editingRole, setEditingRole] = useState(null);
-  const [feedback, setFeedback] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [actionInProgress, setActionInProgress] = useState(null);
+  const actionInProgress = useAuthorizationStore((state) => state.actionInProgress);
+  const clearRoleForm = useAuthorizationStore((state) => state.clearRoleForm);
+  const dismissFeedback = useAuthorizationStore((state) => state.dismissFeedback);
+  const editingRole = useAuthorizationStore((state) => state.editingRole);
+  const feedback = useAuthorizationStore((state) => state.feedback);
+  const handleRoleFormChange = useAuthorizationStore((state) => state.handleRoleFormChange);
+  const editRole = useAuthorizationStore((state) => state.editRole);
+  const isLoading = useAuthorizationStore((state) => state.isLoading);
+  const isSubmitting = useAuthorizationStore((state) => state.isSubmitting);
+  const loadRoles = useAuthorizationStore((state) => state.loadRoles);
+  const roleForm = useAuthorizationStore((state) => state.roleForm);
+  const roles = useAuthorizationStore((state) => state.roles);
+  const runRoleAction = useAuthorizationStore((state) => state.runRoleAction);
+  const selectedRole = useAuthorizationStore((state) => state.selectedRole);
+  const selectRole = useAuthorizationStore((state) => state.selectRole);
+  const submitRole = useAuthorizationStore((state) => state.submitRole);
+  const deleteRole = useAuthorizationStore((state) => state.deleteRole);
 
   const sortedRoles = useMemo(() => sortRoles(roles), [roles]);
   const activeRolesCount = useMemo(() => roles.filter(isRoleActive).length, [roles]);
 
-  async function loadRoles() {
-    setIsLoading(true);
-    setFeedback(null);
-
-    try {
-      const result = await authorizationApi.findAllRoles();
-      setRoles(Array.isArray(result) ? result : []);
-    } catch (error) {
-      setFeedback({ type: "error", message: error?.message || "Nao foi possivel carregar as roles." });
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
   useEffect(() => {
-    loadRoles();
-  }, []);
+    const timeoutId = setTimeout(() => {
+      void loadRoles();
+    }, 0);
 
-  function handleRoleFormChange(event) {
-    const { name, value } = event.target;
-    setRoleForm((current) => ({
-      ...current,
-      [name]: value,
-    }));
-  }
-
-  function handleEditRole(role) {
-    setEditingRole(role);
-    setRoleForm({
-      name: getRoleName(role),
-      description: String(role?.description ?? ""),
-    });
-    setFeedback(null);
-  }
-
-  function clearRoleForm() {
-    setEditingRole(null);
-    setRoleForm(EMPTY_ROLE_FORM);
-  }
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [loadRoles]);
 
   async function handleRoleSubmit(event) {
     event.preventDefault();
-    const payload = normalizeRoleForm(roleForm);
-
-    if (!payload.name) {
-      setFeedback({ type: "error", message: "Informe o nome da role." });
-      return;
-    }
-
-    setIsSubmitting(true);
-    setFeedback(null);
-
-    try {
-      if (editingRole) {
-        await authorizationApi.updateRole(getRoleId(editingRole), payload);
-        setFeedback({ type: "success", message: "Role atualizada com sucesso." });
-      } else {
-        await authorizationApi.createRole(payload);
-        setFeedback({ type: "success", message: "Role criada com sucesso." });
-      }
-
-      clearRoleForm();
-      await loadRoles();
-    } catch (error) {
-      setFeedback({ type: "error", message: error?.message || "Nao foi possivel salvar a role." });
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  async function runRoleAction(role, action, successMessage) {
-    const roleId = getRoleId(role);
-
-    if (!roleId) {
-      setFeedback({ type: "error", message: "Role sem ID valido." });
-      return;
-    }
-
-    setActionInProgress(roleId);
-    setFeedback(null);
-
-    try {
-      await action(roleId);
-      setFeedback({ type: "success", message: successMessage });
-      await loadRoles();
-    } catch (error) {
-      setFeedback({ type: "error", message: error?.message || "Nao foi possivel concluir a acao." });
-    } finally {
-      setActionInProgress(null);
-    }
+    await submitRole();
   }
 
   function handleDeleteRole(role) {
@@ -511,7 +478,7 @@ function RoleManagementContent() {
       return;
     }
 
-    runRoleAction(role, authorizationApi.deleteRole, "Role excluida com sucesso.");
+    void deleteRole(role);
   }
 
   return (
@@ -525,7 +492,7 @@ function RoleManagementContent() {
             Gerenciamento de roles
           </h1>
           <p className="mt-4 max-w-3xl text-sm leading-6 text-[var(--shell-muted)]">
-            Controle os perfis de autorizacao e mantenha os vinculos de roles dos usuarios pelo core-api.
+            Controle os perfis de autorizacao, permissoes vinculadas e roles dos usuarios pelo core-api.
           </p>
         </div>
 
@@ -549,7 +516,7 @@ function RoleManagementContent() {
         </div>
       </section>
 
-      <FeedbackBanner feedback={feedback} onDismiss={() => setFeedback(null)} />
+      <FeedbackBanner feedback={feedback} onDismiss={dismissFeedback} />
 
       <RoleForm
         editingRole={editingRole}
@@ -560,7 +527,7 @@ function RoleManagementContent() {
         onSubmit={handleRoleSubmit}
       />
 
-      <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+      <section className="grid gap-6 2xl:grid-cols-[1fr_1fr]">
         <div className="rounded-[26px] border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] p-4 sm:p-5">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -583,9 +550,11 @@ function RoleManagementContent() {
           ) : (
             <RoleList
               roles={sortedRoles}
+              selectedRoleId={selectedRole ? getRoleId(selectedRole) : null}
               editingRoleId={editingRole ? getRoleId(editingRole) : null}
               actionInProgress={actionInProgress}
-              onEdit={handleEditRole}
+              onSelect={selectRole}
+              onEdit={editRole}
               onActivate={(role) => runRoleAction(role, authorizationApi.activateRole, "Role ativada com sucesso.")}
               onDeactivate={(role) => runRoleAction(role, authorizationApi.deactivateRole, "Role desativada com sucesso.")}
               onDelete={handleDeleteRole}
@@ -593,8 +562,10 @@ function RoleManagementContent() {
           )}
         </div>
 
-        <UserRolesManager roles={roles} />
+        <RolePermissionManager />
       </section>
+
+      <UserRolesManager />
     </div>
   );
 }
