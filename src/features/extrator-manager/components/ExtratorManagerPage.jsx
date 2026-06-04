@@ -2,18 +2,9 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import {
-  CheckboxField,
-  ChevronIcon,
-  FormField,
   ModalFrame,
   PasswordActionModal,
-  PeriodInputs,
-  RuleSummaryList,
-  SearchableSelect,
-  SelectInput,
   StatusPill,
-  TextArea,
-  TextInput,
 } from "@/features/extrator-manager/components/ExtratorManagerControls";
 import ExtratorDestinationsSection from "@/features/extrator-manager/components/ExtratorDestinationsSection";
 import ExtratorExtractionSection from "@/features/extrator-manager/components/ExtratorExtractionSection";

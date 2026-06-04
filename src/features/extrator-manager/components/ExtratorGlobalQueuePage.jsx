@@ -62,9 +62,7 @@ function ExtratorGlobalQueueScreen() {
   return (
     <ExtratorPageShell
       activeSection="globalQueue"
-      eyebrow="Fila global"
-      title="Visibilidade central da fila do extrator"
-      description="Esta pagina substitui a tela legada de fila global e mostra a execucao atual, os agrupamentos ativos por cliente e o historico finalizado do extrator."
+      title="Extrator"
       error={error}
       actions={
         <ActionButton
