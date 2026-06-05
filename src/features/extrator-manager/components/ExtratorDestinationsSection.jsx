@@ -19,7 +19,6 @@ export default function ExtratorDestinationsSection({
   DestinationPreview,
   destinationBaseFilterOptions,
   destinationForm,
-  destinationFormBaseOptions,
   destinationGroups,
   destinationOwnerFilterOptions,
   destinationPeriodFilterOptions,
@@ -27,7 +26,6 @@ export default function ExtratorDestinationsSection({
   destinationSourceFilterOptions,
   destinationFilters,
   destinationsPayload,
-  destinationListenOptions,
   expandedDestinationGroups,
   filteredDestinationRules,
   filterAllValue,
@@ -49,7 +47,6 @@ export default function ExtratorDestinationsSection({
   setIsDestinationModalOpen,
   status,
   summarizeGroups,
-  syncDestinationForm,
   toBooleanLabel,
 }) {
   return (

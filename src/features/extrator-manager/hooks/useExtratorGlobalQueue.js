@@ -5,12 +5,16 @@ import { useExtratorGlobalQueueStore } from "@/features/extrator-manager/store/u
 
 const POLL_INTERVAL_MS = 5_000;
 
-export function useExtratorGlobalQueue() {
+export function useExtratorGlobalQueue({ enabled = true } = {}) {
   const store = useExtratorGlobalQueueStore();
   const historyPage = useExtratorGlobalQueueStore((state) => state.historyPage);
   const loadQueue = useExtratorGlobalQueueStore((state) => state.loadQueue);
 
   useEffect(() => {
+    if (!enabled) {
+      return undefined;
+    }
+
     let active = true;
     let intervalId = 0;
 
@@ -45,7 +49,7 @@ export function useExtratorGlobalQueue() {
         window.clearInterval(intervalId);
       }
     };
-  }, [historyPage, loadQueue]);
+  }, [enabled, historyPage, loadQueue]);
 
   return {
     ...store,

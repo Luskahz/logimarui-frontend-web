@@ -102,7 +102,6 @@ export function ExtratorCompactMetric({ label, tone = "default", value }) {
 
 function ExtratorPageHeader({
   actions,
-  activeSection,
   activeTab,
   description,
   error,
@@ -133,7 +132,6 @@ function ExtratorPageHeader({
       </div>
 
       <ExtratorSectionNav
-        activeSection={activeSection}
         activeTab={activeTab}
         onTabChange={onTabChange}
       />
@@ -149,7 +147,6 @@ function ExtratorPageHeader({
 
 export default function ExtratorPageShell({
   actions,
-  activeSection = "manager",
   activeTab,
   children,
   description,
@@ -164,7 +161,6 @@ export default function ExtratorPageShell({
       <div className="space-y-4">
         <ExtratorPageHeader
           actions={actions}
-          activeSection={activeSection}
           activeTab={activeTab}
           description={description}
           error={error}

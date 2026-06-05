@@ -1,0 +1,5 @@
+
+> logimarui-frontend@0.1.0 dev:webpack
+> node ./scripts/run-next-with-port.mjs dev --webpack
+
+[?25h

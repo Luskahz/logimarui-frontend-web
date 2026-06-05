@@ -8,6 +8,7 @@ import {
 } from "@/features/extrator-manager/components/ExtratorManagerControls";
 import ExtratorDestinationsSection from "@/features/extrator-manager/components/ExtratorDestinationsSection";
 import ExtratorExtractionSection from "@/features/extrator-manager/components/ExtratorExtractionSection";
+import ExtratorGlobalQueueSection from "@/features/extrator-manager/components/ExtratorGlobalQueueSection";
 import ExtratorRequestsSection from "@/features/extrator-manager/components/ExtratorRequestsSection";
 import ExtratorSchedulerSection from "@/features/extrator-manager/components/ExtratorSchedulerSection";
 import {
@@ -20,6 +21,7 @@ import ExtratorPageShell, {
   ExtratorSectionCard as SectionCard,
 } from "@/features/extrator-manager/components/ExtratorPageShell";
 import { normalizeExtratorTabId } from "@/features/extrator-manager/components/ExtratorSectionNav";
+import { useExtratorGlobalQueue } from "@/features/extrator-manager/hooks/useExtratorGlobalQueue";
 import { useExtratorManager } from "@/features/extrator-manager/hooks/useExtratorManager";
 import { extratorApi } from "@/features/extrator-manager/lib/extratorApi";
 import {
@@ -694,6 +696,14 @@ function ExtratorManagerScreen() {
     (requestItem) => requestItem.id === selectedRequestId,
   );
   const activeTab = activeTabOverride || routeActiveTab;
+  const {
+    error: globalQueueError,
+    historyPage: globalQueueHistoryPage,
+    loadingAction: globalQueueLoadingAction,
+    payload: globalQueuePayload,
+    refreshQueue,
+    runAction: runGlobalQueueAction,
+  } = useExtratorGlobalQueue({ enabled: activeTab === "globalQueue" });
 
   const schedulerRules = schedulerPayload?.rules || [];
   const filteredSchedulerRules = schedulerRules.filter((rule) =>
@@ -1546,24 +1556,71 @@ function ExtratorManagerScreen() {
     });
   }
 
+  async function handleCancelGlobalTask(taskId) {
+    const password =
+      typeof window !== "undefined"
+        ? window.prompt("Informe a senha administrativa para cancelar a tarefa.")
+        : "";
+
+    if (!password) {
+      return;
+    }
+
+    await runGlobalQueueAction("cancelar tarefa global", () =>
+      extratorApi.cancelGlobalTask({
+        task_id: taskId,
+        senha_admin: password,
+      }),
+    );
+  }
+
+  async function handleCancelGlobalGroup(taskIds) {
+    const password =
+      typeof window !== "undefined"
+        ? window.prompt("Informe a senha administrativa para cancelar o grupo.")
+        : "";
+
+    if (!password) {
+      return;
+    }
+
+    await runGlobalQueueAction("cancelar grupo global", () =>
+      extratorApi.cancelGlobalTask({
+        task_ids: taskIds,
+        senha_admin: password,
+      }),
+    );
+  }
+
   return (
     <ExtratorPageShell
       title="Extrator"
       activeTab={activeTab}
       onTabChange={setActiveTabOverride}
-      error={error}
+      error={activeTab === "globalQueue" ? globalQueueError || error : error}
       actions={
-        <ActionButton
-          onClick={() =>
-            void refreshAll({
-              historyPage: clientHistoryPayload?.page || 1,
-              historyPageSize: clientHistoryPayload?.page_size || 8,
-            })
-          }
-          disabled={status === "loading" || Boolean(loadingAction)}
-        >
-          Atualizar tudo
-        </ActionButton>
+        activeTab === "globalQueue" ? (
+          <ActionButton
+            onClick={() =>
+              void refreshQueue({ nextHistoryPage: globalQueueHistoryPage })
+            }
+            disabled={Boolean(globalQueueLoadingAction)}
+          >
+            Atualizar fila
+          </ActionButton>
+        ) : (
+          <ActionButton
+            onClick={() =>
+              void refreshAll({
+                historyPage: clientHistoryPayload?.page || 1,
+                historyPageSize: clientHistoryPayload?.page_size || 8,
+              })
+            }
+            disabled={status === "loading" || Boolean(loadingAction)}
+          >
+            Atualizar tudo
+          </ActionButton>
+        )
       }
       headerAfter={
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -1676,9 +1733,7 @@ function ExtratorManagerScreen() {
             destinationBaseFilterOptions={destinationBaseFilterOptions}
             destinationFilters={destinationFilters}
             destinationForm={destinationForm}
-            destinationFormBaseOptions={destinationFormBaseOptions}
             destinationGroups={destinationGroups}
-            destinationListenOptions={destinationListenOptions}
             destinationOwnerFilterOptions={destinationOwnerFilterOptions}
             destinationPeriodFilterOptions={destinationPeriodFilterOptions}
             destinationRules={destinationRules}
@@ -1705,7 +1760,6 @@ function ExtratorManagerScreen() {
             setIsDestinationModalOpen={setIsDestinationModalOpen}
             status={status}
             summarizeGroups={summarizeGroups}
-            syncDestinationForm={syncDestinationForm}
             toBooleanLabel={toBooleanLabel}
           />
         ) : null}
@@ -1728,6 +1782,16 @@ function ExtratorManagerScreen() {
             setSelectedRequestId={setSelectedRequestId}
             status={status}
             syncRequestType={syncRequestType}
+          />
+        ) : null}
+
+        {activeTab === "globalQueue" ? (
+          <ExtratorGlobalQueueSection
+            historyPage={globalQueueHistoryPage}
+            onCancelGroup={handleCancelGlobalGroup}
+            onCancelTask={handleCancelGlobalTask}
+            payload={globalQueuePayload}
+            refreshQueue={refreshQueue}
           />
         ) : null}
 

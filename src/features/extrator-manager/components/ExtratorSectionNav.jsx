@@ -8,6 +8,7 @@ export const EXTRATOR_TAB_ITEMS = [
   { id: "scheduler", label: "Scheduler" },
   { id: "destinos", label: "Destinos" },
   { id: "solicitacoes", label: "Solicitacoes" },
+  { id: "globalQueue", label: "Fila global" },
 ];
 
 export function normalizeExtratorTabId(value) {
@@ -35,17 +36,15 @@ function getItemClassName(active) {
 }
 
 export default function ExtratorSectionNav({
-  activeSection = "manager",
   activeTab = EXTRATOR_TAB_ITEMS[0].id,
   onTabChange,
 }) {
   const normalizedActiveTab = normalizeExtratorTabId(activeTab);
-  const isGlobalQueueActive = activeSection === "globalQueue";
 
   return (
     <nav aria-label="Navegacao do extrator" className="mt-6 flex flex-wrap gap-2">
       {EXTRATOR_TAB_ITEMS.map((tabItem) => {
-        const active = !isGlobalQueueActive && normalizedActiveTab === tabItem.id;
+        const active = normalizedActiveTab === tabItem.id;
 
         if (typeof onTabChange === "function") {
           return (
@@ -70,13 +69,6 @@ export default function ExtratorSectionNav({
           </Link>
         );
       })}
-
-      <Link
-        href={APP_ROUTES.EXTRATOR_GLOBAL_QUEUE}
-        className={getItemClassName(isGlobalQueueActive)}
-      >
-        Fila global
-      </Link>
     </nav>
   );
 }
