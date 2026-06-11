@@ -274,11 +274,19 @@ export function StatusPill({ label, note, tone = "default", value }) {
   );
 }
 
-export function ModalFrame({ children, maxWidth = "max-w-3xl", onClose, title, subtitle }) {
+export function ModalFrame({
+  children,
+  closeOnBackdrop = true,
+  headerActions = null,
+  maxWidth = "max-w-3xl",
+  onClose,
+  title,
+  subtitle,
+}) {
   return (
     <div
       className="fixed inset-0 z-[60] flex items-start justify-center overflow-auto bg-[var(--shell-overlay)] px-4 py-8 backdrop-blur-md"
-      onClick={onClose}
+      onClick={closeOnBackdrop ? onClose : undefined}
     >
       <div
         className={`w-full ${maxWidth} rounded-[24px] border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-5 shadow-[0_28px_80px_rgba(0,0,0,0.38)] sm:p-6`}
@@ -295,7 +303,10 @@ export function ModalFrame({ children, maxWidth = "max-w-3xl", onClose, title, s
               </p>
             ) : null}
           </div>
-          <ActionButton onClick={onClose}>Fechar</ActionButton>
+          <div className="flex flex-wrap items-center gap-2">
+            {headerActions}
+            <ActionButton onClick={onClose}>Fechar</ActionButton>
+          </div>
         </div>
         <div className="mt-5">{children}</div>
       </div>
@@ -447,7 +458,7 @@ export function PeriodInputs({
         </SelectInput>
       </FormField>
 
-      {state.periodMode === "mes" ? (
+      {state.periodMode === "mes_referencia" ? (
         <FormField label="Mes de referencia">
           <TextInput
             type="month"
@@ -459,7 +470,7 @@ export function PeriodInputs({
         </FormField>
       ) : null}
 
-      {state.periodMode === "dia" ? (
+      {state.periodMode === "data_especifica" ? (
         <FormField label="Data">
           <TextInput
             type="date"
@@ -469,7 +480,7 @@ export function PeriodInputs({
         </FormField>
       ) : null}
 
-      {state.periodMode === "periodo" ? (
+      {state.periodMode === "periodo_especifico" ? (
         <>
           <FormField label="Data inicial">
             <TextInput

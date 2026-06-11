@@ -1,5 +1,7 @@
 "use client";
 
+import { Fragment, useId, useRef, useState } from "react";
+import { ChevronDown, CircleHelp } from "lucide-react";
 import {
   CheckboxField,
   FormField,
@@ -9,25 +11,417 @@ import {
   SelectInput,
   TextInput,
 } from "@/features/extrator-manager/components/ExtratorManagerControls";
+import { ExtratorPagination } from "@/features/extrator-manager/components/ExtratorPagination";
 import {
   ExtratorActionButton as ActionButton,
   ExtratorSectionCard as SectionCard,
 } from "@/features/extrator-manager/components/ExtratorPageShell";
+import { usePaginatedItems } from "@/features/extrator-manager/hooks/usePaginatedItems";
+
+const DESTINATION_TEMPLATE_KINDS = [
+  {
+    fileField: "arquivoTemplateMensal",
+    fileLabel: "Arquivo mensal",
+    folderField: "pastaTemplateMensal",
+    folderLabel: "Pasta mensal",
+    label: "Mensal",
+    templateKey: "mensal",
+  },
+  {
+    fileField: "arquivoTemplateDiario",
+    fileLabel: "Arquivo diario",
+    folderField: "pastaTemplateDiario",
+    folderLabel: "Pasta diaria",
+    label: "Diario",
+    templateKey: "diario",
+  },
+  {
+    fileField: "arquivoTemplatePeriodo",
+    fileLabel: "Arquivo por periodo",
+    folderField: "pastaTemplatePeriodo",
+    folderLabel: "Pasta por periodo",
+    label: "Periodo",
+    templateKey: "periodo",
+  },
+  {
+    fileField: "arquivoTemplateSemPeriodo",
+    fileLabel: "Arquivo sem periodo",
+    folderField: "pastaTemplateSemPeriodo",
+    folderLabel: "Pasta sem periodo",
+    label: "Sem periodo",
+    templateKey: "sem_periodo",
+  },
+];
+
+const LISTEN_PERIOD_TEMPLATE_KEY = {
+  mensal: "mensal",
+  data_dia_especifico: "diario",
+  diario: "diario",
+  periodo_especifico: "periodo",
+  periodo: "periodo",
+  sem_periodo: "sem_periodo",
+};
+
+function normalizeTokenSearch(value) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function getVisibleTemplateKinds(listenPeriodType) {
+  if (!listenPeriodType || listenPeriodType === "todos") {
+    return DESTINATION_TEMPLATE_KINDS;
+  }
+
+  const templateKey = LISTEN_PERIOD_TEMPLATE_KEY[listenPeriodType];
+  if (!templateKey) {
+    return DESTINATION_TEMPLATE_KINDS;
+  }
+
+  return DESTINATION_TEMPLATE_KINDS.filter(
+    (templateKind) => templateKind.templateKey === templateKey,
+  );
+}
+
+function TemplateTokenInput({ label, onChange, tokens, value }) {
+  const inputId = useId();
+  const listboxId = useId();
+  const inputRef = useRef(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [search, setSearch] = useState(null);
+  const normalizedQuery = normalizeTokenSearch(search?.query);
+  const filteredTokens = (tokens || []).filter((token) => {
+    if (!normalizedQuery) {
+      return true;
+    }
+
+    return normalizeTokenSearch(`${token.id} ${token.label}`).includes(
+      normalizedQuery,
+    );
+  });
+
+  function syncSearch(nextValue, caretPosition) {
+    const beforeCaret = String(nextValue).slice(0, caretPosition);
+    const openingBraceIndex = beforeCaret.lastIndexOf("{");
+    const closingBraceIndex = beforeCaret.lastIndexOf("}");
+
+    if (openingBraceIndex <= closingBraceIndex) {
+      setSearch(null);
+      return;
+    }
+
+    setSearch({
+      end: caretPosition,
+      query: beforeCaret.slice(openingBraceIndex + 1),
+      start: openingBraceIndex,
+    });
+    setActiveIndex(0);
+  }
+
+  function handleChange(event) {
+    const nextValue = event.target.value;
+    onChange(nextValue);
+    syncSearch(nextValue, event.target.selectionStart ?? nextValue.length);
+  }
+
+  function insertToken(token) {
+    if (!search) {
+      return;
+    }
+
+    const nextValue = `${value.slice(0, search.start)}{${token.id}}${value.slice(search.end)}`;
+    const nextCaretPosition = search.start + token.id.length + 2;
+    onChange(nextValue);
+    setSearch(null);
+
+    window.requestAnimationFrame(() => {
+      inputRef.current?.focus();
+      inputRef.current?.setSelectionRange(nextCaretPosition, nextCaretPosition);
+    });
+  }
+
+  function handleKeyDown(event) {
+    if (!search) {
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setSearch(null);
+      return;
+    }
+
+    if (!filteredTokens.length) {
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setActiveIndex((current) => (current + 1) % filteredTokens.length);
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveIndex(
+        (current) => (current - 1 + filteredTokens.length) % filteredTokens.length,
+      );
+      return;
+    }
+
+    if (event.key === "Enter") {
+      event.preventDefault();
+      insertToken(filteredTokens[activeIndex] || filteredTokens[0]);
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <label
+        htmlFor={inputId}
+        className="block text-sm font-semibold text-[var(--shell-text)]"
+      >
+        {label}
+      </label>
+      <div className="relative">
+        <TextInput
+          ref={inputRef}
+          id={inputId}
+          value={value}
+          onBlur={() => setSearch(null)}
+          onChange={handleChange}
+          onClick={(event) =>
+            syncSearch(
+              event.currentTarget.value,
+              event.currentTarget.selectionStart ?? event.currentTarget.value.length,
+            )
+          }
+          onKeyDown={handleKeyDown}
+          onKeyUp={(event) => {
+            if (
+              ["ArrowDown", "ArrowUp", "Enter", "Escape"].includes(event.key)
+            ) {
+              return;
+            }
+            syncSearch(
+              event.currentTarget.value,
+              event.currentTarget.selectionStart ?? event.currentTarget.value.length,
+            );
+          }}
+          aria-autocomplete="list"
+          aria-controls={search ? listboxId : undefined}
+          aria-expanded={Boolean(search)}
+          aria-activedescendant={
+            search && filteredTokens[activeIndex]
+              ? `${listboxId}-${filteredTokens[activeIndex].id}`
+              : undefined
+          }
+          role="combobox"
+        />
+        {search ? (
+          <div
+            id={listboxId}
+            role="listbox"
+            className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-30 max-h-72 overflow-y-auto rounded-2xl border border-[color:var(--shell-line-strong)] bg-[var(--shell-surface)] p-2 shadow-[0_18px_50px_rgba(0,0,0,0.34)]"
+          >
+            {filteredTokens.length ? (
+              filteredTokens.map((token, index) => (
+                <button
+                  key={token.id}
+                  id={`${listboxId}-${token.id}`}
+                  type="button"
+                  role="option"
+                  aria-selected={index === activeIndex}
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    insertToken(token);
+                  }}
+                  className={`flex w-full items-start justify-between gap-4 rounded-xl px-3 py-2 text-left transition ${
+                    index === activeIndex
+                      ? "bg-[var(--shell-accent-soft)]"
+                      : "hover:bg-[var(--shell-surface-muted)]"
+                  }`}
+                >
+                  <span>
+                    <span className="block font-mono text-sm font-semibold text-[var(--shell-text)]">
+                      {`{${token.id}}`}
+                    </span>
+                    <span className="mt-1 block text-xs text-[var(--shell-muted)]">
+                      {token.label}
+                    </span>
+                  </span>
+                  <span className="shrink-0 font-mono text-xs text-[var(--shell-muted)]">
+                    {token.example || "-"}
+                  </span>
+                </button>
+              ))
+            ) : (
+              <div className="rounded-xl border border-dashed border-[color:var(--shell-line)] px-3 py-4 text-sm text-[var(--shell-muted)]">
+                Nenhum token encontrado para &quot;{search.query}&quot;.
+              </div>
+            )}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function DestinationRoutineGroup({
+  formatDateTime,
+  group,
+  handleDeleteDestinationRule,
+  openDestinationEditModal,
+  toBooleanLabel,
+}) {
+  const pagination = usePaginatedItems(group?.items || [], 5);
+
+  return (
+    <details className="group rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-strong)]">
+      <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-4 [&::-webkit-details-marker]:hidden">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--shell-accent)]">
+            Rotina
+          </p>
+          <h4 className="mt-1 text-lg font-semibold text-[var(--shell-text)]">
+            {group.label}
+          </h4>
+          <p className="mt-1 text-sm text-[var(--shell-muted)]">
+            {group.item_count || group.items?.length || 0} regra(s) de destino
+          </p>
+        </div>
+        <ChevronDown
+          aria-hidden="true"
+          className="mt-1 h-5 w-5 shrink-0 text-[var(--shell-muted)] transition-transform group-open:rotate-180"
+        />
+      </summary>
+
+      <div className="space-y-3 px-4 pb-4">
+        {pagination.items.map((rule) => (
+          <div
+            key={rule.id}
+            className="rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] p-4"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-[var(--shell-text)]">
+                  {rule.listen_period_label}
+                </p>
+                <p className="mt-1 text-xs uppercase tracking-[0.16em] text-[var(--shell-muted)]">
+                  {toBooleanLabel(rule.enabled)}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <ActionButton onClick={() => openDestinationEditModal(rule)}>
+                  Carregar para editar
+                </ActionButton>
+                <ActionButton
+                  onClick={() => void handleDeleteDestinationRule(rule.id)}
+                  tone="danger"
+                >
+                  Excluir
+                </ActionButton>
+              </div>
+            </div>
+            <p className="mt-3 text-sm leading-6 text-[var(--shell-muted)]">
+              {rule.caminho}
+            </p>
+            <p className="mt-2 text-sm leading-6 text-[var(--shell-muted)]">
+              Atualizado em {formatDateTime(rule.updated_at)}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {pagination.totalPages > 1 ? (
+        <div className="mx-4 mb-4">
+          <ExtratorPagination
+            itemLabel="regras"
+            page={pagination.page}
+            pageSize={pagination.pageSize}
+            totalItems={pagination.totalItems}
+            totalPages={pagination.totalPages}
+            onPageChange={pagination.setPage}
+            showPageSize={false}
+          />
+        </div>
+      ) : null}
+    </details>
+  );
+}
+
+function DestinationOwnerGroup({
+  formatDateTime,
+  group,
+  handleDeleteDestinationRule,
+  openDestinationEditModal,
+  toBooleanLabel,
+}) {
+  const pagination = usePaginatedItems(group?.routine_groups || [], 5);
+
+  return (
+    <details className="group rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)]">
+      <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-4 [&::-webkit-details-marker]:hidden">
+        <div>
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--shell-accent)]">
+        Responsavel
+      </p>
+      <h3 className="mt-1 text-xl font-semibold text-[var(--shell-text)]">
+        {group.label}
+      </h3>
+      <p className="mt-1 text-sm text-[var(--shell-muted)]">
+        {group.routine_count || 0} rotina(s) · {group.rule_count || 0} regra(s)
+      </p>
+
+        </div>
+        <ChevronDown
+          aria-hidden="true"
+          className="mt-1 h-5 w-5 shrink-0 text-[var(--shell-muted)] transition-transform group-open:rotate-180"
+        />
+      </summary>
+
+      <div className="space-y-3 px-4 pb-4">
+        {pagination.items.map((routineGroup) => (
+          <DestinationRoutineGroup
+            key={routineGroup.id}
+            formatDateTime={formatDateTime}
+            group={routineGroup}
+            handleDeleteDestinationRule={handleDeleteDestinationRule}
+            openDestinationEditModal={openDestinationEditModal}
+            toBooleanLabel={toBooleanLabel}
+          />
+        ))}
+      </div>
+
+      {pagination.totalPages > 1 ? (
+        <div className="mx-4 mb-4">
+          <ExtratorPagination
+            itemLabel="rotinas"
+            page={pagination.page}
+            pageSize={pagination.pageSize}
+            totalItems={pagination.totalItems}
+            totalPages={pagination.totalPages}
+            onPageChange={pagination.setPage}
+            showPageSize={false}
+          />
+        </div>
+      ) : null}
+    </details>
+  );
+}
 
 export default function ExtratorDestinationsSection({
-  clientHistoryPayload,
   DestinationPreview,
   destinationBaseFilterOptions,
   destinationForm,
   destinationGroups,
   destinationOwnerFilterOptions,
   destinationPeriodFilterOptions,
-  destinationRules,
   destinationSourceFilterOptions,
   destinationFilters,
+  destinationPagination,
   destinationsPayload,
-  expandedDestinationGroups,
-  filteredDestinationRules,
   filterAllValue,
   formatCountLabel,
   formatDateTime,
@@ -37,18 +431,24 @@ export default function ExtratorDestinationsSection({
   loadingAction,
   openDestinationCreateModal,
   openDestinationEditModal,
-  refreshAll,
+  onRefresh,
   resetDestinationFilters,
   selectedDestinationListenOptions,
   setDestinationFilters,
   setDestinationForm,
-  setExpandedDestinationGroups,
+  setDestinationPage,
+  setDestinationPageSize,
   setIsDestinationHelpOpen,
   setIsDestinationModalOpen,
   status,
-  summarizeGroups,
   toBooleanLabel,
 }) {
+  const templateTokenOptions =
+    destinationsPayload?.destination_meta?.template_token_options || [];
+  const visibleTemplateKinds = getVisibleTemplateKinds(
+    destinationForm.listenPeriodType,
+  );
+
   return (
           <div className="space-y-4">
             {isDestinationModalOpen ? (
@@ -56,6 +456,15 @@ export default function ExtratorDestinationsSection({
                 title={destinationForm.id ? "Editar destino" : "Novo destino"}
                 subtitle="Defina o caminho base e monte nome/pasta final com templates por periodo."
                 onClose={() => setIsDestinationModalOpen(false)}
+                closeOnBackdrop={false}
+                headerActions={
+                  <ActionButton onClick={() => setIsDestinationHelpOpen(true)}>
+                    <span className="inline-flex items-center gap-2">
+                      <CircleHelp aria-hidden="true" className="h-4 w-4" />
+                      Ajuda
+                    </span>
+                  </ActionButton>
+                }
                 maxWidth="max-w-6xl"
               >
             <SectionCard
@@ -307,114 +716,39 @@ export default function ExtratorDestinationsSection({
                 </div>
 
                 <div className="md:col-span-2 grid gap-4 md:grid-cols-2">
-                  <FormField label="Arquivo mensal">
-                    <TextInput
-                      value={destinationForm.arquivoTemplateMensal}
-                      onChange={(event) =>
-                        setDestinationForm((currentForm) => ({
-                          ...currentForm,
-                          arquivoTemplateMensal: event.target.value,
-                        }))
-                      }
-                    />
-                  </FormField>
-                  <FormField label="Pasta mensal">
-                    <TextInput
-                      value={destinationForm.pastaTemplateMensal}
-                      onChange={(event) =>
-                        setDestinationForm((currentForm) => ({
-                          ...currentForm,
-                          pastaTemplateMensal: event.target.value,
-                        }))
-                      }
-                    />
-                  </FormField>
-                  <FormField label="Arquivo diario">
-                    <TextInput
-                      value={destinationForm.arquivoTemplateDiario}
-                      onChange={(event) =>
-                        setDestinationForm((currentForm) => ({
-                          ...currentForm,
-                          arquivoTemplateDiario: event.target.value,
-                        }))
-                      }
-                    />
-                  </FormField>
-                  <FormField label="Pasta diaria">
-                    <TextInput
-                      value={destinationForm.pastaTemplateDiario}
-                      onChange={(event) =>
-                        setDestinationForm((currentForm) => ({
-                          ...currentForm,
-                          pastaTemplateDiario: event.target.value,
-                        }))
-                      }
-                    />
-                  </FormField>
-                  <FormField label="Arquivo por periodo">
-                    <TextInput
-                      value={destinationForm.arquivoTemplatePeriodo}
-                      onChange={(event) =>
-                        setDestinationForm((currentForm) => ({
-                          ...currentForm,
-                          arquivoTemplatePeriodo: event.target.value,
-                        }))
-                      }
-                    />
-                  </FormField>
-                  <FormField label="Pasta por periodo">
-                    <TextInput
-                      value={destinationForm.pastaTemplatePeriodo}
-                      onChange={(event) =>
-                        setDestinationForm((currentForm) => ({
-                          ...currentForm,
-                          pastaTemplatePeriodo: event.target.value,
-                        }))
-                      }
-                    />
-                  </FormField>
-                  <FormField label="Arquivo sem periodo">
-                    <TextInput
-                      value={destinationForm.arquivoTemplateSemPeriodo}
-                      onChange={(event) =>
-                        setDestinationForm((currentForm) => ({
-                          ...currentForm,
-                          arquivoTemplateSemPeriodo: event.target.value,
-                        }))
-                      }
-                    />
-                  </FormField>
-                  <FormField label="Pasta sem periodo">
-                    <TextInput
-                      value={destinationForm.pastaTemplateSemPeriodo}
-                      onChange={(event) =>
-                        setDestinationForm((currentForm) => ({
-                          ...currentForm,
-                          pastaTemplateSemPeriodo: event.target.value,
-                        }))
-                      }
-                    />
-                  </FormField>
+                  {visibleTemplateKinds.map((templateKind) => (
+                    <Fragment key={templateKind.templateKey}>
+                      <TemplateTokenInput
+                        label={templateKind.fileLabel}
+                        value={destinationForm[templateKind.fileField]}
+                        tokens={templateTokenOptions}
+                        onChange={(value) =>
+                          setDestinationForm((currentForm) => ({
+                            ...currentForm,
+                            [templateKind.fileField]: value,
+                          }))
+                        }
+                      />
+                      <FormField label={templateKind.folderLabel}>
+                        <TextInput
+                          value={destinationForm[templateKind.folderField]}
+                          onChange={(event) =>
+                            setDestinationForm((currentForm) => ({
+                              ...currentForm,
+                              [templateKind.folderField]: event.target.value,
+                            }))
+                          }
+                        />
+                      </FormField>
+                    </Fragment>
+                  ))}
                 </div>
 
                 <div className="md:col-span-2">
-                  <DestinationPreview form={destinationForm} />
-                </div>
-
-                <div className="md:col-span-2 rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] px-4 py-4 text-sm text-[var(--shell-muted)]">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <span>
-                      Tokens disponiveis:{" "}
-                      {(
-                        destinationsPayload?.destination_meta?.template_token_options || []
-                      )
-                        .map((token) => `{${token.id}}`)
-                        .join(", ")}
-                    </span>
-                    <ActionButton onClick={() => setIsDestinationHelpOpen(true)}>
-                      Ver ajuda
-                    </ActionButton>
-                  </div>
+                  <DestinationPreview
+                    form={destinationForm}
+                    templateKinds={visibleTemplateKinds}
+                  />
                 </div>
               </div>
             </SectionCard>
@@ -427,12 +761,7 @@ export default function ExtratorDestinationsSection({
               actions={
                 <>
                   <ActionButton
-                    onClick={() =>
-                      void refreshAll({
-                        historyPage: clientHistoryPayload?.page || 1,
-                        historyPageSize: clientHistoryPayload?.page_size || 8,
-                      })
-                    }
+                    onClick={() => void onRefresh()}
                     disabled={status === "loading" || Boolean(loadingAction)}
                   >
                     Recarregar destinos
@@ -552,48 +881,36 @@ export default function ExtratorDestinationsSection({
                 </div>
 
                 <div className="mt-4 text-sm text-[var(--shell-muted)]">
-                  {destinationRules.length
-                    ? `Exibindo ${formatCountLabel(filteredDestinationRules.length, "destino", "destinos")} em ${summarizeGroups(destinationGroups)}.`
+                  {(destinationPagination?.total_items || 0) > 0
+                    ? `Exibindo ${formatCountLabel(destinationPagination.total_items, "responsavel", "responsaveis")} agrupados.`
                     : "Nenhum destino disponivel para filtrar."}
                 </div>
               </div>
 
               <RuleSummaryList emptyMessage="Nenhum destino encontrou correspondencia com os filtros atuais.">
-                {filteredDestinationRules.map((rule) => (
-                  <article
-                    key={rule.id}
-                    className="rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] p-4"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-[var(--shell-text)]">
-                          {rule.base} · {rule.nome}
-                        </p>
-                        <p className="mt-1 text-xs uppercase tracking-[0.16em] text-[var(--shell-muted)]">
-                          {rule.listen_period_label} · {toBooleanLabel(rule.enabled)}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <ActionButton onClick={() => openDestinationEditModal(rule)}>
-                          Carregar para editar
-                        </ActionButton>
-                        <ActionButton
-                          onClick={() => void handleDeleteDestinationRule(rule.id)}
-                          tone="danger"
-                        >
-                          Excluir
-                        </ActionButton>
-                      </div>
-                    </div>
-                    <p className="mt-3 text-sm leading-6 text-[var(--shell-muted)]">
-                      {rule.caminho}
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-[var(--shell-muted)]">
-                      Atualizado em {formatDateTime(rule.updated_at)}
-                    </p>
-                  </article>
+                {destinationGroups.map((group) => (
+                  <DestinationOwnerGroup
+                    key={group.id}
+                    formatDateTime={formatDateTime}
+                    group={group}
+                    handleDeleteDestinationRule={handleDeleteDestinationRule}
+                    openDestinationEditModal={openDestinationEditModal}
+                    toBooleanLabel={toBooleanLabel}
+                  />
                 ))}
               </RuleSummaryList>
+
+              <div className="mt-4">
+                <ExtratorPagination
+                  itemLabel="responsaveis"
+                  page={destinationPagination?.page || 1}
+                  pageSize={destinationPagination?.page_size || 10}
+                  totalItems={destinationPagination?.total_items || 0}
+                  totalPages={destinationPagination?.total_pages || 1}
+                  onPageChange={setDestinationPage}
+                  onPageSizeChange={setDestinationPageSize}
+                />
+              </div>
             </SectionCard>
           </div>
   );

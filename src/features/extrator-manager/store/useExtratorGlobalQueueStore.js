@@ -17,9 +17,11 @@ export const useExtratorGlobalQueueStore = create((set, get) => ({
   loadingAction: "",
   payload: null,
   historyPage: 1,
+  historyPageSize: 10,
 
-  async loadQueue({ nextHistoryPage, silent = false } = {}) {
+  async loadQueue({ nextHistoryPage, nextHistoryPageSize, silent = false } = {}) {
     const historyPage = nextHistoryPage ?? get().historyPage;
+    const historyPageSize = nextHistoryPageSize ?? get().historyPageSize;
 
     if (!silent) {
       set({ status: "loading" });
@@ -28,12 +30,13 @@ export const useExtratorGlobalQueueStore = create((set, get) => ({
     try {
       const payload = await extratorApi.getGlobalQueue({
         historyPage,
-        historyPageSize: 8,
+        historyPageSize,
       });
 
       set({
         payload,
         historyPage: payload?.history?.page || historyPage,
+        historyPageSize: payload?.history?.page_size || historyPageSize,
         error: "",
         status: "ready",
       });
@@ -61,6 +64,7 @@ export const useExtratorGlobalQueueStore = create((set, get) => ({
       const result = await action();
       await get().loadQueue({
         nextHistoryPage: get().historyPage,
+        nextHistoryPageSize: get().historyPageSize,
         silent: true,
       });
       return result;
@@ -79,5 +83,9 @@ export const useExtratorGlobalQueueStore = create((set, get) => ({
 
   setHistoryPage(historyPage) {
     set({ historyPage });
+  },
+
+  setHistoryPageSize(historyPageSize) {
+    set({ historyPage: 1, historyPageSize });
   },
 }));

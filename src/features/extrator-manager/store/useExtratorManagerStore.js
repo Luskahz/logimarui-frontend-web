@@ -11,6 +11,15 @@ function toErrorMessage(error, fallbackMessage) {
   return fallbackMessage;
 }
 
+const DEFAULT_LIST_QUERY = Object.freeze({
+  page: 1,
+  pageSize: 10,
+  filters: {},
+});
+let schedulerRequestSequence = 0;
+let destinationsRequestSequence = 0;
+let requestsRequestSequence = 0;
+
 export const useExtratorManagerStore = create((set, get) => ({
   status: "loading",
   error: "",
@@ -23,6 +32,9 @@ export const useExtratorManagerStore = create((set, get) => ({
   destinationsPayload: null,
   batchesPayload: null,
   requestsPayload: null,
+  schedulerQuery: DEFAULT_LIST_QUERY,
+  destinationsQuery: DEFAULT_LIST_QUERY,
+  requestsQuery: DEFAULT_LIST_QUERY,
 
   async loadRealtime({ historyPage = 1, historyPageSize = 8, silent = false } = {}) {
     if (!silent) {
@@ -66,6 +78,51 @@ export const useExtratorManagerStore = create((set, get) => ({
     }
   },
 
+  async loadScheduler(query = get().schedulerQuery) {
+    const requestSequence = ++schedulerRequestSequence;
+    const schedulerQuery = {
+      ...DEFAULT_LIST_QUERY,
+      ...query,
+      filters: query?.filters || {},
+    };
+    const schedulerPayload = await extratorApi.getScheduler(schedulerQuery);
+    if (requestSequence !== schedulerRequestSequence) {
+      return schedulerPayload;
+    }
+    set({ schedulerPayload, schedulerQuery });
+    return schedulerPayload;
+  },
+
+  async loadDestinations(query = get().destinationsQuery) {
+    const requestSequence = ++destinationsRequestSequence;
+    const destinationsQuery = {
+      ...DEFAULT_LIST_QUERY,
+      ...query,
+      filters: query?.filters || {},
+    };
+    const destinationsPayload =
+      await extratorApi.getDestinations(destinationsQuery);
+    if (requestSequence !== destinationsRequestSequence) {
+      return destinationsPayload;
+    }
+    set({ destinationsPayload, destinationsQuery });
+    return destinationsPayload;
+  },
+
+  async loadRequests(query = get().requestsQuery) {
+    const requestSequence = ++requestsRequestSequence;
+    const requestsQuery = {
+      ...DEFAULT_LIST_QUERY,
+      ...query,
+    };
+    const requestsPayload = await extratorApi.getRequests(requestsQuery);
+    if (requestSequence !== requestsRequestSequence) {
+      return requestsPayload;
+    }
+    set({ requestsPayload, requestsQuery });
+    return requestsPayload;
+  },
+
   async loadAuxiliary() {
     const [
       schedulerPayload,
@@ -73,17 +130,14 @@ export const useExtratorManagerStore = create((set, get) => ({
       batchesPayload,
       requestsPayload,
     ] = await Promise.all([
-      extratorApi.getScheduler(),
-      extratorApi.getDestinations(),
+      get().loadScheduler(),
+      get().loadDestinations(),
       extratorApi.getBatches(),
-      extratorApi.getRequests(),
+      get().loadRequests(),
     ]);
 
     set({
-      schedulerPayload,
-      destinationsPayload,
       batchesPayload,
-      requestsPayload,
     });
 
     return {

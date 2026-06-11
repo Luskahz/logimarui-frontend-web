@@ -250,6 +250,17 @@ export default function ExtratorExtractionSection({
                   do servidor
                 </p>
 
+                <div className="shell-scrollbar mt-6 max-h-[360px] overflow-y-auto pr-1">
+                  <RoutineGroupList
+                    emptyMessage="Nenhuma rotina em andamento por enquanto."
+                    groups={clientLogPayload?.progress?.active_groups || []}
+                    onCancelGroup={handleCancelTaskGroup}
+                    onCancelTask={handleCancelTask}
+                    scope="progress"
+                    taskVariant="progress"
+                  />
+                </div>
+
                 <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                   <RunSummaryPill
                     label="Ativas"
@@ -272,17 +283,6 @@ export default function ExtratorExtractionSection({
                     note="Interrupcao pedida."
                     tone="cancelling"
                     value={formatSummaryValue(clientLogPayload?.progress?.summary, "cancelling")}
-                  />
-                </div>
-
-                <div className="shell-scrollbar mt-6 max-h-[360px] overflow-y-auto pr-1">
-                  <RoutineGroupList
-                    emptyMessage="Nenhuma rotina em andamento por enquanto."
-                    groups={clientLogPayload?.progress?.active_groups || []}
-                    onCancelGroup={handleCancelTaskGroup}
-                    onCancelTask={handleCancelTask}
-                    scope="progress"
-                    taskVariant="progress"
                   />
                 </div>
 

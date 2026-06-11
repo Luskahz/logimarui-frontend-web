@@ -22,6 +22,7 @@ import ExtratorPageShell, {
 } from "@/features/extrator-manager/components/ExtratorPageShell";
 import { normalizeExtratorTabId } from "@/features/extrator-manager/components/ExtratorSectionNav";
 import { useExtratorGlobalQueue } from "@/features/extrator-manager/hooks/useExtratorGlobalQueue";
+import { useDebouncedValue } from "@/features/extrator-manager/hooks/useDebouncedValue";
 import { useExtratorManager } from "@/features/extrator-manager/hooks/useExtratorManager";
 import { extratorApi } from "@/features/extrator-manager/lib/extratorApi";
 import {
@@ -52,14 +53,6 @@ const FILTER_ALL_VALUE = "__all__";
 
 function toBooleanLabel(value) {
   return value ? "Ativo" : "Pausado";
-}
-
-function normalizeFilterText(value) {
-  return String(value ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
 }
 
 function normalizeOption(option) {
@@ -111,33 +104,6 @@ function getInitialActiveTabFromUrl() {
   return normalizeExtratorTabId(
     new URLSearchParams(window.location.search).get("aba"),
   );
-}
-
-function groupRules(items, getGroupId, getGroupLabel) {
-  const groupsMap = new Map();
-
-  (items || []).forEach((item) => {
-    const id = getGroupId(item) || "sem-grupo";
-    const label = getGroupLabel(item) || "Sem grupo";
-
-    if (!groupsMap.has(id)) {
-      groupsMap.set(id, {
-        id,
-        label,
-        items: [],
-      });
-    }
-
-    groupsMap.get(id).items.push(item);
-  });
-
-  return Array.from(groupsMap.values()).sort((left, right) =>
-    left.label.localeCompare(right.label, "pt-BR"),
-  );
-}
-
-function summarizeGroups(groups, singularGroupLabel = "grupo", pluralGroupLabel = "grupos") {
-  return formatCountLabel(groups?.length || 0, singularGroupLabel, pluralGroupLabel);
 }
 
 function buildDestinationDefaultForm(destinationMeta) {
@@ -273,113 +239,6 @@ function schedulerPeriodLabel(rule, reportsMeta, schedulerMeta) {
   return buildPeriodSummary(hydratePeriodStateFromItem(rule), periodMeta);
 }
 
-function schedulerGroupId(rule) {
-  return rule?.target_type === "all" ? "all" : rule?.base || "sem-rotina";
-}
-
-function schedulerGroupLabel(rule) {
-  return schedulerTargetLabel(rule);
-}
-
-function schedulerRuleMatchesFilters(rule, filters, reportsMeta, schedulerMeta) {
-  const search = normalizeFilterText(filters.search);
-  const searchableText = normalizeFilterText(
-    [
-      schedulerTargetLabel(rule),
-      schedulerScheduleLabel(rule, schedulerMeta),
-      schedulerPeriodLabel(rule, reportsMeta, schedulerMeta),
-      schedulerScheduleKindLabel(rule, schedulerMeta),
-      toBooleanLabel(rule?.enabled),
-    ].join(" "),
-  );
-
-  if (search && !searchableText.includes(search)) {
-    return false;
-  }
-
-  if (filters.base !== FILTER_ALL_VALUE && schedulerGroupId(rule) !== filters.base) {
-    return false;
-  }
-
-  if (filters.period !== FILTER_ALL_VALUE && rule?.period_type !== filters.period) {
-    return false;
-  }
-
-  if (
-    filters.scheduleType !== FILTER_ALL_VALUE &&
-    rule?.schedule_type !== filters.scheduleType
-  ) {
-    return false;
-  }
-
-  if (filters.enabled !== FILTER_ALL_VALUE) {
-    return String(Boolean(rule?.enabled)) === filters.enabled;
-  }
-
-  return true;
-}
-
-function destinationGroupId(rule) {
-  return String(rule?.nome || "Sem nome").trim() || "Sem nome";
-}
-
-function destinationSourceLabel(rule) {
-  return rule?.migrated_from_sql ? "Migrado do SQL" : "Criado na interface";
-}
-
-function destinationListenLabel(rule, destinationMeta) {
-  const listenOptions =
-    destinationMeta?.listen_period_options_by_base?.[rule?.base] || [];
-  return (
-    rule?.listen_period_label ||
-    getOptionLabel(listenOptions, rule?.listen_period_type, rule?.listen_period_type)
-  );
-}
-
-function destinationRuleMatchesFilters(rule, filters, destinationMeta) {
-  const search = normalizeFilterText(filters.search);
-  const searchableText = normalizeFilterText(
-    [
-      rule?.nome,
-      rule?.base,
-      rule?.caminho,
-      destinationListenLabel(rule, destinationMeta),
-      destinationSourceLabel(rule),
-      toBooleanLabel(rule?.enabled),
-    ].join(" "),
-  );
-
-  if (search && !searchableText.includes(search)) {
-    return false;
-  }
-
-  if (filters.owner !== FILTER_ALL_VALUE && destinationGroupId(rule) !== filters.owner) {
-    return false;
-  }
-
-  if (filters.base !== FILTER_ALL_VALUE && rule?.base !== filters.base) {
-    return false;
-  }
-
-  if (
-    filters.period !== FILTER_ALL_VALUE &&
-    (rule?.listen_period_type || "todos") !== filters.period
-  ) {
-    return false;
-  }
-
-  if (filters.enabled !== FILTER_ALL_VALUE) {
-    return String(Boolean(rule?.enabled)) === filters.enabled;
-  }
-
-  if (filters.source !== FILTER_ALL_VALUE) {
-    const source = rule?.migrated_from_sql ? "sql" : "interface";
-    return source === filters.source;
-  }
-
-  return true;
-}
-
 function stripDestinationAccents(value) {
   return String(value ?? "")
     .normalize("NFD")
@@ -400,7 +259,7 @@ function applyDestinationMonthCase(value, caseMode) {
   return rawValue.toLowerCase();
 }
 
-function formatDestinationMonthName(rule, monthIndex, forcedFormat = "") {
+function formatDestinationMonthName(rule, monthIndex, forcedFormat = "", forcedCase = "") {
   const months = [
     "janeiro",
     "fevereiro",
@@ -424,7 +283,10 @@ function formatDestinationMonthName(rule, monthIndex, forcedFormat = "") {
     ? stripDestinationAccents(formattedName)
     : formattedName;
 
-  return applyDestinationMonthCase(withoutAccent, rule?.mesCaixa || "minusculo");
+  return applyDestinationMonthCase(
+    withoutAccent,
+    forcedCase || rule?.mesCaixa || "minusculo",
+  );
 }
 
 function formatDestinationDate(rule, date) {
@@ -462,6 +324,13 @@ function buildDestinationTemplateContext(rule) {
     mes_nome: formatDestinationMonthName(rule, 2),
     mes_nome_completo: formatDestinationMonthName(rule, 2, "completo"),
     mes_nome_abreviado: formatDestinationMonthName(rule, 2, "abreviado"),
+    mes_nome_maiusculo: formatDestinationMonthName(rule, 2, "completo", "maiusculo"),
+    mes_nome_abreviado_maiusculo: formatDestinationMonthName(
+      rule,
+      2,
+      "abreviado",
+      "maiusculo",
+    ),
     mes_numero: "03",
     mes_numero_sem_zero: "3",
     dia: "05",
@@ -511,13 +380,11 @@ function buildDestinationPreviewPath(rule, periodType) {
   return [basePath, folder, fileWithExtension].filter(Boolean).join("\\");
 }
 
-function DestinationPreview({ form }) {
-  const examples = [
-    ["Mensal", buildDestinationPreviewPath(form, "mensal")],
-    ["Diario", buildDestinationPreviewPath(form, "diario")],
-    ["Periodo", buildDestinationPreviewPath(form, "periodo")],
-    ["Sem periodo", buildDestinationPreviewPath(form, "sem_periodo")],
-  ];
+function DestinationPreview({ form, templateKinds }) {
+  const examples = templateKinds.map(({ label, templateKey }) => [
+    label,
+    buildDestinationPreviewPath(form, templateKey),
+  ]);
 
   return (
     <div className="rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] px-4 py-4">
@@ -549,6 +416,9 @@ function ExtratorManagerScreen() {
     lastUpdatedAt,
     loadingAction,
     loadClientHistory,
+    loadDestinations,
+    loadRequests,
+    loadScheduler,
     refreshAll,
     requestsPayload,
     runAction,
@@ -586,8 +456,14 @@ function ExtratorManagerScreen() {
     enabled: FILTER_ALL_VALUE,
     source: FILTER_ALL_VALUE,
   });
-  const [expandedSchedulerGroups, setExpandedSchedulerGroups] = useState({});
-  const [expandedDestinationGroups, setExpandedDestinationGroups] = useState({});
+  const [schedulerPage, setSchedulerPage] = useState(1);
+  const [schedulerPageSize, setSchedulerPageSize] = useState(10);
+  const [destinationPage, setDestinationPage] = useState(1);
+  const [destinationPageSize, setDestinationPageSize] = useState(10);
+  const [requestsPage, setRequestsPage] = useState(1);
+  const [requestsPageSize, setRequestsPageSize] = useState(10);
+  const debouncedSchedulerFilters = useDebouncedValue(schedulerFilters);
+  const debouncedDestinationFilters = useDebouncedValue(destinationFilters);
   const [isSchedulerModalOpen, setIsSchedulerModalOpen] = useState(false);
   const [isDestinationModalOpen, setIsDestinationModalOpen] = useState(false);
   const [isDestinationHelpOpen, setIsDestinationHelpOpen] = useState(false);
@@ -699,84 +575,108 @@ function ExtratorManagerScreen() {
   const {
     error: globalQueueError,
     historyPage: globalQueueHistoryPage,
+    historyPageSize: globalQueueHistoryPageSize,
     loadingAction: globalQueueLoadingAction,
     payload: globalQueuePayload,
     refreshQueue,
     runAction: runGlobalQueueAction,
   } = useExtratorGlobalQueue({ enabled: activeTab === "globalQueue" });
 
-  const schedulerRules = schedulerPayload?.rules || [];
-  const filteredSchedulerRules = schedulerRules.filter((rule) =>
-    schedulerRuleMatchesFilters(rule, schedulerFilters, reportsMeta, schedulerMeta),
-  );
-  const schedulerGroups = groupRules(
-    filteredSchedulerRules,
-    schedulerGroupId,
-    schedulerGroupLabel,
-  );
+  const schedulerGroups = schedulerPayload?.groups || [];
   const schedulerBaseFilterOptions = [
     { id: FILTER_ALL_VALUE, label: "Todas as rotinas" },
-    ...uniqueOptions(
-      schedulerRules.map((rule) => ({
-        id: schedulerGroupId(rule),
-        label: schedulerGroupLabel(rule),
-      })),
-    ),
+    ...(schedulerPayload?.filter_options?.base || []),
   ];
   const schedulerPeriodFilterOptions = [
     { id: FILTER_ALL_VALUE, label: "Todas as atualizacoes" },
-    ...uniqueOptions(
-      schedulerRules.map((rule) => ({
-        id: rule.period_type,
-        label: schedulerPeriodLabel(rule, reportsMeta, schedulerMeta).split(":")[0],
-      })),
-    ),
+    ...(schedulerPayload?.filter_options?.period || []),
   ];
   const schedulerScheduleFilterOptions = [
     { id: FILTER_ALL_VALUE, label: "Todos os disparos" },
     ...(schedulerMeta?.schedule_options || []),
   ];
-  const destinationRules = destinationsPayload?.rules || [];
-  const filteredDestinationRules = destinationRules.filter((rule) =>
-    destinationRuleMatchesFilters(rule, destinationFilters, destinationMeta),
-  );
-  const destinationGroups = groupRules(
-    filteredDestinationRules,
-    destinationGroupId,
-    destinationGroupId,
-  );
+  const destinationGroups = destinationsPayload?.groups || [];
   const destinationOwnerFilterOptions = [
     { id: FILTER_ALL_VALUE, label: "Todos os criadores" },
-    ...uniqueOptions(
-      destinationRules.map((rule) => ({
-        id: destinationGroupId(rule),
-        label: destinationGroupId(rule),
-      })),
-    ),
+    ...(destinationMeta?.owner_options || []),
   ];
   const destinationBaseFilterOptions = [
     { id: FILTER_ALL_VALUE, label: "Todas as rotinas" },
-    ...uniqueOptions(
-      destinationRules.map((rule) => ({
-        id: rule.base,
-        label: rule.base || "Sem rotina",
-      })),
-    ),
+    ...(destinationMeta?.base_options || []),
   ];
   const destinationPeriodFilterOptions = [
     { id: FILTER_ALL_VALUE, label: "Todas as atualizacoes" },
-    ...uniqueOptions(
-      destinationRules.map((rule) => ({
-        id: rule.listen_period_type || "todos",
-        label: destinationListenLabel(rule, destinationMeta),
-      })),
-    ),
+    ...(destinationMeta?.period_filter_options || []),
   ];
   const destinationSourceFilterOptions = [
     { id: FILTER_ALL_VALUE, label: "Todas as origens" },
     { id: "interface", label: "Criado na interface" },
     { id: "sql", label: "Migrado do SQL" },
   ];
+  const hasSchedulerPayload = Boolean(schedulerPayload);
+  const hasDestinationsPayload = Boolean(destinationsPayload);
+  const hasRequestsPayload = Boolean(requestsPayload);
+
+  useEffect(() => {
+    if (activeTab !== "scheduler" || !hasSchedulerPayload) {
+      return;
+    }
+
+    void loadScheduler({
+      page: schedulerPage,
+      pageSize: schedulerPageSize,
+      filters: debouncedSchedulerFilters,
+    }).catch(() => {
+      // O erro global da store ja apresenta a falha ao usuario.
+    });
+  }, [
+    activeTab,
+    debouncedSchedulerFilters,
+    loadScheduler,
+    schedulerPage,
+    schedulerPageSize,
+    hasSchedulerPayload,
+  ]);
+
+  useEffect(() => {
+    if (activeTab !== "destinos" || !hasDestinationsPayload) {
+      return;
+    }
+
+    void loadDestinations({
+      page: destinationPage,
+      pageSize: destinationPageSize,
+      filters: debouncedDestinationFilters,
+    }).catch(() => {
+      // O erro global da store ja apresenta a falha ao usuario.
+    });
+  }, [
+    activeTab,
+    debouncedDestinationFilters,
+    destinationPage,
+    destinationPageSize,
+    hasDestinationsPayload,
+    loadDestinations,
+  ]);
+
+  useEffect(() => {
+    if (activeTab !== "solicitacoes" || !hasRequestsPayload) {
+      return;
+    }
+
+    void loadRequests({
+      page: requestsPage,
+      pageSize: requestsPageSize,
+    }).catch(() => {
+      // O erro global da store ja apresenta a falha ao usuario.
+    });
+  }, [
+    activeTab,
+    loadRequests,
+    requestsPage,
+    requestsPageSize,
+    hasRequestsPayload,
+  ]);
 
   useEffect(() => {
     if (!passwordActionModal?.isOpen) {
@@ -831,6 +731,7 @@ function ExtratorManagerScreen() {
   }
 
   function resetSchedulerFilters() {
+    setSchedulerPage(1);
     setSchedulerFilters({
       search: "",
       base: FILTER_ALL_VALUE,
@@ -841,6 +742,7 @@ function ExtratorManagerScreen() {
   }
 
   function resetDestinationFilters() {
+    setDestinationPage(1);
     setDestinationFilters({
       search: "",
       owner: FILTER_ALL_VALUE,
@@ -849,20 +751,6 @@ function ExtratorManagerScreen() {
       enabled: FILTER_ALL_VALUE,
       source: FILTER_ALL_VALUE,
     });
-  }
-
-  function toggleSchedulerGroup(groupId) {
-    setExpandedSchedulerGroups((current) => ({
-      ...current,
-      [groupId]: current[groupId] === false,
-    }));
-  }
-
-  function toggleDestinationGroup(groupId) {
-    setExpandedDestinationGroups((current) => ({
-      ...current,
-      [groupId]: current[groupId] === false,
-    }));
   }
 
   function openSchedulerCreateModal() {
@@ -1556,6 +1444,16 @@ function ExtratorManagerScreen() {
     });
   }
 
+  function updateSchedulerFilters(updater) {
+    setSchedulerPage(1);
+    setSchedulerFilters(updater);
+  }
+
+  function updateDestinationFilters(updater) {
+    setDestinationPage(1);
+    setDestinationFilters(updater);
+  }
+
   async function handleCancelGlobalTask(taskId) {
     const password =
       typeof window !== "undefined"
@@ -1684,10 +1582,6 @@ function ExtratorManagerScreen() {
         ) : null}
         {activeTab === "scheduler" && schedulerForm ? (
           <ExtratorSchedulerSection
-            bases={bases}
-            clientHistoryPayload={clientHistoryPayload}
-            expandedSchedulerGroups={expandedSchedulerGroups}
-            filteredSchedulerRules={filteredSchedulerRules}
             filterAllValue={FILTER_ALL_VALUE}
             formatCountLabel={formatCountLabel}
             formatDateTime={formatDateTime}
@@ -1698,37 +1592,44 @@ function ExtratorManagerScreen() {
             loadingAction={loadingAction}
             openSchedulerCreateModal={openSchedulerCreateModal}
             openSchedulerEditModal={openSchedulerEditModal}
-            refreshAll={refreshAll}
+            onRefresh={() =>
+              loadScheduler({
+                page: schedulerPage,
+                pageSize: schedulerPageSize,
+                filters: debouncedSchedulerFilters,
+              })
+            }
             reportsMeta={reportsMeta}
             resetSchedulerFilters={resetSchedulerFilters}
             schedulerBaseFilterOptions={schedulerBaseFilterOptions}
             schedulerFilters={schedulerFilters}
             schedulerForm={schedulerForm}
             schedulerGroups={schedulerGroups}
+            schedulerPagination={schedulerPayload?.pagination}
             schedulerIntervalLabel={schedulerIntervalLabel}
             schedulerMeta={schedulerMeta}
             schedulerPeriodFilterOptions={schedulerPeriodFilterOptions}
             schedulerPeriodLabel={schedulerPeriodLabel}
             schedulerPeriodMeta={schedulerPeriodMeta}
-            schedulerRules={schedulerRules}
             schedulerScheduleFilterOptions={schedulerScheduleFilterOptions}
             schedulerScheduleKindLabel={schedulerScheduleKindLabel}
             schedulerScheduleLabel={schedulerScheduleLabel}
-            schedulerTargetLabel={schedulerTargetLabel}
             schedulerTargetOptions={schedulerMeta?.target_options || []}
-            setExpandedSchedulerGroups={setExpandedSchedulerGroups}
             setIsSchedulerModalOpen={setIsSchedulerModalOpen}
             setSchedulerForm={setSchedulerForm}
-            setSchedulerFilters={setSchedulerFilters}
+            setSchedulerFilters={updateSchedulerFilters}
+            setSchedulerPage={setSchedulerPage}
+            setSchedulerPageSize={(pageSize) => {
+              setSchedulerPage(1);
+              setSchedulerPageSize(pageSize);
+            }}
             status={status}
-            summarizeGroups={summarizeGroups}
             syncSchedulerForm={syncSchedulerForm}
             toBooleanLabel={toBooleanLabel}
           />
         ) : null}
         {activeTab === "destinos" && destinationForm ? (
           <ExtratorDestinationsSection
-            clientHistoryPayload={clientHistoryPayload}
             DestinationPreview={DestinationPreview}
             destinationBaseFilterOptions={destinationBaseFilterOptions}
             destinationFilters={destinationFilters}
@@ -1736,11 +1637,8 @@ function ExtratorManagerScreen() {
             destinationGroups={destinationGroups}
             destinationOwnerFilterOptions={destinationOwnerFilterOptions}
             destinationPeriodFilterOptions={destinationPeriodFilterOptions}
-            destinationRules={destinationRules}
             destinationSourceFilterOptions={destinationSourceFilterOptions}
             destinationsPayload={destinationsPayload}
-            expandedDestinationGroups={expandedDestinationGroups}
-            filteredDestinationRules={filteredDestinationRules}
             filterAllValue={FILTER_ALL_VALUE}
             formatCountLabel={formatCountLabel}
             formatDateTime={formatDateTime}
@@ -1750,28 +1648,42 @@ function ExtratorManagerScreen() {
             loadingAction={loadingAction}
             openDestinationCreateModal={openDestinationCreateModal}
             openDestinationEditModal={openDestinationEditModal}
-            refreshAll={refreshAll}
+            onRefresh={() =>
+              loadDestinations({
+                page: destinationPage,
+                pageSize: destinationPageSize,
+                filters: debouncedDestinationFilters,
+              })
+            }
             resetDestinationFilters={resetDestinationFilters}
             selectedDestinationListenOptions={selectedDestinationListenOptions}
-            setDestinationFilters={setDestinationFilters}
+            setDestinationFilters={updateDestinationFilters}
             setDestinationForm={setDestinationForm}
-            setExpandedDestinationGroups={setExpandedDestinationGroups}
+            setDestinationPage={setDestinationPage}
+            setDestinationPageSize={(pageSize) => {
+              setDestinationPage(1);
+              setDestinationPageSize(pageSize);
+            }}
             setIsDestinationHelpOpen={setIsDestinationHelpOpen}
             setIsDestinationModalOpen={setIsDestinationModalOpen}
             status={status}
-            summarizeGroups={summarizeGroups}
             toBooleanLabel={toBooleanLabel}
+            destinationPagination={destinationsPayload?.pagination}
           />
         ) : null}
 
         {activeTab === "solicitacoes" && requestForm ? (
           <ExtratorRequestsSection
-            clientHistoryPayload={clientHistoryPayload}
             handleSaveRequest={handleSaveRequest}
             handleUpdateRequestStatus={handleUpdateRequestStatus}
             isRequestCreateModalOpen={isRequestCreateModalOpen}
             loadingAction={loadingAction}
-            refreshAll={refreshAll}
+            onRefresh={() =>
+              loadRequests({
+                page: requestsPage,
+                pageSize: requestsPageSize,
+              })
+            }
             requestForm={requestForm}
             requestMeta={requestMeta}
             requestsPayload={requestsPayload}
@@ -1779,6 +1691,11 @@ function ExtratorManagerScreen() {
             requestUpdateOptions={requestUpdateOptions}
             setIsRequestCreateModalOpen={setIsRequestCreateModalOpen}
             setRequestForm={setRequestForm}
+            setRequestsPage={setRequestsPage}
+            setRequestsPageSize={(pageSize) => {
+              setRequestsPage(1);
+              setRequestsPageSize(pageSize);
+            }}
             setSelectedRequestId={setSelectedRequestId}
             status={status}
             syncRequestType={syncRequestType}
@@ -1788,6 +1705,7 @@ function ExtratorManagerScreen() {
         {activeTab === "globalQueue" ? (
           <ExtratorGlobalQueueSection
             historyPage={globalQueueHistoryPage}
+            historyPageSize={globalQueueHistoryPageSize}
             onCancelGroup={handleCancelGlobalGroup}
             onCancelTask={handleCancelGlobalTask}
             payload={globalQueuePayload}

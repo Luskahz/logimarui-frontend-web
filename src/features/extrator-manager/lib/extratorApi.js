@@ -9,6 +9,20 @@ function buildExtratorUrl(path) {
   return buildGatewayUrl(`${EXTRATOR_API_PREFIX}${normalizedPath}`);
 }
 
+function buildQueryString(params) {
+  const query = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "" || value === "__all__") {
+      return;
+    }
+    query.set(key, String(value));
+  });
+
+  const serialized = query.toString();
+  return serialized ? `?${serialized}` : "";
+}
+
 async function readJsonResponse(response) {
   const rawText = await response.text();
   let payload = null;
@@ -56,25 +70,57 @@ export const extratorApi = {
   getClientHistory({ page = 1, pageSize = 8 } = {}) {
     return request(`/client-history?page=${page}&page_size=${pageSize}`);
   },
-  getScheduler() {
-    return request("/scheduler");
+  getScheduler({ page = 1, pageSize = 10, filters = {} } = {}) {
+    return request(
+      `/scheduler${buildQueryString({
+        page,
+        page_size: pageSize,
+        search: filters.search,
+        base: filters.base,
+        period: filters.period,
+        schedule_type: filters.scheduleType,
+        enabled: filters.enabled,
+      })}`,
+    );
   },
-  getDestinations() {
-    return request("/destinations");
+  getDestinations({ page = 1, pageSize = 10, filters = {} } = {}) {
+    return request(
+      `/destinations${buildQueryString({
+        page,
+        page_size: pageSize,
+        search: filters.search,
+        owner: filters.owner,
+        base: filters.base,
+        period: filters.period,
+        enabled: filters.enabled,
+        source: filters.source,
+      })}`,
+    );
   },
   getBatches() {
     return request("/batches");
   },
-  getRequests() {
-    return request("/solicitacoes");
+  getRequests({ page = 1, pageSize = 10 } = {}) {
+    return request(
+      `/solicitacoes${buildQueryString({
+        page,
+        page_size: pageSize,
+      })}`,
+    );
   },
-  getGlobalQueue({ historyPage = 1, historyPageSize = 8 } = {}) {
+  getGlobalQueue({ historyPage = 1, historyPageSize = 10 } = {}) {
     return request(
       `/global-queue?history_page=${historyPage}&history_page_size=${historyPageSize}`,
     );
   },
   enqueue(body) {
-    return request("/enqueue", { method: "POST", body });
+    return request("/enqueue", {
+      method: "POST",
+      body: {
+        ...body,
+        ...(body?.period_args || {}),
+      },
+    });
   },
   enqueueBatch(body) {
     return request("/enqueue-batch", { method: "POST", body });

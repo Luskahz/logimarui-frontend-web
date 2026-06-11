@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronDown } from "lucide-react";
 import {
   CheckboxField,
   FormField,
@@ -10,17 +11,108 @@ import {
   SelectInput,
   TextInput,
 } from "@/features/extrator-manager/components/ExtratorManagerControls";
+import { ExtratorPagination } from "@/features/extrator-manager/components/ExtratorPagination";
 import {
   ExtratorActionButton as ActionButton,
   ExtratorSectionCard as SectionCard,
 } from "@/features/extrator-manager/components/ExtratorPageShell";
+import { usePaginatedItems } from "@/features/extrator-manager/hooks/usePaginatedItems";
 import { buildPeriodSummary } from "@/features/extrator-manager/lib/extratorPeriod";
 
+function SchedulerRoutineGroup({
+  formatDateTime,
+  group,
+  handleDeleteSchedulerRule,
+  handleToggleSchedulerRule,
+  openSchedulerEditModal,
+  reportsMeta,
+  schedulerMeta,
+  schedulerPeriodLabel,
+  schedulerScheduleLabel,
+  toBooleanLabel,
+}) {
+  const pagination = usePaginatedItems(group?.items || [], 5);
+
+  return (
+    <details className="group rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)]">
+      <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-4 [&::-webkit-details-marker]:hidden">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--shell-accent)]">
+            Rotina
+          </p>
+          <h3 className="mt-1 text-xl font-semibold text-[var(--shell-text)]">
+            {group.label}
+          </h3>
+          <p className="mt-1 text-sm text-[var(--shell-muted)]">
+            {group.item_count || group.items?.length || 0} regra(s) de agendamento
+          </p>
+        </div>
+        <ChevronDown
+          aria-hidden="true"
+          className="mt-1 h-5 w-5 shrink-0 text-[var(--shell-muted)] transition-transform group-open:rotate-180"
+        />
+      </summary>
+
+      <div className="space-y-3 px-4 pb-4">
+        {pagination.items.map((rule) => (
+          <div
+            key={rule.id}
+            className="rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-strong)] p-4"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-[var(--shell-text)]">
+                  {schedulerScheduleLabel(rule, schedulerMeta)}
+                </p>
+                <p className="mt-1 text-xs uppercase tracking-[0.16em] text-[var(--shell-muted)]">
+                  {rule.schedule_type} · {toBooleanLabel(rule.enabled)}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <ActionButton onClick={() => openSchedulerEditModal(rule)}>
+                  Carregar para editar
+                </ActionButton>
+                <ActionButton
+                  onClick={() => void handleToggleSchedulerRule(rule)}
+                >
+                  {rule.enabled ? "Pausar" : "Ativar"}
+                </ActionButton>
+                <ActionButton
+                  onClick={() => void handleDeleteSchedulerRule(rule.id)}
+                  tone="danger"
+                >
+                  Excluir
+                </ActionButton>
+              </div>
+            </div>
+            <p className="mt-3 text-sm leading-6 text-[var(--shell-muted)]">
+              {schedulerPeriodLabel(rule, reportsMeta, schedulerMeta)}
+            </p>
+            <p className="mt-2 text-sm leading-6 text-[var(--shell-muted)]">
+              Atualizada em {formatDateTime(rule.updated_at)}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {pagination.totalPages > 1 ? (
+        <div className="mx-4 mb-4">
+          <ExtratorPagination
+            itemLabel="regras"
+            page={pagination.page}
+            pageSize={pagination.pageSize}
+            totalItems={pagination.totalItems}
+            totalPages={pagination.totalPages}
+            onPageChange={pagination.setPage}
+            showPageSize={false}
+          />
+        </div>
+      ) : null}
+    </details>
+  );
+}
+
 export default function ExtratorSchedulerSection({
-  bases,
-  clientHistoryPayload,
-  expandedSchedulerGroups,
-  filteredSchedulerRules,
   formatCountLabel,
   handleDeleteSchedulerRule,
   handleSaveSchedulerRule,
@@ -29,7 +121,7 @@ export default function ExtratorSchedulerSection({
   loadingAction,
   openSchedulerCreateModal,
   openSchedulerEditModal,
-  refreshAll,
+  onRefresh,
   resetSchedulerFilters,
   reportsMeta,
   schedulerBaseFilterOptions,
@@ -41,19 +133,18 @@ export default function ExtratorSchedulerSection({
   schedulerPeriodFilterOptions,
   schedulerPeriodMeta,
   schedulerPeriodLabel,
-  schedulerRules,
+  schedulerPagination,
   schedulerScheduleFilterOptions,
   schedulerScheduleLabel,
   schedulerScheduleKindLabel,
-  schedulerTargetLabel,
   schedulerTargetOptions,
   filterAllValue,
-  setExpandedSchedulerGroups,
   setIsSchedulerModalOpen,
   setSchedulerForm,
   setSchedulerFilters,
+  setSchedulerPage,
+  setSchedulerPageSize,
   status,
-  summarizeGroups,
   syncSchedulerForm,
   toBooleanLabel,
   formatDateTime,
@@ -258,12 +349,7 @@ export default function ExtratorSchedulerSection({
               actions={
                 <>
                   <ActionButton
-                    onClick={() =>
-                      void refreshAll({
-                        historyPage: clientHistoryPayload?.page || 1,
-                        historyPageSize: clientHistoryPayload?.page_size || 8,
-                      })
-                    }
+                    onClick={() => void onRefresh()}
                     disabled={status === "loading" || Boolean(loadingAction)}
                   >
                     Recarregar regras
@@ -366,56 +452,41 @@ export default function ExtratorSchedulerSection({
                 </div>
 
                 <div className="mt-4 text-sm text-[var(--shell-muted)]">
-                  {schedulerRules.length
-                    ? `Exibindo ${formatCountLabel(filteredSchedulerRules.length, "regra", "regras")} em ${summarizeGroups(schedulerGroups)}.`
+                  {(schedulerPagination?.total_items || 0) > 0
+                    ? `Exibindo ${formatCountLabel(schedulerPagination.total_items, "rotina", "rotinas")} agrupadas.`
                     : "Nenhuma regra disponivel para filtrar."}
                 </div>
               </div>
 
               <RuleSummaryList emptyMessage="Nenhuma regra do scheduler encontrou correspondencia com os filtros atuais.">
-                {filteredSchedulerRules.map((rule) => (
-                  <article
-                    key={rule.id}
-                    className="rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] p-4"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-[var(--shell-text)]">
-                          {schedulerTargetLabel(rule)}
-                        </p>
-                        <p className="mt-1 text-xs uppercase tracking-[0.16em] text-[var(--shell-muted)]">
-                          {rule.schedule_type} · {toBooleanLabel(rule.enabled)}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <ActionButton onClick={() => openSchedulerEditModal(rule)}>
-                          Carregar para editar
-                        </ActionButton>
-                        <ActionButton
-                          onClick={() => void handleToggleSchedulerRule(rule)}
-                        >
-                          {rule.enabled ? "Pausar" : "Ativar"}
-                        </ActionButton>
-                        <ActionButton
-                          onClick={() => void handleDeleteSchedulerRule(rule.id)}
-                          tone="danger"
-                        >
-                          Excluir
-                        </ActionButton>
-                      </div>
-                    </div>
-                    <p className="mt-3 text-sm leading-6 text-[var(--shell-muted)]">
-                      {schedulerScheduleLabel(rule, schedulerMeta)}
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-[var(--shell-muted)]">
-                      {schedulerPeriodLabel(rule, reportsMeta, schedulerMeta)}
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-[var(--shell-muted)]">
-                      Atualizada em {formatDateTime(rule.updated_at)}
-                    </p>
-                  </article>
+                {schedulerGroups.map((group) => (
+                  <SchedulerRoutineGroup
+                    key={group.id}
+                    formatDateTime={formatDateTime}
+                    group={group}
+                    handleDeleteSchedulerRule={handleDeleteSchedulerRule}
+                    handleToggleSchedulerRule={handleToggleSchedulerRule}
+                    openSchedulerEditModal={openSchedulerEditModal}
+                    reportsMeta={reportsMeta}
+                    schedulerMeta={schedulerMeta}
+                    schedulerPeriodLabel={schedulerPeriodLabel}
+                    schedulerScheduleLabel={schedulerScheduleLabel}
+                    toBooleanLabel={toBooleanLabel}
+                  />
                 ))}
               </RuleSummaryList>
+
+              <div className="mt-4">
+                <ExtratorPagination
+                  itemLabel="rotinas"
+                  page={schedulerPagination?.page || 1}
+                  pageSize={schedulerPagination?.page_size || 10}
+                  totalItems={schedulerPagination?.total_items || 0}
+                  totalPages={schedulerPagination?.total_pages || 1}
+                  onPageChange={setSchedulerPage}
+                  onPageSizeChange={setSchedulerPageSize}
+                />
+              </div>
             </SectionCard>
           </div>
   );

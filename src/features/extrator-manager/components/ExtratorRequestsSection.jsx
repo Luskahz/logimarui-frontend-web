@@ -8,18 +8,18 @@ import {
   TextArea,
   TextInput,
 } from "@/features/extrator-manager/components/ExtratorManagerControls";
+import { ExtratorPagination } from "@/features/extrator-manager/components/ExtratorPagination";
 import {
   ExtratorActionButton as ActionButton,
   ExtratorSectionCard as SectionCard,
 } from "@/features/extrator-manager/components/ExtratorPageShell";
 
 export default function ExtratorRequestsSection({
-  clientHistoryPayload,
   handleSaveRequest,
   handleUpdateRequestStatus,
   isRequestCreateModalOpen,
   loadingAction,
-  refreshAll,
+  onRefresh,
   requestForm,
   requestMeta,
   requestsPayload,
@@ -27,6 +27,8 @@ export default function ExtratorRequestsSection({
   requestUpdateOptions,
   setIsRequestCreateModalOpen,
   setRequestForm,
+  setRequestsPage,
+  setRequestsPageSize,
   setSelectedRequestId,
   status,
   syncRequestType,
@@ -182,12 +184,7 @@ export default function ExtratorRequestsSection({
               actions={
                 <>
                   <ActionButton
-                    onClick={() =>
-                      void refreshAll({
-                        historyPage: clientHistoryPayload?.page || 1,
-                        historyPageSize: clientHistoryPayload?.page_size || 8,
-                      })
-                    }
+                    onClick={() => void onRefresh()}
                     disabled={status === "loading" || Boolean(loadingAction)}
                   >
                     Recarregar solicitacoes
@@ -260,6 +257,18 @@ export default function ExtratorRequestsSection({
                   </article>
                 ))}
               </RuleSummaryList>
+
+              <div className="mt-4">
+                <ExtratorPagination
+                  itemLabel="solicitacoes"
+                  page={requestsPayload?.pagination?.page || 1}
+                  pageSize={requestsPayload?.pagination?.page_size || 10}
+                  totalItems={requestsPayload?.pagination?.total_items || 0}
+                  totalPages={requestsPayload?.pagination?.total_pages || 1}
+                  onPageChange={setRequestsPage}
+                  onPageSizeChange={setRequestsPageSize}
+                />
+              </div>
             </SectionCard>
           </div>
   );

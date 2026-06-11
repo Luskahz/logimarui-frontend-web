@@ -8,6 +8,9 @@ const POLL_INTERVAL_MS = 5_000;
 export function useExtratorGlobalQueue({ enabled = true } = {}) {
   const store = useExtratorGlobalQueueStore();
   const historyPage = useExtratorGlobalQueueStore((state) => state.historyPage);
+  const historyPageSize = useExtratorGlobalQueueStore(
+    (state) => state.historyPageSize,
+  );
   const loadQueue = useExtratorGlobalQueueStore((state) => state.loadQueue);
 
   useEffect(() => {
@@ -20,7 +23,10 @@ export function useExtratorGlobalQueue({ enabled = true } = {}) {
 
     async function bootstrap() {
       try {
-        await loadQueue({ nextHistoryPage: 1 });
+        await loadQueue({
+          nextHistoryPage: historyPage,
+          nextHistoryPageSize: historyPageSize,
+        });
       } catch {
         // O estado de erro ja foi atualizado na store.
       }
@@ -32,6 +38,7 @@ export function useExtratorGlobalQueue({ enabled = true } = {}) {
       intervalId = window.setInterval(() => {
         void loadQueue({
           nextHistoryPage: historyPage,
+          nextHistoryPageSize: historyPageSize,
           silent: true,
         })
           .catch(() => {
@@ -49,11 +56,15 @@ export function useExtratorGlobalQueue({ enabled = true } = {}) {
         window.clearInterval(intervalId);
       }
     };
-  }, [enabled, historyPage, loadQueue]);
+  }, [enabled, historyPage, historyPageSize, loadQueue]);
 
   return {
     ...store,
-    refreshQueue: ({ nextHistoryPage = historyPage, silent = false } = {}) =>
-      loadQueue({ nextHistoryPage, silent }),
+    refreshQueue: ({
+      nextHistoryPage = historyPage,
+      nextHistoryPageSize = historyPageSize,
+      silent = false,
+    } = {}) =>
+      loadQueue({ nextHistoryPage, nextHistoryPageSize, silent }),
   };
 }

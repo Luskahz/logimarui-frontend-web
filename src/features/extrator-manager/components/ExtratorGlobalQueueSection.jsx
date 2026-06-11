@@ -4,8 +4,8 @@ import {
   ClientGroupList,
   GlobalQueueTaskCard,
 } from "@/features/extrator-manager/components/GroupedQueueViews";
+import { ExtratorPagination } from "@/features/extrator-manager/components/ExtratorPagination";
 import {
-  ExtratorActionButton as ActionButton,
   ExtratorMetricCard as SummaryCard,
   ExtratorSectionCard as SectionCard,
 } from "@/features/extrator-manager/components/ExtratorPageShell";
@@ -13,6 +13,7 @@ import { formatDateTime } from "@/features/extrator-manager/lib/extratorFormat";
 
 export default function ExtratorGlobalQueueSection({
   historyPage,
+  historyPageSize,
   onCancelGroup,
   onCancelTask,
   payload,
@@ -73,31 +74,6 @@ export default function ExtratorGlobalQueueSection({
 
       <SectionCard
         title="Historico da fila global"
-        actions={
-          <>
-            <ActionButton
-              onClick={() =>
-                void refreshQueue({ nextHistoryPage: Math.max(1, historyPage - 1) })
-              }
-              disabled={(payload?.history?.page || 1) <= 1}
-            >
-              Pagina anterior
-            </ActionButton>
-            <ActionButton
-              onClick={() =>
-                void refreshQueue({
-                  nextHistoryPage: (payload?.history?.page || 1) + 1,
-                })
-              }
-              disabled={
-                (payload?.history?.page || 1) >=
-                (payload?.history?.total_pages || 1)
-              }
-            >
-              Proxima pagina
-            </ActionButton>
-          </>
-        }
       >
         <div className="grid gap-3 md:grid-cols-4">
           <SummaryCard
@@ -124,16 +100,34 @@ export default function ExtratorGlobalQueueSection({
           />
         </div>
 
-        <p className="mt-4 text-sm text-[var(--shell-muted)]">
-          Pagina {payload?.history?.page || 1} de{" "}
-          {payload?.history?.total_pages || 1}
-        </p>
-
         <div className="mt-4 space-y-3">
           <ClientGroupList
             emptyMessage="Nenhum historico consolidado disponivel ainda na fila global."
             groups={payload?.history?.groups || []}
             scope="history"
+          />
+        </div>
+
+        <div className="mt-4">
+          <ExtratorPagination
+            itemLabel="grupos de IP"
+            page={payload?.history?.page || historyPage || 1}
+            pageSize={payload?.history?.page_size || historyPageSize || 10}
+            totalItems={payload?.history?.total_groups || 0}
+            totalPages={payload?.history?.total_pages || 1}
+            onPageChange={(nextHistoryPage) =>
+              void refreshQueue({
+                nextHistoryPage,
+                nextHistoryPageSize:
+                  payload?.history?.page_size || historyPageSize || 10,
+              })
+            }
+            onPageSizeChange={(nextHistoryPageSize) =>
+              void refreshQueue({
+                nextHistoryPage: 1,
+                nextHistoryPageSize,
+              })
+            }
           />
         </div>
       </SectionCard>

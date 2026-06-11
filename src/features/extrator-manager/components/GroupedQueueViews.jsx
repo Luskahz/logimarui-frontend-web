@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { ChevronDown } from "lucide-react";
+import { ExtratorPagination } from "@/features/extrator-manager/components/ExtratorPagination";
+import { usePaginatedItems } from "@/features/extrator-manager/hooks/usePaginatedItems";
 
 function clampPercent(value) {
   const numericValue = Number(value || 0);
@@ -328,54 +330,16 @@ function GroupSummaryHeader({
   actionLabel,
   badgesVariant,
   copy,
-  defaultOpen,
   nestedContent,
   onAction,
-  storageKey,
   sublabel,
   summary,
   title,
 }) {
-  const [isOpen, setIsOpen] = useState(() => {
-    if (!storageKey || typeof window === "undefined") {
-      return defaultOpen;
-    }
-
-    const storedValue = window.localStorage.getItem(
-      `extrator-manager:queue-group:${storageKey}`,
-    );
-
-    if (storedValue === "open") {
-      return true;
-    }
-
-    if (storedValue === "closed") {
-      return false;
-    }
-
-    return defaultOpen;
-  });
-
-  function handleToggle(event) {
-    const nextOpen = event.currentTarget.open;
-    setIsOpen(nextOpen);
-
-    if (storageKey && typeof window !== "undefined") {
-      window.localStorage.setItem(
-        `extrator-manager:queue-group:${storageKey}`,
-        nextOpen ? "open" : "closed",
-      );
-    }
-  }
-
   return (
-    <details
-      open={isOpen}
-      onToggle={handleToggle}
-      className="rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)]"
-    >
-      <summary className="list-none cursor-pointer px-4 py-4 [&::-webkit-details-marker]:hidden">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+    <details className="group rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)]">
+      <summary className="flex cursor-pointer list-none items-start justify-between gap-3 px-4 py-4 [&::-webkit-details-marker]:hidden">
+        <div>
           <div>
             {sublabel ? (
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--shell-accent)]">
@@ -389,8 +353,12 @@ function GroupSummaryHeader({
               {copy}
             </p>
           </div>
+          <SummaryBadgeRow summary={summary} variant={badgesVariant} />
         </div>
-        <SummaryBadgeRow summary={summary} variant={badgesVariant} />
+        <ChevronDown
+          aria-hidden="true"
+          className="mt-1 h-5 w-5 shrink-0 text-[var(--shell-muted)] transition-transform group-open:rotate-180"
+        />
       </summary>
       <div className="space-y-3 px-4 pb-4">
         {onAction ? (
@@ -422,14 +390,18 @@ function MonthGroupPanel({
   group,
   onCancelGroup,
   onCancelTask,
+  paginateNested = false,
   taskVariant = "progress",
 }) {
-  const defaultOpen = true;
+  const taskPagination = usePaginatedItems(group?.tasks || [], 5);
   const actionHandler =
     group?.cancelable_task_ids?.length && typeof onCancelGroup === "function"
       ? () => onCancelGroup(group.cancelable_task_ids)
       : null;
-  const nestedTasks = (group?.tasks || []).map((task) =>
+  const visibleTasks = paginateNested
+    ? taskPagination.items
+    : group?.tasks || [];
+  const nestedTasks = visibleTasks.map((task) =>
     taskVariant === "global" ? (
       <GlobalQueueTaskCard
         key={task.task_id}
@@ -444,16 +416,28 @@ function MonthGroupPanel({
       />
     ),
   );
+  if (paginateNested && taskPagination.totalPages > 1) {
+    nestedTasks.push(
+      <ExtratorPagination
+        key="task-pagination"
+        itemLabel="execucoes"
+        page={taskPagination.page}
+        pageSize={taskPagination.pageSize}
+        totalItems={taskPagination.totalItems}
+        totalPages={taskPagination.totalPages}
+        onPageChange={taskPagination.setPage}
+        showPageSize={false}
+      />,
+    );
+  }
 
   return (
     <GroupSummaryHeader
       actionLabel="Cancelar mes agrupado"
       badgesVariant={taskVariant === "global" ? "global" : "progress"}
       copy={`${group?.task_count || 0} execucao(oes) diaria(s) desta rotina neste mes.`}
-      defaultOpen={defaultOpen}
       nestedContent={nestedTasks}
       onAction={actionHandler}
-      storageKey={`month:${taskVariant}:${group?.id || group?.label || "sem-id"}`}
       sublabel="Agrupamento mensal"
       summary={group?.summary || {}}
       title={group?.label || "Mes"}
@@ -465,32 +449,43 @@ function RoutineGroupPanel({
   group,
   onCancelGroup,
   onCancelTask,
+  paginateNested = false,
   scope = "progress",
   taskVariant = "progress",
 }) {
+  const monthPagination = usePaginatedItems(group?.month_groups || [], 5);
+  const taskPagination = usePaginatedItems(group?.tasks || [], 5);
   const actionHandler =
     group?.cancelable_task_ids?.length && typeof onCancelGroup === "function"
       ? () => onCancelGroup(group.cancelable_task_ids)
       : null;
   const nestedContent = [];
 
-  if (Array.isArray(group?.month_groups) && group.month_groups.length) {
+  const visibleMonthGroups = paginateNested
+    ? monthPagination.items
+    : group?.month_groups || [];
+  const visibleTasks = paginateNested
+    ? taskPagination.items
+    : group?.tasks || [];
+
+  if (visibleMonthGroups.length) {
     nestedContent.push(
-      ...group.month_groups.map((monthGroup) => (
+      ...visibleMonthGroups.map((monthGroup) => (
         <MonthGroupPanel
           key={monthGroup.id}
           group={monthGroup}
           onCancelGroup={onCancelGroup}
           onCancelTask={onCancelTask}
+          paginateNested={paginateNested}
           taskVariant={taskVariant}
         />
       )),
     );
   }
 
-  if (Array.isArray(group?.tasks) && group.tasks.length) {
+  if (visibleTasks.length) {
     nestedContent.push(
-      ...group.tasks.map((task) =>
+      ...visibleTasks.map((task) =>
         taskVariant === "global" ? (
           <GlobalQueueTaskCard
             key={task.task_id}
@@ -507,6 +502,34 @@ function RoutineGroupPanel({
       ),
     );
   }
+  if (paginateNested && monthPagination.totalPages > 1) {
+    nestedContent.push(
+      <ExtratorPagination
+        key="month-pagination"
+        itemLabel="grupos mensais"
+        page={monthPagination.page}
+        pageSize={monthPagination.pageSize}
+        totalItems={monthPagination.totalItems}
+        totalPages={monthPagination.totalPages}
+        onPageChange={monthPagination.setPage}
+        showPageSize={false}
+      />,
+    );
+  }
+  if (paginateNested && taskPagination.totalPages > 1) {
+    nestedContent.push(
+      <ExtratorPagination
+        key="task-pagination"
+        itemLabel="execucoes"
+        page={taskPagination.page}
+        pageSize={taskPagination.pageSize}
+        totalItems={taskPagination.totalItems}
+        totalPages={taskPagination.totalPages}
+        onPageChange={taskPagination.setPage}
+        showPageSize={false}
+      />,
+    );
+  }
 
   return (
     <GroupSummaryHeader
@@ -515,10 +538,8 @@ function RoutineGroupPanel({
       copy={`${group?.task_count || 0} item(ns) agrupado(s) ${
         taskVariant === "global" ? "nesta rotina." : "para esta rotina."
       }`}
-      defaultOpen={scope !== "history"}
       nestedContent={nestedContent}
       onAction={actionHandler}
-      storageKey={`routine:${scope}:${taskVariant}:${group?.id || group?.label || group?.base || "sem-id"}`}
       summary={group?.summary || {}}
       title={group?.label || group?.base || "Rotina"}
     />
@@ -564,24 +585,42 @@ function ClientGroupPanel({
   scope = "active",
   taskVariant = "global",
 }) {
-  const nestedContent = (group?.routine_groups || []).map((routineGroup) => (
+  const paginateNested = scope === "history";
+  const routinePagination = usePaginatedItems(group?.routine_groups || [], 5);
+  const visibleRoutineGroups = paginateNested
+    ? routinePagination.items
+    : group?.routine_groups || [];
+  const nestedContent = visibleRoutineGroups.map((routineGroup) => (
     <RoutineGroupPanel
       key={routineGroup.id}
       group={routineGroup}
       onCancelGroup={onCancelGroup}
       onCancelTask={onCancelTask}
+      paginateNested={paginateNested}
       scope={scope}
       taskVariant={taskVariant}
     />
   ));
+  if (paginateNested && routinePagination.totalPages > 1) {
+    nestedContent.push(
+      <ExtratorPagination
+        key="routine-pagination"
+        itemLabel="rotinas"
+        page={routinePagination.page}
+        pageSize={routinePagination.pageSize}
+        totalItems={routinePagination.totalItems}
+        totalPages={routinePagination.totalPages}
+        onPageChange={routinePagination.setPage}
+        showPageSize={false}
+      />,
+    );
+  }
 
   return (
     <GroupSummaryHeader
       badgesVariant="global"
       copy={`${group?.task_count || 0} item(ns) vinculados a este cliente.`}
-      defaultOpen={scope !== "history"}
       nestedContent={nestedContent}
-      storageKey={`client:${scope}:${group?.id || group?.label || group?.requested_ip || "sem-id"}`}
       sublabel="Cliente / IP"
       summary={group?.summary || {}}
       title={group?.label || group?.requested_ip || "Cliente"}
