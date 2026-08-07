@@ -19,6 +19,47 @@ import {
 import { usePaginatedItems } from "@/features/extrator-manager/hooks/usePaginatedItems";
 import { buildPeriodSummary } from "@/features/extrator-manager/lib/extratorPeriod";
 
+const WEEKDAY_FALLBACK_OPTIONS = [
+  { id: "monday", label: "Segunda-feira", shortLabel: "Seg" },
+  { id: "tuesday", label: "Terca-feira", shortLabel: "Ter" },
+  { id: "wednesday", label: "Quarta-feira", shortLabel: "Qua" },
+  { id: "thursday", label: "Quinta-feira", shortLabel: "Qui" },
+  { id: "friday", label: "Sexta-feira", shortLabel: "Sex" },
+  { id: "saturday", label: "Sabado", shortLabel: "Sab" },
+  { id: "sunday", label: "Domingo", shortLabel: "Dom" },
+];
+
+const MONTH_DAY_OPTIONS = Array.from({ length: 31 }, (_, index) => index + 1);
+
+function SchedulerChoiceButton({ active, children, onClick, title }) {
+  return (
+    <button
+      type="button"
+      title={title}
+      aria-pressed={active}
+      onClick={onClick}
+      className={`min-h-11 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
+        active
+          ? "border-[color:var(--shell-accent)] bg-[color-mix(in_srgb,var(--shell-accent)_16%,transparent)] text-[var(--shell-accent)]"
+          : "border-[color:var(--shell-line)] bg-[var(--shell-surface-strong)] text-[var(--shell-text)] hover:border-[color:var(--shell-accent)]"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function SchedulerControlGroup({ children, label }) {
+  return (
+    <div className="space-y-2 md:col-span-2">
+      <span className="block text-sm font-semibold text-[var(--shell-text)]">
+        {label}
+      </span>
+      {children}
+    </div>
+  );
+}
+
 function SchedulerRoutineGroup({
   formatDateTime,
   group,
@@ -65,7 +106,10 @@ function SchedulerRoutineGroup({
                   {schedulerScheduleLabel(rule, schedulerMeta)}
                 </p>
                 <p className="mt-1 text-xs uppercase tracking-[0.16em] text-[var(--shell-muted)]">
-                  {rule.schedule_type} · {toBooleanLabel(rule.enabled)}
+                  {rule.schedule_type} - {toBooleanLabel(rule.enabled)} -{" "}
+                  {rule.recover_missed === false
+                    ? "sem retroativo"
+                    : "recupera atrasados"}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -149,6 +193,23 @@ export default function ExtratorSchedulerSection({
   toBooleanLabel,
   formatDateTime,
 }) {
+  const isFixedTimeSchedule = ["daily", "weekly", "monthly_day"].includes(
+    schedulerForm?.scheduleType,
+  );
+  const isIntervalSchedule = ["interval", "interval_from_time"].includes(
+    schedulerForm?.scheduleType,
+  );
+  const isRecoverMissedEnabled = schedulerForm?.recoverMissed !== false;
+  const weekdayOptions =
+    schedulerMeta?.weekday_options?.length > 0
+      ? schedulerMeta.weekday_options.map((option) => ({
+          ...option,
+          shortLabel:
+            WEEKDAY_FALLBACK_OPTIONS.find((item) => item.id === option.id)
+              ?.shortLabel || option.label,
+        }))
+      : WEEKDAY_FALLBACK_OPTIONS;
+
   return (
           <div className="space-y-4">
             {isSchedulerModalOpen ? (
@@ -156,6 +217,7 @@ export default function ExtratorSchedulerSection({
                 title={schedulerForm.id ? "Editar regra" : "Nova regra"}
                 subtitle="Monte um agendamento novo sem disputar espaco com a lista principal."
                 onClose={() => setIsSchedulerModalOpen(false)}
+                closeOnBackdrop={false}
                 maxWidth="max-w-5xl"
               >
             <SectionCard
@@ -231,7 +293,51 @@ export default function ExtratorSchedulerSection({
                   </SelectInput>
                 </FormField>
 
-                {schedulerForm.scheduleType === "daily" ? (
+                {schedulerForm.scheduleType === "weekly" ? (
+                  <SchedulerControlGroup label="Repetir toda semana em">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+                      {weekdayOptions.map((option) => (
+                        <SchedulerChoiceButton
+                          key={option.id}
+                          active={schedulerForm.weekday === option.id}
+                          title={option.label}
+                          onClick={() =>
+                            setSchedulerForm((currentForm) => ({
+                              ...currentForm,
+                              weekday: option.id,
+                            }))
+                          }
+                        >
+                          {option.shortLabel || option.label}
+                        </SchedulerChoiceButton>
+                      ))}
+                    </div>
+                  </SchedulerControlGroup>
+                ) : null}
+
+                {schedulerForm.scheduleType === "monthly_day" ? (
+                  <SchedulerControlGroup label="Repetir todo mes no dia">
+                    <div className="grid grid-cols-7 gap-2 sm:grid-cols-8 lg:grid-cols-12">
+                      {MONTH_DAY_OPTIONS.map((day) => (
+                        <SchedulerChoiceButton
+                          key={day}
+                          active={Number(schedulerForm.monthDay) === day}
+                          title={`Dia ${day}`}
+                          onClick={() =>
+                            setSchedulerForm((currentForm) => ({
+                              ...currentForm,
+                              monthDay: String(day),
+                            }))
+                          }
+                        >
+                          {day}
+                        </SchedulerChoiceButton>
+                      ))}
+                    </div>
+                  </SchedulerControlGroup>
+                ) : null}
+
+                {isFixedTimeSchedule ? (
                   <FormField label="Horario">
                     <TextInput
                       type="time"
@@ -275,7 +381,7 @@ export default function ExtratorSchedulerSection({
                   </>
                 ) : null}
 
-                {schedulerForm.scheduleType !== "daily" ? (
+                {isIntervalSchedule ? (
                   <>
                     <FormField label="Intervalo">
                       <TextInput
@@ -326,7 +432,7 @@ export default function ExtratorSchedulerSection({
                   />
                 </div>
 
-                <div className="flex items-end">
+                <div className="flex flex-wrap items-end gap-6 md:col-span-2">
                   <CheckboxField
                     checked={schedulerForm.enabled}
                     onChange={(event) =>
@@ -337,6 +443,38 @@ export default function ExtratorSchedulerSection({
                     }
                     label="Regra habilitada"
                   />
+                  <button
+                    type="button"
+                    aria-pressed={isRecoverMissedEnabled}
+                    onClick={() =>
+                      setSchedulerForm((currentForm) => ({
+                        ...currentForm,
+                        recoverMissed: currentForm.recoverMissed === false,
+                      }))
+                    }
+                    className={`inline-flex min-h-11 items-center gap-3 rounded-2xl border px-4 py-2 text-sm font-semibold transition ${
+                      isRecoverMissedEnabled
+                        ? "border-[color:var(--shell-accent)] bg-[color-mix(in_srgb,var(--shell-accent)_16%,transparent)] text-[var(--shell-accent)]"
+                        : "border-[color:var(--shell-line)] bg-[var(--shell-surface-strong)] text-[var(--shell-muted)]"
+                    }`}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={`flex h-5 w-9 items-center rounded-full p-0.5 transition ${
+                        isRecoverMissedEnabled
+                          ? "bg-[var(--shell-accent)]"
+                          : "bg-[var(--shell-line)]"
+                      }`}
+                    >
+                      <span
+                        className={`h-4 w-4 rounded-full bg-[var(--shell-bg)] transition ${
+                          isRecoverMissedEnabled ? "translate-x-4" : ""
+                        }`}
+                      />
+                    </span>
+                    Retroativo atrasado:{" "}
+                    {isRecoverMissedEnabled ? "ativo" : "desativado"}
+                  </button>
                 </div>
               </div>
             </SectionCard>

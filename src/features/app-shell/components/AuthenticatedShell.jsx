@@ -55,6 +55,14 @@ const SIDEBAR_ITEMS = [
     icon: "service",
   },
   {
+    id: "critica-pedidos",
+    label: "Critica Pedidos",
+    description: "Analise operacional de pedidos, PDVs e mapa logistico.",
+    type: "link",
+    href: APP_ROUTES.CRITICA_PEDIDOS,
+    icon: "clipboard",
+  },
+  {
     id: "sustainability-kpis",
     label: "KPI's Sustentabilidade",
     description: "Indicadores e leitura da frente sustentavel.",
@@ -528,7 +536,15 @@ function ServicePanelLink({
   );
 }
 
-export default function AuthenticatedShell({ children }) {
+const DEFAULT_MAIN_CLASS_NAME = "min-h-screen px-4 pb-6 pt-28 sm:px-6 sm:pb-8 sm:pt-32";
+const DEFAULT_CONTENT_CLASS_NAME =
+  "mx-auto max-w-7xl rounded-[30px] border border-[color:var(--shell-line)] bg-[var(--shell-surface-strong)] p-4 shadow-[0_18px_60px_rgba(20,32,43,0.08)] sm:p-6";
+
+export default function AuthenticatedShell({
+  children,
+  contentClassName = DEFAULT_CONTENT_CLASS_NAME,
+  mainClassName = DEFAULT_MAIN_CLASS_NAME,
+}) {
   const pathname = usePathname();
   const {
     error,
@@ -914,8 +930,8 @@ export default function AuthenticatedShell({ children }) {
         </aside>
       ) : null}
 
-      <main className="min-h-screen px-4 pb-6 pt-28 sm:px-6 sm:pb-8 sm:pt-32">
-        <div className="mx-auto max-w-7xl rounded-[30px] border border-[color:var(--shell-line)] bg-[var(--shell-surface-strong)] p-4 shadow-[0_18px_60px_rgba(20,32,43,0.08)] sm:p-6">
+      <main className={mainClassName}>
+        <div className={contentClassName}>
           {children}
         </div>
       </main>

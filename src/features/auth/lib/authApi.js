@@ -13,7 +13,7 @@ import {
 
 const DEFAULT_LOCAL_API_ORIGIN = "http://127.0.0.1";
 const LOCAL_DEV_HOSTNAMES = new Set(["localhost", "127.0.0.1"]);
-const AUTHENTICATION_BASE_PATH = "/authentication";
+const AUTHENTICATION_BASE_PATH = "/api/v1/authentication";
 const PASSWORD_RECOVERY_REQUESTS_PATH =
   `${AUTHENTICATION_BASE_PATH}/password-recovery/requests`;
 

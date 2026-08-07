@@ -1,0 +1,16 @@
+export const emptyDashboardFilters = {
+    motivo: [],
+    idadePedido: [],
+    cidade: "",
+    bairro: "",
+    nomeCliente: "",
+    clienteT: [],
+    operacao: [],
+    setor: [],
+    tipoCliente: [],
+    palete: [],
+    drop: [],
+    soma: [],
+    pedido: "",
+    idade: [],
+};

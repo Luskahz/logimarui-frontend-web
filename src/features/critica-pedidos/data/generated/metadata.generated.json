@@ -1,0 +1,59 @@
+{
+  "generatedAt": "2026-07-09T17:58:11.631Z",
+  "lastUpdated": "09/07/2026, 14:58",
+  "status": "Dados CSV",
+  "sourceDirectory": "referencia",
+  "files": [
+    {
+      "name": "01.11.csv",
+      "rows": 19813,
+      "validRows": 19813,
+      "invalidRows": 0,
+      "delimiter": ";",
+      "encoding": "windows-1252",
+      "lastWriteTime": "2026-07-08T13:45:29.484Z"
+    },
+    {
+      "name": "03.01.17.csv",
+      "rows": 182,
+      "validRows": 182,
+      "invalidRows": 0,
+      "delimiter": ";",
+      "encoding": "windows-1252",
+      "lastWriteTime": "2026-07-08T15:10:25.323Z"
+    },
+    {
+      "name": "03.01.36.04.csv",
+      "rows": 1750,
+      "validRows": 1750,
+      "invalidRows": 0,
+      "delimiter": ";",
+      "encoding": "windows-1252",
+      "lastWriteTime": "2026-07-08T15:10:25.524Z"
+    },
+    {
+      "name": "03.01.47.01.csv",
+      "rows": 1774,
+      "validRows": 1774,
+      "invalidRows": 0,
+      "delimiter": ";",
+      "encoding": "windows-1252",
+      "lastWriteTime": "2026-07-08T15:15:26.204Z"
+    },
+    {
+      "name": "relatorio-cliente.csv",
+      "rows": 12059,
+      "validRows": 12059,
+      "invalidRows": 0,
+      "delimiter": ";",
+      "encoding": "utf-8",
+      "lastWriteTime": "2026-06-08T13:28:40.793Z"
+    }
+  ],
+  "counts": {
+    "clientes": 159,
+    "pedidos": 198,
+    "produtos": 1641
+  },
+  "warnings": []
+}

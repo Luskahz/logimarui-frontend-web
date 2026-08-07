@@ -84,6 +84,69 @@ function getVisibleTemplateKinds(listenPeriodType) {
   );
 }
 
+function DestinationListenModeFields({
+  form,
+  modeOptions,
+  setForm,
+}) {
+  if (form.listenPeriodType === "todos" || !modeOptions.length) {
+    return null;
+  }
+
+  const selectedModes = form.listenPeriodModes || [];
+  const listensAnyMode = selectedModes.length === 0;
+
+  function toggleSpecificMode(modeId, checked) {
+    setForm((currentForm) => {
+      const currentModes = currentForm.listenPeriodModes || [];
+      const nextModes = checked
+        ? [...new Set([...currentModes, modeId])]
+        : currentModes.filter((item) => item !== modeId);
+
+      return {
+        ...currentForm,
+        listenPeriodModes: nextModes,
+      };
+    });
+  }
+
+  return (
+    <div className="md:col-span-2 rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] p-4">
+      <p className="text-sm font-semibold text-[var(--shell-text)]">
+        Modos de calculo aceitos
+      </p>
+      <p className="mt-1 text-xs leading-5 text-[var(--shell-muted)]">
+        Deixe qualquer modo marcado para manter uma escuta ampla, ou selecione
+        somente os modos que devem acionar este destino.
+      </p>
+      <div className="mt-4 flex flex-wrap gap-x-6 gap-y-3">
+        <CheckboxField
+          checked={listensAnyMode}
+          label="Qualquer modo de calculo"
+          onChange={(event) =>
+            setForm((currentForm) => ({
+              ...currentForm,
+              listenPeriodModes: event.target.checked
+                ? []
+                : [modeOptions[0]?.id].filter(Boolean),
+            }))
+          }
+        />
+        {modeOptions.map((option) => (
+          <CheckboxField
+            key={option.id}
+            checked={selectedModes.includes(option.id)}
+            label={option.label}
+            onChange={(event) =>
+              toggleSpecificMode(option.id, event.target.checked)
+            }
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function TemplateTokenInput({ label, onChange, tokens, value }) {
   const inputId = useId();
   const listboxId = useId();
@@ -311,6 +374,9 @@ function DestinationRoutineGroup({
                 <p className="mt-1 text-xs uppercase tracking-[0.16em] text-[var(--shell-muted)]">
                   {toBooleanLabel(rule.enabled)}
                 </p>
+                <p className="mt-1 text-xs text-[var(--shell-muted)]">
+                  {rule.listen_period_mode_label || "Qualquer modo de calculo"}
+                </p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <ActionButton onClick={() => openDestinationEditModal(rule)}>
@@ -448,6 +514,11 @@ export default function ExtratorDestinationsSection({
   const visibleTemplateKinds = getVisibleTemplateKinds(
     destinationForm.listenPeriodType,
   );
+  const selectedListenModeOptions =
+    destinationsPayload?.destination_meta
+      ?.listen_period_mode_options_by_base?.[destinationForm.base]?.[
+        destinationForm.listenPeriodType
+      ] || [];
 
   return (
           <div className="space-y-4">
@@ -500,6 +571,7 @@ export default function ExtratorDestinationsSection({
                             ?.listen_period_options_by_base?.[
                             value
                           ]?.[0]?.id || "todos",
+                        listenPeriodModes: [],
                       }))
                     }
                     options={destinationsPayload?.destination_meta?.base_options || []}
@@ -524,6 +596,7 @@ export default function ExtratorDestinationsSection({
                       setDestinationForm((currentForm) => ({
                         ...currentForm,
                         listenPeriodType: event.target.value,
+                        listenPeriodModes: [],
                       }))
                     }
                   >
@@ -534,6 +607,11 @@ export default function ExtratorDestinationsSection({
                     ))}
                   </SelectInput>
                 </FormField>
+                <DestinationListenModeFields
+                  form={destinationForm}
+                  modeOptions={selectedListenModeOptions}
+                  setForm={setDestinationForm}
+                />
                 <div className="md:col-span-2">
                   <FormField label="Caminho base">
                     <TextInput

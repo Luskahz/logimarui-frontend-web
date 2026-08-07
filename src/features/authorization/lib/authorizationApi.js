@@ -3,7 +3,7 @@ import { authApi } from "@/features/auth/lib/authApi";
 
 const DEFAULT_LOCAL_API_ORIGIN = "http://127.0.0.1";
 const LOCAL_DEV_HOSTNAMES = new Set(["localhost", "127.0.0.1"]);
-const AUTHORIZATION_BASE_PATH = "/authorization";
+const AUTHORIZATION_BASE_PATH = "/api/v1/authorization";
 
 function trimTrailingSlash(value) {
   return String(value ?? "").replace(/\/+$/, "");

@@ -1,0 +1,95 @@
+.critica-pedidos-shell {
+  --background: #061018;
+  --foreground: #dce7ef;
+  --panel: #0b1720;
+  --panel-strong: #101d27;
+  --panel-soft: #071018;
+  --line: #22313b;
+  --line-soft: rgba(255, 255, 255, 0.08);
+  --muted: #7f93a3;
+  --muted-strong: #bfd0dc;
+  --accent: #f5a900;
+  --accent-soft: rgba(245, 169, 0, 0.16);
+  --cyan: #00d4ff;
+  --green: #22c55e;
+  --danger: #ff6b63;
+  --font-sans: "Geist", "Inter", "Segoe UI", Arial, sans-serif;
+  --font-mono: "Geist Mono", "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+  background:
+    radial-gradient(circle at top left, rgba(0, 212, 255, 0.08), transparent 26rem),
+    linear-gradient(135deg, #03070b 0%, #061018 48%, #08131a 100%);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+.critica-pedidos-shell *,
+.critica-pedidos-shell *::before,
+.critica-pedidos-shell *::after {
+  box-sizing: border-box;
+}
+
+.critica-pedidos-shell button,
+.critica-pedidos-shell input,
+.critica-pedidos-shell select {
+  font: inherit;
+}
+
+.critica-pedidos-shell button {
+  cursor: pointer;
+}
+
+.critica-pedidos-shell ::selection {
+  background: rgba(242, 169, 0, 0.32);
+}
+
+.critica-pedidos-shell .leaflet-container {
+  width: 100%;
+  height: 100%;
+  min-height: 24rem;
+  background: #071018;
+  font-family: var(--font-sans);
+}
+
+.critica-pedidos-shell .leaflet-control-zoom a {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  background: rgba(8, 20, 29, 0.9) !important;
+  color: #dce7ef !important;
+}
+
+.critica-pedidos-shell .leaflet-control-attribution {
+  background: rgba(10, 15, 17, 0.72) !important;
+  color: #c6d1cd !important;
+}
+
+.critica-pedidos-shell .leaflet-tooltip.logimarui-tooltip {
+  border: 1px solid rgba(70, 211, 200, 0.4);
+  border-radius: 8px;
+  background: rgba(9, 13, 16, 0.94);
+  color: #eef5f3;
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.38);
+}
+
+.critica-pedidos-shell,
+.critica-pedidos-shell .dashboard-scroll {
+  scrollbar-color: rgba(0, 212, 255, 0.32) rgba(5, 11, 17, 0.8);
+  scrollbar-width: thin;
+}
+
+.critica-pedidos-shell .dashboard-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.critica-pedidos-shell .dashboard-scroll::-webkit-scrollbar-track {
+  background: rgba(5, 11, 17, 0.8);
+}
+
+.critica-pedidos-shell .dashboard-scroll::-webkit-scrollbar-thumb {
+  border: 2px solid rgba(5, 11, 17, 0.8);
+  border-radius: 999px;
+  background: rgba(0, 212, 255, 0.38);
+}
+
+.critica-pedidos-shell .dashboard-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 169, 0, 0.7);
+}

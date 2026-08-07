@@ -122,6 +122,7 @@ function buildDestinationDefaultForm(destinationMeta) {
     caminho: "",
     enabled: true,
     listenPeriodType: firstListenOption,
+    listenPeriodModes: [],
     prefixo: defaultRule.prefixo || "",
     sufixo: defaultRule.sufixo || "",
     includeRotina: Boolean(defaultRule.include_rotina),
@@ -164,9 +165,12 @@ function buildSchedulerDefaultForm(schedulerMeta) {
     time: "06:00",
     startTime: "06:00",
     endTime: "",
+    weekday: schedulerMeta?.weekday_options?.[0]?.id || "monday",
+    monthDay: "1",
     intervalValue: "1",
     intervalUnit: schedulerMeta?.interval_unit_options?.[1]?.id || "hours",
     enabled: true,
+    recoverMissed: true,
     senha: "",
     ...defaultPeriodState,
   };
@@ -220,6 +224,19 @@ function schedulerScheduleKindLabel(rule, schedulerMeta) {
 function schedulerScheduleLabel(rule, schedulerMeta) {
   if (rule?.schedule_type === "daily") {
     return `Diario as ${rule?.time || "--:--"}`;
+  }
+
+  if (rule?.schedule_type === "weekly") {
+    const weekdayLabel = getOptionLabel(
+      schedulerMeta?.weekday_options,
+      rule?.weekday,
+      rule?.weekday || "dia fixo",
+    );
+    return `Toda semana (${weekdayLabel}) as ${rule?.time || "--:--"}`;
+  }
+
+  if (rule?.schedule_type === "monthly_day") {
+    return `Todo dia ${rule?.month_day || 1} as ${rule?.time || "--:--"}`;
   }
 
   if (rule?.schedule_type === "interval_from_time") {
@@ -528,16 +545,31 @@ function ExtratorManagerScreen() {
     destinationMeta?.listen_period_options_by_base?.[
       destinationFormCandidate?.base
     ] || [];
+  const resolvedDestinationListenPeriodType =
+    selectedDestinationListenOptions.some(
+      (option) => option.id === destinationFormCandidate?.listenPeriodType,
+    )
+      ? destinationFormCandidate?.listenPeriodType
+      : selectedDestinationListenOptions[0]?.id ||
+        destinationMeta?.listen_period_default ||
+        "todos";
+  const validDestinationListenModes = new Set(
+    (
+      destinationMeta?.listen_period_mode_options_by_base?.[
+        destinationFormCandidate?.base
+      ]?.[resolvedDestinationListenPeriodType] || []
+    ).map((option) => option.id),
+  );
   const destinationForm = destinationFormCandidate
     ? {
         ...destinationFormCandidate,
-        listenPeriodType: selectedDestinationListenOptions.some(
-          (option) => option.id === destinationFormCandidate.listenPeriodType,
-        )
-          ? destinationFormCandidate.listenPeriodType
-          : selectedDestinationListenOptions[0]?.id ||
-            destinationMeta?.listen_period_default ||
-            "todos",
+        listenPeriodType: resolvedDestinationListenPeriodType,
+        listenPeriodModes:
+          resolvedDestinationListenPeriodType === "todos"
+            ? []
+            : (destinationFormCandidate.listenPeriodModes || []).filter(
+                (mode) => validDestinationListenModes.has(mode),
+              ),
       }
     : null;
   const requestMeta = requestsPayload?.request_meta || null;
@@ -1141,9 +1173,12 @@ function ExtratorManagerScreen() {
       time: rule.time || "06:00",
       startTime: rule.start_time || "06:00",
       endTime: rule.end_time || "",
+      weekday: rule.weekday || "monday",
+      monthDay: String(rule.month_day || 1),
       intervalValue: String(rule.interval_value || 1),
       intervalUnit: rule.interval_unit || "hours",
       enabled: Boolean(rule.enabled),
+      recoverMissed: rule.recover_missed !== false,
       senha: "",
       ...hydratePeriodStateFromItem({
         period_type: rule.period_type,
@@ -1177,12 +1212,15 @@ function ExtratorManagerScreen() {
               time: schedulerForm.time,
               start_time: schedulerForm.startTime,
               end_time: schedulerForm.endTime,
+              weekday: schedulerForm.weekday,
+              month_day: Number.parseInt(schedulerForm.monthDay || "1", 10),
               interval_value: Number.parseInt(
                 schedulerForm.intervalValue || "1",
                 10,
               ),
               interval_unit: schedulerForm.intervalUnit,
               enabled: schedulerForm.enabled,
+              recover_missed: schedulerForm.recoverMissed,
               senha: password,
               period_type: schedulerForm.periodType,
               period_mode: schedulerForm.periodMode,
@@ -1258,6 +1296,7 @@ function ExtratorManagerScreen() {
       caminho: rule.caminho || "",
       enabled: Boolean(rule.enabled),
       listenPeriodType: rule.listen_period_type || "todos",
+      listenPeriodModes: rule.listen_period_modes || [],
       prefixo: rule.prefixo || "",
       sufixo: rule.sufixo || "",
       includeRotina: Boolean(rule.include_rotina),
@@ -1306,6 +1345,7 @@ function ExtratorManagerScreen() {
               caminho: destinationForm.caminho,
               enabled: destinationForm.enabled,
               listen_period_type: destinationForm.listenPeriodType,
+              listen_period_modes: destinationForm.listenPeriodModes,
               prefixo: destinationForm.prefixo,
               sufixo: destinationForm.sufixo,
               include_rotina: destinationForm.includeRotina,

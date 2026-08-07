@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { buildGatewayUrl } from "@/features/app-shell/lib/gatewayUrl";
 
 const FRONTEND_SERVICE_ID = "frontend";
+const MANAGED_SERVICES_BASE_PATH = "/api/v1/admin/services";
 const POLL_INTERVAL_MS = 5_000;
 
 function toErrorMessage(error, fallbackMessage) {
@@ -69,7 +70,7 @@ export function useManagedServices() {
 
     try {
       const payload = await readJsonResponse(
-        await fetch(buildGatewayUrl("/admin/services/overview"), {
+        await fetch(buildGatewayUrl(`${MANAGED_SERVICES_BASE_PATH}/overview`), {
           cache: "no-store",
         }),
       );
@@ -119,7 +120,7 @@ export function useManagedServices() {
       setError("");
 
       try {
-        await runPost(`/admin/services/${service.id}/${action}`);
+        await runPost(`${MANAGED_SERVICES_BASE_PATH}/${service.id}/${action}`);
         await loadOverview({ silent: true });
       } catch (actionError) {
         setError(
@@ -157,7 +158,7 @@ export function useManagedServices() {
             total: services.length,
           });
 
-          await runPost(`/admin/services/${service.id}/${action}`);
+          await runPost(`${MANAGED_SERVICES_BASE_PATH}/${service.id}/${action}`);
         }
 
         await loadOverview({ silent: true });

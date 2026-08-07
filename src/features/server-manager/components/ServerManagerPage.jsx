@@ -234,7 +234,7 @@ function ServerManagerDashboard() {
                 Gateway e processos gerenciados
               </h1>
               <p className="mt-3 text-sm leading-7 text-[var(--shell-muted)]">
-                Esta tela consulta o gateway em <code>/admin/services</code> para
+                Esta tela consulta o gateway em <code>/api/v1/admin/services</code> para
                 acompanhar o reconcile, os runtimes persistidos e executar start,
                 stop e restart de cada processo sem depender dos arquivos{" "}
                 <code>.pid</code> como interface principal.
@@ -495,7 +495,7 @@ function ServerManagerDashboard() {
               O comando de desligar para o frontend pode deixar a rota <code>/servidor</code> indisponivel se a pagina for recarregada antes do start seguinte.
             </li>
             <li className="rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] px-4 py-3">
-              O source of truth da tela e o gateway em <code>/admin/services/overview</code>, nao a leitura manual dos arquivos <code>.pid</code>.
+              O source of truth da tela e o gateway em <code>/api/v1/admin/services/overview</code>, nao a leitura manual dos arquivos <code>.pid</code>.
             </li>
           </ul>
         </section>

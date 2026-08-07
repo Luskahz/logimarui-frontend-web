@@ -40,6 +40,7 @@ export default function ExtratorRequestsSection({
                 title="Nova solicitacao"
                 subtitle="Registre demandas de rotina, ajuste ou manutencao para acompanhamento operacional."
                 onClose={() => setIsRequestCreateModalOpen(false)}
+                closeOnBackdrop={false}
                 maxWidth="max-w-4xl"
               >
             <SectionCard
