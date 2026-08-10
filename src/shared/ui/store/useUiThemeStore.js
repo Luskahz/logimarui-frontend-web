@@ -7,7 +7,7 @@ import {
   persistUiTheme,
   readDocumentUiTheme,
   readStoredUiTheme,
-} from "@/features/ui/lib/uiTheme";
+} from "@/shared/ui/lib/uiTheme";
 
 export const useUiThemeStore = create((set, get) => ({
   theme: UI_THEMES.LIGHT,

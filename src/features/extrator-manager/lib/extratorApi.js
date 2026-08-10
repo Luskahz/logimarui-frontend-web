@@ -1,4 +1,4 @@
-import { buildGatewayUrl } from "@/features/app-shell/lib/gatewayUrl";
+import { buildGatewayUrl } from "@/shared/network/gatewayUrl";
 
 const EXTRATOR_API_PREFIX = "/api/extrator";
 

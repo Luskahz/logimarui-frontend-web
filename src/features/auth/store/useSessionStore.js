@@ -7,7 +7,7 @@ import {
   readAuthSession,
   updateAuthSessionProfile,
 } from "@/features/auth/lib/authSession";
-import { APP_ROUTES } from "@/features/navigation/lib/appRoutes";
+import { APP_ROUTES } from "@/shared/navigation/lib/appRoutes";
 
 const REFRESH_BUFFER_MS = 60_000;
 

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, CalendarDays, ClipboardList, MapPinned } from "lucide-react";
-import AuthenticatedShell from "@/features/app-shell/components/AuthenticatedShell";
+import AuthenticatedShell from "@/shared/app-shell/components/AuthenticatedShell";
 import { dashboardMetadata } from "@/features/critica-pedidos/services/generatedDashboardRepository";
 
 const tabs = [

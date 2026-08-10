@@ -1,5 +1,5 @@
 import Link from "next/link";
-import AuthenticatedShell from "@/features/app-shell/components/AuthenticatedShell";
+import AuthenticatedShell from "@/shared/app-shell/components/AuthenticatedShell";
 import DpoHouse from "@/features/dpo/components/DpoHouse";
 import { DPO_INTRO_SUMMARY } from "@/features/dpo/lib/dpoConfig";
 

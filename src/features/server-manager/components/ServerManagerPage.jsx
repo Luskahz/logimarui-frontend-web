@@ -1,8 +1,8 @@
 "use client";
 
-import AuthenticatedShell from "@/features/app-shell/components/AuthenticatedShell";
-import { buildGatewayUrl } from "@/features/app-shell/lib/gatewayUrl";
-import { APP_ROUTES } from "@/features/navigation/lib/appRoutes";
+import AuthenticatedShell from "@/shared/app-shell/components/AuthenticatedShell";
+import { buildGatewayUrl } from "@/shared/network/gatewayUrl";
+import { APP_ROUTES } from "@/shared/navigation/lib/appRoutes";
 import { useManagedServices } from "@/features/server-manager/hooks/useManagedServices";
 
 const SERVICE_METADATA = {

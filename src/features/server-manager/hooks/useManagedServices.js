@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { buildGatewayUrl } from "@/features/app-shell/lib/gatewayUrl";
+import { buildGatewayUrl } from "@/shared/network/gatewayUrl";
 
 const FRONTEND_SERVICE_ID = "frontend";
 const MANAGED_SERVICES_BASE_PATH = "/api/v1/admin/services";

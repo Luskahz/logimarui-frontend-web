@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import AuthenticatedShell from "@/features/app-shell/components/AuthenticatedShell";
+import AuthenticatedShell from "@/shared/app-shell/components/AuthenticatedShell";
 import { authorizationApi } from "@/features/authorization/lib/authorizationApi";
 import RolePermissionManager from "@/features/authorization/components/RolePermissionManager";
 import { useAuthorizationStore } from "@/features/authorization/store/useAuthorizationStore";

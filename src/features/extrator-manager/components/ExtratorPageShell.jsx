@@ -1,6 +1,6 @@
 "use client";
 
-import AuthenticatedShell from "@/features/app-shell/components/AuthenticatedShell";
+import AuthenticatedShell from "@/shared/app-shell/components/AuthenticatedShell";
 import ExtratorSectionNav from "@/features/extrator-manager/components/ExtratorSectionNav";
 
 export function ExtratorActionButton({

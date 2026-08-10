@@ -10,16 +10,16 @@ import {
   resolveProfileName,
 } from "@/features/auth/lib/sessionView";
 import { formatRoles } from "@/features/auth/lib/authFormatters";
-import { buildGatewayUrl } from "@/features/app-shell/lib/gatewayUrl";
-import { useShellStore } from "@/features/app-shell/store/useShellStore";
+import { buildGatewayUrl } from "@/shared/network/gatewayUrl";
+import { useShellStore } from "@/shared/app-shell/store/useShellStore";
 import { getDpoPillarBySlug } from "@/features/dpo/lib/dpoConfig";
 import { useHomeSession } from "@/features/home/hooks/useHomeSession";
 import {
   APP_ROUTES,
   getRouteSegment,
   matchesRoute,
-} from "@/features/navigation/lib/appRoutes";
-import { useUiTheme } from "@/features/ui/hooks/useUiTheme";
+} from "@/shared/navigation/lib/appRoutes";
+import { useUiTheme } from "@/shared/ui/hooks/useUiTheme";
 
 const SIDEBAR_ITEMS = [
   {
