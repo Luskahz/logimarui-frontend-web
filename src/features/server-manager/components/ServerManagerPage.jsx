@@ -2,7 +2,7 @@
 
 import AuthenticatedShell from "@/shared/app-shell/components/AuthenticatedShell";
 import { buildGatewayUrl } from "@/shared/network/gatewayUrl";
-import { APP_ROUTES } from "@/shared/navigation/lib/appRoutes";
+import { APP_ROUTES } from "@/app/_config/routes";
 import { useManagedServices } from "@/features/server-manager/hooks/useManagedServices";
 
 const SERVICE_METADATA = {

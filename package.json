@@ -9,6 +9,7 @@
     "build": "next build",
     "start": "node ./scripts/run-next-with-port.mjs start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
     "build-start": "next build && node ./scripts/run-next-with-port.mjs start"
   },
   "dependencies": {
@@ -23,9 +24,13 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/node": "26.2.0",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.3",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
     "eslint-config-next": "^16.2.12",
-    "tailwindcss": "^4"
+    "tailwindcss": "^4",
+    "typescript": "^5.9.3"
   }
 }

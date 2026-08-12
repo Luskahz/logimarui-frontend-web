@@ -1,6 +1,6 @@
 import Link from "next/link";
 import AuthenticatedShell from "@/shared/app-shell/components/AuthenticatedShell";
-import { APP_ROUTES } from "@/shared/navigation/lib/appRoutes";
+import { APP_ROUTES } from "@/app/_config/routes";
 
 export default function DpoManagementPage() {
   return (

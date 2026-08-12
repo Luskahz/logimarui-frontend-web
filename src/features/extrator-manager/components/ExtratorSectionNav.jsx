@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { APP_ROUTES } from "@/shared/navigation/lib/appRoutes";
+import { APP_ROUTES } from "@/app/_config/routes";
 
 export const EXTRATOR_TAB_ITEMS = [
   { id: "operacoes", label: "Extracao" },

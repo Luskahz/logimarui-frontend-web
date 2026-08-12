@@ -18,7 +18,7 @@ import {
   APP_ROUTES,
   getRouteSegment,
   matchesRoute,
-} from "@/shared/navigation/lib/appRoutes";
+} from "@/app/_config/routes";
 import { useUiTheme } from "@/shared/ui/hooks/useUiTheme";
 
 const SIDEBAR_ITEMS = [

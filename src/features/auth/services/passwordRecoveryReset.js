@@ -5,7 +5,7 @@ import {
 } from "@/features/auth/lib/authResult";
 import { clearAuthSession } from "@/features/auth/lib/authSession";
 import { persistSession } from "@/features/auth/services/shared";
-import { APP_ROUTES } from "@/shared/navigation/lib/appRoutes";
+import { APP_ROUTES } from "@/app/_config/routes";
 
 function readPasswordRecoveryContext() {
   if (typeof window === "undefined") {

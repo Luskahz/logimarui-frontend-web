@@ -1,4 +1,4 @@
-import AuthPage from "@/features/auth/components/AuthPage";
+import AuthPage from "@/views/auth/ui/AuthPage";
 
 export const metadata = {
   title: "Criar conta",
