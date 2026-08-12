@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { UI_THEMES } from "@/shared/ui/lib/uiTheme";
-import { useUiThemeStore } from "@/shared/ui/store/useUiThemeStore";
+import { UI_THEMES } from "@/shared/ui/theme/lib/uiTheme";
+import { useUiThemeStore } from "@/shared/ui/theme/store/useUiThemeStore";
 
 export function useUiTheme() {
   const hydrateTheme = useUiThemeStore((state) => state.hydrateTheme);

@@ -19,7 +19,7 @@ import {
   getRouteSegment,
   matchesRoute,
 } from "@/app/_config/routes";
-import { useUiTheme } from "@/shared/ui/hooks/useUiTheme";
+import { useUiTheme } from "@/shared/ui/theme/hooks/useUiTheme";
 
 const SIDEBAR_ITEMS = [
   {

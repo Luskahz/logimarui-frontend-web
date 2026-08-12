@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import AuthCard from "@/features/auth/components/AuthCard";
+import AuthCard from "@/views/auth/ui/AuthCard";
 import AuthForm from "@/features/auth/components/AuthForm";
 import { useAuthFormStore } from "@/features/auth/store/useAuthFormStore";
 
@@ -24,4 +24,3 @@ export default function AuthView({ pageKey }: AuthViewProps) {
     </AuthCard>
   );
 }
-  

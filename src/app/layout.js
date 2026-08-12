@@ -1,6 +1,6 @@
 import "./globals.css";
 import Script from "next/script";
-import { buildUiThemeInitScript } from "@/shared/ui/lib/uiTheme";
+import { buildUiThemeInitScript } from "@/shared/ui/theme/lib/uiTheme";
 
 export const metadata = {
   title: {

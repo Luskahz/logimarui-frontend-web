@@ -1,4 +1,6 @@
 import { useAuthFormStore } from "@/features/auth/store/useAuthFormStore";
+import { Alert } from "@/shared/ui/alert";
+import { Card } from "@/shared/ui/card";
 
 export default function AuthFeedback() {
   const feedback = useAuthFormStore((state) => state.feedback);
@@ -10,16 +12,16 @@ export default function AuthFeedback() {
   const isSuccess = feedback.type === "success";
 
   return (
-    <div
+    <Alert
       role={isSuccess ? "status" : "alert"}
       aria-live="polite"
-      className={`rounded-2xl border px-4 py-3 text-sm leading-6 ${
+      className={`${
         isSuccess
           ? "border-emerald-200 bg-emerald-50 text-emerald-900"
           : "border-rose-200 bg-rose-50 text-rose-900"
       }`}
     >
       {feedback.message}
-    </div>
+    </Alert>
   );
 }
