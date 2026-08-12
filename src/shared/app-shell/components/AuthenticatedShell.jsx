@@ -127,6 +127,10 @@ const SERVICE_ITEMS = [
   },
 ];
 
+const BREADCRUMB_LABELS = {
+  [APP_ROUTES.DPO_DTO_MANAGER]: "Gerenciador de DTO's",
+};
+
 function IconButton({
   active = false,
   children,
@@ -409,7 +413,10 @@ function buildBreadcrumbs(pathname) {
 
       items.push({
         href: currentPath,
-        label: pillar?.label || formatBreadcrumbLabel(segment),
+        label:
+          BREADCRUMB_LABELS[currentPath] ||
+          pillar?.label ||
+          formatBreadcrumbLabel(segment),
       });
       continue;
     }

@@ -6,6 +6,8 @@ export const APP_ROUTES = Object.freeze({
   FORGOT_PASSWORD: "/forgot-password",
   PASSWORD_RECOVERY_RESET: "/password-recovery/reset",
   DPO: "/dpo",
+  DPO_MANAGEMENT: "/dpo/gestao",
+  DPO_DTO_MANAGER: "/dpo/gestao/gerenciador-dto",
   CRITICA_PEDIDOS: "/critica-pedidos",
   AUTHORIZATION_ROLES: "/app/roles",
   EXTRATOR_MANAGER: "/app/extrator",
