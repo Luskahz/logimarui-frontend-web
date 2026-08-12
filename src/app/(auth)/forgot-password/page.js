@@ -1,4 +1,4 @@
-import AuthPage from "@/views/auth/ui/AuthPage";
+import AuthPage from "@/views/auth/ui/AuthView";
 
 export const metadata = {
   title: "Recuperar senha",

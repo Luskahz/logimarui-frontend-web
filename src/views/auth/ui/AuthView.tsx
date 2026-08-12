@@ -5,7 +5,12 @@ import AuthCard from "@/features/auth/components/AuthCard";
 import AuthForm from "@/features/auth/components/AuthForm";
 import { useAuthFormStore } from "@/features/auth/store/useAuthFormStore";
 
-export default function AuthPage({ pageKey }) {
+
+type AuthViewProps ={
+  pageKey: string;
+}
+
+export default function AuthView({ pageKey }: AuthViewProps) {
   const currentPageKey = useAuthFormStore((state) => state.pageKey);
   const setPage = useAuthFormStore((state) => state.setPage);
 
@@ -19,3 +24,4 @@ export default function AuthPage({ pageKey }) {
     </AuthCard>
   );
 }
+  
