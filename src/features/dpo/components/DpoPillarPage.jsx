@@ -12,7 +12,10 @@ function ChevronDownIcon() {
   );
 }
 
-export default function DpoPillarPage({ pillar }) {
+export default function DpoPillarPage({
+  beforeQuestionGroups = null,
+  pillar,
+}) {
   return (
     <AuthenticatedShell>
       <div className="grid gap-4 xl:grid-cols-[1.55fr_0.95fr]">
@@ -58,6 +61,10 @@ export default function DpoPillarPage({ pillar }) {
               </p>
             </article>
           </div>
+
+          {beforeQuestionGroups ? (
+            <div className="mt-6">{beforeQuestionGroups}</div>
+          ) : null}
 
           <div className="mt-6 space-y-3">
             {DPO_QUESTION_GROUPS.map((group, index) => (

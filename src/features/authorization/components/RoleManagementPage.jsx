@@ -570,7 +570,7 @@ function RoleManagementContent() {
   );
 }
 
-export default function RoleManagementPage() {
+export default function RoleManagementView() {
   return (
     <AuthenticatedShell>
       <RoleManagementContent />
