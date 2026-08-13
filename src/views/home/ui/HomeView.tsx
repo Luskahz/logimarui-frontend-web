@@ -1,12 +1,12 @@
 "use client";
 
 import AuthenticatedShell from "@/shared/app-shell/components/AuthenticatedShell";
-import HomeDashboard from "@/features/home/components/HomeDashboard";
+import HomeContent from "@/views/home/ui/HomeContent";
 
-export default function HomePage() {
+export default function HomeView() {
   return (
     <AuthenticatedShell>
-      <HomeDashboard />
+      <HomeContent />
     </AuthenticatedShell>
   );
 }

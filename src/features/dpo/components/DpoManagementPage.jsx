@@ -6,7 +6,7 @@ import { APP_ROUTES } from "@/app/_config/routes";
 const MANAGEMENT_SHORTCUTS = [
   {
     href: APP_ROUTES.DPO_DTO_MANAGER,
-    label: "Gerenciador de DTO's",
+    label: "Gerenciador de DTOs",
   },
 ];
 

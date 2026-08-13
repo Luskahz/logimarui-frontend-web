@@ -128,7 +128,7 @@ const SERVICE_ITEMS = [
 ];
 
 const BREADCRUMB_LABELS = {
-  [APP_ROUTES.DPO_DTO_MANAGER]: "Gerenciador de DTO's",
+  [APP_ROUTES.DPO_DTO_MANAGER]: "Gerenciador de DTOs",
 };
 
 function IconButton({

@@ -1830,6 +1830,6 @@ function ExtratorManagerScreen() {
   );
 }
 
-export default function ExtratorManagerPage() {
+export default function ExtratorManagerView() {
   return <ExtratorManagerScreen />;
 }
