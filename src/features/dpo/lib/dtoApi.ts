@@ -6,14 +6,17 @@ import {
 import { authApi } from "@/features/auth/lib/authApi";
 import { buildGatewayUrl } from "@/shared/network/gatewayUrl";
 import type {
+  DtoConfigurationUpdate,
   DtoFormDetail,
+  DtoFormConfiguration,
   DtoFormsResponse,
 } from "@/features/dpo/lib/dtoTypes";
 
 const DTO_API_PREFIX = "/api/savi/api/v1/dtos";
 
 interface DtoRequestOptions {
-  method?: "GET" | "POST";
+  method?: "GET" | "POST" | "PUT";
+  body?: unknown;
   retryOnAuthFailure?: boolean;
   signal?: AbortSignal;
 }
@@ -68,6 +71,7 @@ async function request<T>(
   path: string,
   {
     method = "GET",
+    body,
     retryOnAuthFailure = true,
     signal,
   }: DtoRequestOptions = {},
@@ -83,10 +87,12 @@ async function request<T>(
   try {
     response = await fetch(buildGatewayUrl(`${DTO_API_PREFIX}${path}`), {
       method,
+      body: body === undefined ? undefined : JSON.stringify(body),
       signal,
       cache: "no-store",
       headers: {
         Accept: "application/json",
+        ...(body === undefined ? {} : { "Content-Type": "application/json" }),
         Authorization: `Bearer ${session.accessToken}`,
         "X-Device-Id": getOrCreateDeviceId(),
         "Cache-Control": "no-cache",
@@ -108,6 +114,7 @@ async function request<T>(
       await authApi.refresh();
       return request<T>(path, {
         method,
+        body,
         retryOnAuthFailure: false,
         signal,
       });
@@ -139,5 +146,20 @@ export const dtoApi = {
       signal,
     });
   },
+  getConfiguration(formId: string, signal?: AbortSignal) {
+    return request<DtoFormConfiguration>(
+      `/forms/${encodeURIComponent(formId)}/configuration`,
+      { signal },
+    );
+  },
+  updateConfiguration(
+    formId: string,
+    update: DtoConfigurationUpdate,
+    signal?: AbortSignal,
+  ) {
+    return request<DtoFormConfiguration>(
+      `/forms/${encodeURIComponent(formId)}/configuration`,
+      { method: "PUT", body: update, signal },
+    );
+  },
 };
-

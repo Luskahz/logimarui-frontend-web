@@ -136,8 +136,8 @@ export default function DtoFormCard({
           <dd className="mt-2 text-lg font-semibold text-[var(--shell-accent)]">{formatDtoPercentage(metrics.adherence)}</dd>
         </div>
         <div className="rounded-2xl bg-[var(--shell-surface-muted)] p-3">
-          <dt className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--shell-muted)]">Respostas NOK</dt>
-          <dd className="mt-2 text-lg font-semibold text-[var(--shell-danger)]">{formatDtoNumber(metrics.nok)}</dd>
+          <dt className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--shell-muted)]">Respostas negativas</dt>
+          <dd className="mt-2 text-lg font-semibold text-[var(--shell-danger)]">{formatDtoNumber(metrics.negative)}</dd>
         </div>
         <div className="rounded-2xl bg-[var(--shell-surface-muted)] p-3">
           <dt className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--shell-muted)]">Colaboradores</dt>
@@ -167,4 +167,3 @@ export default function DtoFormCard({
     </DtoPanel>
   );
 }
-

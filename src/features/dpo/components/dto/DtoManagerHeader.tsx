@@ -35,7 +35,7 @@ export default function DtoManagerHeader({
           <Typography variant="description" className="mt-3">
             Análise gerencial das aplicações de Diagnóstico Operacional do
             Trabalho, com foco em aderência, recorrências e oportunidades de
-            atuação sobre os pontos NOK.
+            atuação sobre os resultados negativos.
           </Typography>
         </div>
 

@@ -161,16 +161,15 @@ export default function DtoFilters({
       <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] px-4 py-3">
         <input
           type="checkbox"
-          checked={filters.onlyNok}
-          onChange={(event) => onUpdate("onlyNok", event.target.checked)}
+          checked={filters.onlyNegative}
+          onChange={(event) => onUpdate("onlyNegative", event.target.checked)}
           className="mt-0.5 h-4 w-4 accent-[var(--shell-accent)]"
         />
         <span>
-          <span className="block text-sm font-semibold text-[var(--shell-text)]">Somente aplicações contendo NOK</span>
-          <span className="mt-1 block text-xs leading-5 text-[var(--shell-muted)]">Mantém aplicações com ao menos uma resposta avaliativa classificada como NOK.</span>
+          <span className="block text-sm font-semibold text-[var(--shell-text)]">Somente aplicações contendo resultado negativo</span>
+          <span className="mt-1 block text-xs leading-5 text-[var(--shell-muted)]">Mantém aplicações com ao menos uma resposta parametrizada como negativa.</span>
         </span>
       </label>
     </DtoPanel>
   );
 }
-

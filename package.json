@@ -9,6 +9,7 @@
     "build": "next build",
     "start": "node ./scripts/run-next-with-port.mjs start",
     "lint": "eslint",
+    "test:dto-analytics": "node ./scripts/test-dto-analytics.mjs",
     "typecheck": "tsc --noEmit",
     "build-start": "next build && node ./scripts/run-next-with-port.mjs start"
   },

@@ -62,6 +62,9 @@ export default function DtoManagerDashboard() {
           resource={selectedResource}
           onBack={() => setSelectedFormId(null)}
           onRetry={() => manager.retryForm(effectiveSelectedFormId)}
+          onSaveConfiguration={(update) =>
+            manager.saveConfiguration(effectiveSelectedFormId, update)
+          }
         />
       ) : (
         <>
@@ -101,4 +104,3 @@ export default function DtoManagerDashboard() {
     </div>
   );
 }
-

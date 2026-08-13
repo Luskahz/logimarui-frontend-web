@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowLeft, RefreshCw, TriangleAlert } from "lucide-react";
+import { useState } from "react";
+import { ArrowLeft, RefreshCw, Settings2, TriangleAlert } from "lucide-react";
 import { useDtoForm } from "@/features/dpo/hooks/useDtoForm";
 import {
   formatDtoDate,
@@ -9,11 +10,13 @@ import {
   formatDtoPercentage,
 } from "@/features/dpo/lib/dtoFormatters";
 import type {
+  DtoConfigurationUpdate,
   DtoFormDetail,
   DtoFormResource,
 } from "@/features/dpo/lib/dtoTypes";
 import DtoApplicationsHistory from "@/features/dpo/components/dto/DtoApplicationsHistory";
 import DtoCollaborators from "@/features/dpo/components/dto/DtoCollaborators";
+import DtoConfigurationPanel from "@/features/dpo/components/dto/DtoConfigurationPanel";
 import DtoCriticalQuestions from "@/features/dpo/components/dto/DtoCriticalQuestions";
 import DtoFilters from "@/features/dpo/components/dto/DtoFilters";
 import DtoTrendChart from "@/features/dpo/components/dto/DtoTrendChart";
@@ -26,41 +29,61 @@ import {
 } from "@/features/dpo/components/dto/DtoPrimitives";
 import { Typography } from "@/shared/ui/typography";
 
-function DtoQualityIssues({ detail }: { detail: DtoFormDetail }) {
-  if (detail.quality_issues.length === 0) {
-    return null;
-  }
+type ActiveTab = "analysis" | "configuration";
+
+function DtoQualityIssues({
+  detail,
+  onConfigure,
+}: {
+  detail: DtoFormDetail;
+  onConfigure: () => void;
+}) {
+  const pendingFields = detail.configuration.fields_requiring_configuration;
+  if (detail.quality_issues.length === 0 && pendingFields === 0) return null;
 
   return (
     <DtoPanel className="border-[color:var(--shell-line-strong)] p-5 sm:p-6">
-      <div className="flex items-start gap-3">
-        <TriangleAlert aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-[var(--shell-muted)]" />
-        <div className="min-w-0">
-          <Typography as="h2" variant="cardTitle">
-            Schema parcialmente reconhecido
-          </Typography>
-          <Typography variant="supportingText" className="mt-2">
-            Valores desconhecidos não foram convertidos silenciosamente. As
-            funções dependentes de campos não identificados permanecem
-            indisponíveis.
-          </Typography>
-          <ul className="mt-3 space-y-2 text-sm text-[var(--shell-muted)]">
-            {detail.quality_issues.slice(0, 6).map((issue, index) => (
-              <li
-                key={`${issue.code}-${issue.column_key || "form"}-${issue.record_index ?? index}`}
-                className="rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] px-3 py-2"
-              >
-                <span className="font-semibold text-[var(--shell-text)]">{issue.code}</span>
-                {issue.column_key ? ` · ${issue.column_key}` : ""}: {issue.message}
-              </li>
-            ))}
-          </ul>
-          {detail.quality_issues.length > 6 ? (
-            <p className="mt-2 text-xs text-[var(--shell-muted)]">
-              Mais {detail.quality_issues.length - 6} ocorrência(s) registrada(s) pelo adaptador.
-            </p>
-          ) : null}
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 flex-1 items-start gap-3">
+          <TriangleAlert
+            aria-hidden="true"
+            className="mt-0.5 h-5 w-5 shrink-0 text-[var(--shell-muted)]"
+          />
+          <div className="min-w-0">
+            <Typography as="h2" variant="cardTitle">
+              Parametrização necessária
+            </Typography>
+            <Typography variant="supportingText" className="mt-2">
+              {pendingFields > 0
+                ? `${pendingFields} campo(s) possuem valores ainda não parametrizados ou exigem revisão.`
+                : "O serviço registrou alertas técnicos durante a leitura do formulário."} Valores desconhecidos permanecem fora da aderência até uma decisão explícita.
+            </Typography>
+            {detail.quality_issues.length > 0 ? (
+              <details className="mt-3 text-sm text-[var(--shell-muted)]">
+                <summary className="cursor-pointer font-semibold text-[var(--shell-text)]">
+                  Ver detalhes técnicos ({detail.quality_issues.length})
+                </summary>
+                <ul className="mt-3 space-y-2">
+                  {detail.quality_issues.map((issue, index) => (
+                    <li
+                      key={`${issue.code}-${issue.column_key || "form"}-${issue.record_index ?? index}`}
+                      className="rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] px-3 py-2"
+                    >
+                      <span className="font-semibold text-[var(--shell-text)]">
+                        {issue.column_key || "Formulário"}
+                      </span>
+                      : {issue.message}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            ) : null}
+          </div>
         </div>
+        <DtoButton tone="accent" onClick={onConfigure}>
+          <Settings2 aria-hidden="true" />
+          Configurar campos
+        </DtoButton>
       </div>
     </DtoPanel>
   );
@@ -70,13 +93,17 @@ export default function DtoFormAnalysis({
   detail,
   onBack,
   onRetry,
+  onSaveConfiguration,
   resource,
 }: {
   detail: DtoFormDetail;
   onBack: () => void;
   onRetry: () => Promise<unknown>;
+  onSaveConfiguration: (update: DtoConfigurationUpdate) => Promise<unknown>;
   resource: DtoFormResource;
 }) {
+  const [activeTab, setActiveTab] = useState<ActiveTab>("analysis");
+  const [configurationNeedsAttention, setConfigurationNeedsAttention] = useState(false);
   const analysis = useDtoForm(detail);
   const {
     attentionPoints,
@@ -92,6 +119,11 @@ export default function DtoFormAnalysis({
     updateFilter,
   } = analysis;
 
+  function openConfiguration(needsAttention = false) {
+    setConfigurationNeedsAttention(needsAttention);
+    setActiveTab("configuration");
+  }
+
   return (
     <div className="space-y-4">
       <DtoPanel className="p-5 sm:p-6">
@@ -102,25 +134,46 @@ export default function DtoFormAnalysis({
               Voltar à visão geral
             </DtoButton>
             <Typography variant="overline" className="mt-5">
-              Análise do formulário
+              Gerenciador de DTOs
             </Typography>
             <Typography as="h2" variant="sectionTitle" className="mt-2 break-words">
               {detail.form.name}
             </Typography>
             <Typography variant="supportingText" className="mt-2">
-              Todos os indicadores desta tela usam o mesmo conjunto de
-              aplicações filtradas e preservam as respostas originais do SAVI.
+              A análise usa uma única configuração semântica e o mesmo conjunto de aplicações filtradas. As respostas originais do SAVI são preservadas.
             </Typography>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             {resource.isRefreshing ? <DtoBadge tone="accent">Atualizando</DtoBadge> : null}
             {detail.cached ? <DtoBadge>Cache do serviço</DtoBadge> : null}
-            {detail.quality_issues.length > 0 ? <DtoBadge>Schema parcial</DtoBadge> : null}
+            {detail.configuration.fields_requiring_configuration > 0 ? (
+              <DtoBadge tone="danger">Configuração pendente</DtoBadge>
+            ) : null}
             <span className="text-xs text-[var(--shell-muted)]">
               Carga: {formatDtoDateTime(detail.loaded_at)}
             </span>
           </div>
+        </div>
+
+        <div className="mt-6 flex flex-wrap gap-2" role="tablist" aria-label="Modo do formulário">
+          <DtoButton
+            role="tab"
+            aria-selected={activeTab === "analysis"}
+            tone={activeTab === "analysis" ? "accent" : "default"}
+            onClick={() => setActiveTab("analysis")}
+          >
+            Análise
+          </DtoButton>
+          <DtoButton
+            role="tab"
+            aria-selected={activeTab === "configuration"}
+            tone={activeTab === "configuration" ? "accent" : "default"}
+            onClick={() => openConfiguration(false)}
+          >
+            <Settings2 aria-hidden="true" />
+            Configuração
+          </DtoButton>
         </div>
 
         {resource.error ? (
@@ -136,84 +189,98 @@ export default function DtoFormAnalysis({
         ) : null}
       </DtoPanel>
 
-      <DtoQualityIssues detail={detail} />
-
-      {detail.records.length === 0 ? (
-        <DtoStatePanel
-          title="Formulário sem respostas"
-          description="A DTO foi descoberta e seu schema foi carregado, mas ainda não existem aplicações para analisar. Nenhuma métrica foi fabricada."
+      {activeTab === "configuration" ? (
+        <DtoConfigurationPanel
+          key={`${detail.configuration.revision}-${configurationNeedsAttention ? "attention" : "all"}`}
+          configuration={detail.configuration}
+          initialNeedsAttention={configurationNeedsAttention}
+          onSave={onSaveConfiguration}
         />
       ) : (
         <>
-          <DtoFilters
-            collaborators={filterOptions.collaborators}
-            filteredCount={filteredRecords.length}
-            filters={filters}
-            hasCollaboratorColumn={filterOptions.hasCollaboratorColumn}
-            hasDateColumn={filterOptions.hasDateColumn}
-            hasManagerColumn={filterOptions.hasManagerColumn}
-            managers={filterOptions.managers}
-            onReset={resetFilters}
-            onUpdate={updateFilter}
-            totalCount={detail.records.length}
-          />
+          <DtoQualityIssues detail={detail} onConfigure={() => openConfiguration(true)} />
 
-          <section aria-labelledby="dto-kpis-title">
-            <h2 id="dto-kpis-title" className="sr-only">Indicadores da DTO</h2>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-              <DtoMetricCard label="Aplicações" value={formatDtoNumber(metrics.applications)} hint="No recorte atual." />
-              <DtoMetricCard label="Aderência" tone="accent" value={formatDtoPercentage(metrics.adherence)} hint="OK / (OK + NOK)." />
-              <DtoMetricCard label="Respostas OK" tone="accent" value={formatDtoNumber(metrics.ok)} />
-              <DtoMetricCard label="Respostas NOK" tone={metrics.nok > 0 ? "danger" : "default"} value={formatDtoNumber(metrics.nok)} />
-              <DtoMetricCard label="Colaboradores" value={metrics.collaborators === null ? "Não identificado" : formatDtoNumber(metrics.collaborators)} />
-              <DtoMetricCard label="Última aplicação" value={metrics.hasDateColumn ? metrics.lastApplication ? formatDtoDate(metrics.lastApplication) : "Sem data válida" : "Não identificada"} />
-            </div>
-          </section>
+          {detail.records.length === 0 ? (
+            <DtoStatePanel
+              title="Formulário sem respostas"
+              description="A DTO foi descoberta e seu catálogo de campos foi carregado, mas ainda não existem aplicações para analisar. A configuração continua disponível nesta tela."
+            />
+          ) : (
+            <>
+              <DtoFilters
+                collaborators={filterOptions.collaborators}
+                filteredCount={filteredRecords.length}
+                filters={filters}
+                hasCollaboratorColumn={filterOptions.hasCollaboratorColumn}
+                hasDateColumn={filterOptions.hasDateColumn}
+                hasManagerColumn={filterOptions.hasManagerColumn}
+                managers={filterOptions.managers}
+                onReset={resetFilters}
+                onUpdate={updateFilter}
+                totalCount={detail.records.length}
+              />
 
-          <DtoPanel className="p-5 sm:p-6">
-            <Typography variant="overline">Oportunidades prioritárias</Typography>
-            <Typography as="h2" variant="cardTitle" className="mt-2">
-              Pontos de atenção derivados dos dados
-            </Typography>
-            <Typography variant="caption" className="mt-1">
-              Regras determinísticas: maior NOK por pergunta, piora entre os
-              dois últimos períodos comparáveis, recorrência com NOK e valores
-              inesperados.
-            </Typography>
-            {attentionPoints.length > 0 ? (
-              <div className="mt-5 grid gap-3 lg:grid-cols-2">
-                {attentionPoints.map((point) => (
-                  <article
-                    key={point.id}
-                    className={`rounded-[22px] border p-4 ${point.tone === "danger" ? "border-[color:var(--shell-danger)] bg-[var(--shell-danger-bg)]" : "border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)]"}`}
-                  >
-                    <h3 className={`text-sm font-semibold ${point.tone === "danger" ? "text-[var(--shell-danger)]" : "text-[var(--shell-text)]"}`}>{point.title}</h3>
-                    <p className="mt-2 text-sm leading-6 text-[var(--shell-muted)]">{point.description}</p>
-                  </article>
-                ))}
+              <section aria-labelledby="dto-kpis-title">
+                <h2 id="dto-kpis-title" className="sr-only">Indicadores da DTO</h2>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                  <DtoMetricCard label="Aplicações" value={formatDtoNumber(metrics.applications)} hint="No recorte atual." />
+                  <DtoMetricCard label="Aderência" tone="accent" value={formatDtoPercentage(metrics.adherence)} hint="Positivas / (positivas + negativas)." />
+                  <DtoMetricCard label="Respostas positivas" tone="accent" value={formatDtoNumber(metrics.positive)} />
+                  <DtoMetricCard label="Respostas negativas" tone={metrics.negative > 0 ? "danger" : "default"} value={formatDtoNumber(metrics.negative)} />
+                  <DtoMetricCard label="Colaboradores" value={metrics.collaborators === null ? "Não identificado" : formatDtoNumber(metrics.collaborators)} />
+                  <DtoMetricCard label="Última aplicação" value={metrics.hasDateColumn ? metrics.lastApplication ? formatDtoDate(metrics.lastApplication) : "Sem data válida" : "Não identificada"} />
+                </div>
+              </section>
+
+              <DtoPanel className="p-5 sm:p-6">
+                <Typography variant="overline">Oportunidades prioritárias</Typography>
+                <Typography as="h2" variant="cardTitle" className="mt-2">
+                  Pontos de atenção derivados dos dados
+                </Typography>
+                <Typography variant="caption" className="mt-1">
+                  Regras determinísticas: maior volume negativo por pergunta, piora entre períodos comparáveis, recorrência real e valores não parametrizados.
+                </Typography>
+                {attentionPoints.length > 0 ? (
+                  <div className="mt-5 grid gap-3 lg:grid-cols-2">
+                    {attentionPoints.map((point) => (
+                      <article
+                        key={point.id}
+                        className={`rounded-[22px] border p-4 ${point.tone === "danger" ? "border-[color:var(--shell-danger)] bg-[var(--shell-danger-bg)]" : "border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)]"}`}
+                      >
+                        <h3 className={`text-sm font-semibold ${point.tone === "danger" ? "text-[var(--shell-danger)]" : "text-[var(--shell-text)]"}`}>{point.title}</h3>
+                        <p className="mt-2 text-sm leading-6 text-[var(--shell-muted)]">{point.description}</p>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-5 rounded-2xl border border-dashed border-[color:var(--shell-line-strong)] bg-[var(--shell-surface-muted)] px-4 py-6 text-center text-sm text-[var(--shell-muted)]">
+                    Não há evidência suficiente neste recorte para gerar um ponto de atenção determinístico.
+                  </div>
+                )}
+              </DtoPanel>
+
+              <DtoTrendChart
+                hasDateColumn={filterOptions.hasDateColumn}
+                timeline={timeline}
+                trend={trend}
+              />
+
+              <div className="grid items-start gap-4 xl:grid-cols-2">
+                <DtoCriticalQuestions questions={questions} />
+                <DtoCollaborators
+                  collaborators={collaborators}
+                  columns={detail.columns}
+                  filters={filters}
+                  formName={detail.form.name}
+                  records={filteredRecords}
+                />
               </div>
-            ) : (
-              <div className="mt-5 rounded-2xl border border-dashed border-[color:var(--shell-line-strong)] bg-[var(--shell-surface-muted)] px-4 py-6 text-center text-sm text-[var(--shell-muted)]">
-                Não há evidência suficiente neste recorte para gerar um ponto de atenção determinístico.
-              </div>
-            )}
-          </DtoPanel>
 
-          <DtoTrendChart
-            hasDateColumn={filterOptions.hasDateColumn}
-            timeline={timeline}
-            trend={trend}
-          />
-
-          <div className="grid items-start gap-4 xl:grid-cols-2">
-            <DtoCriticalQuestions questions={questions} />
-            <DtoCollaborators collaborators={collaborators} />
-          </div>
-
-          <DtoApplicationsHistory columns={detail.columns} records={filteredRecords} />
+              <DtoApplicationsHistory columns={detail.columns} records={filteredRecords} />
+            </>
+          )}
         </>
       )}
     </div>
   );
 }
-

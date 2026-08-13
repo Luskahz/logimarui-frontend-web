@@ -37,7 +37,7 @@ function RecordSummary({ record }: { record: DtoRecord }) {
       <div><span className="block text-xs text-[var(--shell-muted)]">Colaborador</span><strong className="mt-1 block break-words text-sm text-[var(--shell-text)]">{record.collaborator || "—"}</strong></div>
       <div><span className="block text-xs text-[var(--shell-muted)]">Aplicador</span><strong className="mt-1 block break-words text-sm text-[var(--shell-text)]">{record.manager || "—"}</strong></div>
       <div><span className="block text-xs text-[var(--shell-muted)]">Aderência</span><strong className="mt-1 block text-sm text-[var(--shell-accent)]">{formatDtoPercentage(metrics.adherence)}</strong></div>
-      <div><span className="block text-xs text-[var(--shell-muted)]">NOK</span><strong className="mt-1 block text-sm text-[var(--shell-danger)]">{formatDtoNumber(metrics.nok)}</strong></div>
+      <div><span className="block text-xs text-[var(--shell-muted)]">Negativas</span><strong className="mt-1 block text-sm text-[var(--shell-danger)]">{formatDtoNumber(metrics.negative)}</strong></div>
     </>
   );
 }
@@ -109,7 +109,7 @@ export default function DtoApplicationsHistory({
                   <th className="px-4 py-3 font-semibold">Colaborador</th>
                   <th className="px-4 py-3 font-semibold">Aplicador</th>
                   <th className="px-4 py-3 font-semibold">Aderência</th>
-                  <th className="px-4 py-3 font-semibold">NOK</th>
+                  <th className="px-4 py-3 font-semibold">Negativas</th>
                   <th className="px-4 py-3 text-right font-semibold">Detalhes</th>
                 </tr>
               </thead>
@@ -125,7 +125,7 @@ export default function DtoApplicationsHistory({
                         <td className="max-w-52 break-words px-4 py-3 text-[var(--shell-text)]">{record.collaborator || "—"}</td>
                         <td className="max-w-52 break-words px-4 py-3 text-[var(--shell-text)]">{record.manager || "—"}</td>
                         <td className="px-4 py-3 font-semibold text-[var(--shell-accent)]">{formatDtoPercentage(recordMetrics.adherence)}</td>
-                        <td className="px-4 py-3 font-semibold text-[var(--shell-danger)]">{formatDtoNumber(recordMetrics.nok)}</td>
+                        <td className="px-4 py-3 font-semibold text-[var(--shell-danger)]">{formatDtoNumber(recordMetrics.negative)}</td>
                         <td className="px-4 py-3 text-right">
                           <DtoButton size="sm" aria-expanded={expanded} onClick={() => toggleRecord(record)}>
                             {expanded ? "Fechar" : "Ver"}
@@ -184,4 +184,3 @@ export default function DtoApplicationsHistory({
     </DtoPanel>
   );
 }
-

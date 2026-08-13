@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { dtoApi } from "@/features/dpo/lib/dtoApi";
 import { parseDtoDate } from "@/features/dpo/lib/dtoFormatters";
 import type {
+  DtoConfigurationUpdate,
+  DtoFormConfiguration,
   DtoFormDetail,
   DtoFormReference,
   DtoFormResource,
@@ -56,7 +58,9 @@ function validateFormDetail(payload: DtoFormDetail): DtoFormDetail {
     !payload ||
     !payload.form ||
     !Array.isArray(payload.columns) ||
-    !Array.isArray(payload.records)
+    !Array.isArray(payload.records) ||
+    !payload.configuration ||
+    !Array.isArray(payload.configuration.fields)
   ) {
     throw new Error("O serviço retornou dados inválidos para esta DTO.");
   }
@@ -302,6 +306,31 @@ export function useDtoForms() {
     [formsPayload, loadFormDetail],
   );
 
+  const saveConfiguration = useCallback(
+    async (
+      formId: string,
+      update: DtoConfigurationUpdate,
+    ): Promise<DtoFormConfiguration> => {
+      const form = formsPayloadRef.current?.forms.find((item) => item.id === formId);
+      if (!form) {
+        throw new Error("O formulário DTO não está mais disponível.");
+      }
+      const controller = createController();
+      try {
+        const configuration = await dtoApi.updateConfiguration(
+          formId,
+          update,
+          controller.signal,
+        );
+        await loadFormDetail(form, generationRef.current);
+        return configuration;
+      } finally {
+        releaseController(controller);
+      }
+    },
+    [createController, loadFormDetail, releaseController],
+  );
+
   const lastUpdatedAt = useMemo(() => {
     const candidates = [
       formsPayload?.discovered_at,
@@ -327,6 +356,7 @@ export function useDtoForms() {
     refreshError,
     refreshing,
     resources,
+    saveConfiguration,
     retryDiscovery: () => discoverForms(),
     retryForm,
     status,

@@ -1,5 +1,5 @@
 import type {
-  DtoAnswerStatus,
+  DtoAnswerSemantic,
   DtoColumn,
   DtoRecord,
 } from "@/features/dpo/lib/dtoTypes";
@@ -7,20 +7,20 @@ import { formatDtoValue } from "@/features/dpo/lib/dtoFormatters";
 import { DtoBadge } from "@/features/dpo/components/dto/DtoPrimitives";
 import { cn } from "@/lib/utils";
 
-const STATUS_LABELS: Record<DtoAnswerStatus, string> = {
-  ok: "OK",
-  nok: "NOK",
-  neutral: "Neutra",
-  blank: "Em branco",
-  unexpected: "Inesperada",
+const STATUS_LABELS: Record<DtoAnswerSemantic, string> = {
+  POSITIVE: "Positiva",
+  NEGATIVE: "Negativa",
+  IGNORED: "Desconsiderada",
+  BLANK: "Em branco",
+  UNMAPPED: "Não parametrizada",
 };
 
-function AnswerStatusBadge({ status }: { status: DtoAnswerStatus }) {
-  if (status === "ok") {
-    return <DtoBadge tone="accent">OK</DtoBadge>;
+function AnswerStatusBadge({ status }: { status: DtoAnswerSemantic }) {
+  if (status === "POSITIVE") {
+    return <DtoBadge tone="accent">Positiva</DtoBadge>;
   }
-  if (status === "nok") {
-    return <DtoBadge tone="danger">NOK</DtoBadge>;
+  if (status === "NEGATIVE") {
+    return <DtoBadge tone="danger">Negativa</DtoBadge>;
   }
   return <DtoBadge>{STATUS_LABELS[status]}</DtoBadge>;
 }
@@ -33,7 +33,7 @@ export default function DtoApplicationDetails({
   record: DtoRecord;
 }) {
   const metadataColumns = columns.filter(
-    (column) => column.kind !== "evaluation",
+    (column) => column.role !== "EVALUATION" && column.role !== "IGNORE",
   );
 
   return (
@@ -51,7 +51,7 @@ export default function DtoApplicationDetails({
               >
                 <dt className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--shell-muted)]">
                   <span className="break-words">{column.label}</span>
-                  {column.kind === "unknown" ? <DtoBadge>Não classificado</DtoBadge> : null}
+                  {column.role === "CONTEXT" ? <DtoBadge>Contexto</DtoBadge> : null}
                 </dt>
                 <dd className="mt-1 break-words text-sm font-semibold text-[var(--shell-text)]">
                   {formatDtoValue(record.values?.[column.key])}
@@ -77,7 +77,7 @@ export default function DtoApplicationDetails({
                 key={answer.column_key}
                 className={cn(
                   "rounded-2xl border bg-[var(--shell-surface)] px-3 py-3",
-                  answer.status === "nok"
+                  answer.status === "NEGATIVE"
                     ? "border-[color:var(--shell-danger)]"
                     : "border-[color:var(--shell-line)]",
                 )}
@@ -103,4 +103,3 @@ export default function DtoApplicationDetails({
     </div>
   );
 }
-

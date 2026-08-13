@@ -38,8 +38,8 @@ export default function DtoOverview({
             Leitura consolidada
           </Typography>
           <Typography variant="supportingText" className="mt-2 max-w-3xl">
-            A aderência considera exclusivamente OK / (OK + NOK). Campos
-            vazios, neutros, metadados e valores inesperados não entram no
+            A aderência considera resultados positivos / (positivos + negativos). Campos
+            vazios, ignorados, metadados e valores não parametrizados não entram no
             denominador.
           </Typography>
         </div>
@@ -68,12 +68,12 @@ export default function DtoOverview({
           label="Aderência geral"
           tone="accent"
           value={formatDtoPercentage(metrics.adherence)}
-          hint="OK / (OK + NOK)."
+          hint="Positivas / (positivas + negativas)."
         />
         <DtoMetricCard
-          label="Respostas NOK"
-          tone={metrics.nok && metrics.nok > 0 ? "danger" : "default"}
-          value={formatDtoNumber(metrics.nok)}
+          label="Respostas negativas"
+          tone={metrics.negative && metrics.negative > 0 ? "danger" : "default"}
+          value={formatDtoNumber(metrics.negative)}
           hint="Desvios entre respostas avaliativas válidas."
         />
         <DtoMetricCard
@@ -93,7 +93,7 @@ export default function DtoOverview({
             Pontos de atenção consolidados
           </Typography>
           <Typography variant="caption" className="mt-1">
-            Ordenação transparente por maior quantidade de NOK; em empate,
+            Ordenação transparente por maior quantidade de respostas negativas; em empate,
             menor aderência.
           </Typography>
 
@@ -111,7 +111,7 @@ export default function DtoOverview({
                     {item.name}
                   </p>
                   <p className="mt-1 text-xs text-[var(--shell-muted)]">
-                    {formatDtoNumber(item.nok)} NOK · {formatDtoPercentage(item.adherence)} de aderência
+                    {formatDtoNumber(item.negative)} negativas · {formatDtoPercentage(item.adherence)} de aderência
                   </p>
                 </div>
                 <DtoButton
@@ -129,4 +129,3 @@ export default function DtoOverview({
     </DtoPanel>
   );
 }
-
