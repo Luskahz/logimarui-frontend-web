@@ -10,6 +10,8 @@ import type {
   DtoFormDetail,
   DtoFormConfiguration,
   DtoFormsResponse,
+  DtoRefreshJob,
+  DtoRefreshRequest,
 } from "@/features/dpo/lib/dtoTypes";
 
 const DTO_API_PREFIX = "/api/savi/api/v1/dtos";
@@ -145,6 +147,22 @@ export const dtoApi = {
     return request<DtoFormDetail>(`/forms/${encodeURIComponent(formId)}`, {
       signal,
     });
+  },
+  startFormRefresh(
+    formId: string,
+    period: DtoRefreshRequest,
+    signal?: AbortSignal,
+  ) {
+    return request<DtoRefreshJob>(
+      `/forms/${encodeURIComponent(formId)}/refresh`,
+      { method: "POST", body: period, signal },
+    );
+  },
+  checkFormRefresh(formId: string, jobId: string, signal?: AbortSignal) {
+    return request<DtoRefreshJob>(
+      `/forms/${encodeURIComponent(formId)}/refresh/${encodeURIComponent(jobId)}`,
+      { signal },
+    );
   },
   getConfiguration(formId: string, signal?: AbortSignal) {
     return request<DtoFormConfiguration>(

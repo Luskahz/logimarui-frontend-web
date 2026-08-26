@@ -120,6 +120,27 @@ export interface DtoFormDetail {
   cached: boolean;
   quality_issues: DtoQualityIssue[];
   configuration: DtoFormConfiguration;
+  source_period_start?: string | null;
+  source_period_end?: string | null;
+  source_updated_at?: string | null;
+}
+
+export interface DtoRefreshRequest {
+  start_date: string;
+  end_date: string;
+}
+
+export type DtoRefreshStatus = "pending" | "completed" | "failed";
+
+export interface DtoRefreshJob {
+  job_id: string;
+  form_id: string;
+  status: DtoRefreshStatus;
+  created_at: string;
+  checked_at?: string | null;
+  total_records?: number | null;
+  error_message?: string | null;
+  detail?: DtoFormDetail | null;
 }
 
 export type DtoResourceStatus = "idle" | "loading" | "ready" | "empty" | "error";

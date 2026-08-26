@@ -50,7 +50,7 @@ export default function DtoManagerHeader({
               aria-hidden="true"
               className={refreshing ? "animate-spin" : ""}
             />
-            {refreshing ? "Atualizando" : "Atualizar"}
+            {refreshing ? "Atualizando lista" : "Atualizar lista"}
           </DtoButton>
 
           <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--shell-muted)] sm:justify-end">
@@ -81,7 +81,7 @@ export default function DtoManagerHeader({
 
       <p className="sr-only" aria-live="polite">
         {refreshing
-          ? "Atualização das DTOs em andamento."
+          ? "Atualização da lista de DTOs em andamento."
           : refreshCompletedAt
             ? `Atualização concluída em ${formatDtoDateTime(refreshCompletedAt)}.`
             : ""}

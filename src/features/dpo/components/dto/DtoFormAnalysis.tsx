@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { ArrowLeft, RefreshCw, Settings2, TriangleAlert } from "lucide-react";
 import { useDtoForm } from "@/features/dpo/hooks/useDtoForm";
 import {
@@ -13,6 +13,8 @@ import type {
   DtoConfigurationUpdate,
   DtoFormDetail,
   DtoFormResource,
+  DtoRefreshJob,
+  DtoRefreshRequest,
 } from "@/features/dpo/lib/dtoTypes";
 import DtoApplicationsHistory from "@/features/dpo/components/dto/DtoApplicationsHistory";
 import DtoCollaborators from "@/features/dpo/components/dto/DtoCollaborators";
@@ -20,6 +22,7 @@ import DtoConfigurationPanel from "@/features/dpo/components/dto/DtoConfiguratio
 import DtoCriticalQuestions from "@/features/dpo/components/dto/DtoCriticalQuestions";
 import DtoFilters from "@/features/dpo/components/dto/DtoFilters";
 import DtoTrendChart from "@/features/dpo/components/dto/DtoTrendChart";
+import DtoRefreshDialog from "@/features/dpo/components/dto/DtoRefreshDialog";
 import {
   DtoBadge,
   DtoButton,
@@ -39,7 +42,10 @@ function DtoQualityIssues({
   onConfigure: () => void;
 }) {
   const pendingFields = detail.configuration.fields_requiring_configuration;
-  if (detail.quality_issues.length === 0 && pendingFields === 0) return null;
+  const technicalIssues = detail.quality_issues.filter(
+    (issue) => issue.code !== "form_without_records",
+  );
+  if (technicalIssues.length === 0 && pendingFields === 0) return null;
 
   return (
     <DtoPanel className="border-[color:var(--shell-line-strong)] p-5 sm:p-6">
@@ -58,13 +64,13 @@ function DtoQualityIssues({
                 ? `${pendingFields} campo(s) possuem valores ainda não parametrizados ou exigem revisão.`
                 : "O serviço registrou alertas técnicos durante a leitura do formulário."} Valores desconhecidos permanecem fora da aderência até uma decisão explícita.
             </Typography>
-            {detail.quality_issues.length > 0 ? (
+            {technicalIssues.length > 0 ? (
               <details className="mt-3 text-sm text-[var(--shell-muted)]">
                 <summary className="cursor-pointer font-semibold text-[var(--shell-text)]">
-                  Ver detalhes técnicos ({detail.quality_issues.length})
+                  Ver detalhes técnicos ({technicalIssues.length})
                 </summary>
                 <ul className="mt-3 space-y-2">
-                  {detail.quality_issues.map((issue, index) => (
+                  {technicalIssues.map((issue, index) => (
                     <li
                       key={`${issue.code}-${issue.column_key || "form"}-${issue.record_index ?? index}`}
                       className="rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] px-3 py-2"
@@ -93,17 +99,25 @@ export default function DtoFormAnalysis({
   detail,
   onBack,
   onRetry,
+  onRefreshData,
   onSaveConfiguration,
   resource,
 }: {
   detail: DtoFormDetail;
   onBack: () => void;
   onRetry: () => Promise<unknown>;
+  onRefreshData: (
+    period: DtoRefreshRequest,
+    onProgress: (job: DtoRefreshJob) => void,
+    signal: AbortSignal,
+  ) => Promise<DtoFormDetail>;
   onSaveConfiguration: (update: DtoConfigurationUpdate) => Promise<unknown>;
   resource: DtoFormResource;
 }) {
   const [activeTab, setActiveTab] = useState<ActiveTab>("analysis");
   const [configurationNeedsAttention, setConfigurationNeedsAttention] = useState(false);
+  const [refreshDialogOpen, setRefreshDialogOpen] = useState(false);
+  const closeRefreshDialog = useCallback(() => setRefreshDialogOpen(false), []);
   const analysis = useDtoForm(detail);
   const {
     attentionPoints,
@@ -145,6 +159,17 @@ export default function DtoFormAnalysis({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <DtoButton
+              tone="accent"
+              disabled={resource.isRefreshing}
+              onClick={() => setRefreshDialogOpen(true)}
+            >
+              <RefreshCw
+                aria-hidden="true"
+                className={resource.isRefreshing ? "animate-spin" : ""}
+              />
+              {resource.isRefreshing ? "Atualizando dados" : "Atualizar dados"}
+            </DtoButton>
             {resource.isRefreshing ? <DtoBadge tone="accent">Atualizando</DtoBadge> : null}
             {detail.cached ? <DtoBadge>Cache do serviço</DtoBadge> : null}
             {detail.configuration.fields_requiring_configuration > 0 ? (
@@ -154,6 +179,17 @@ export default function DtoFormAnalysis({
               Carga: {formatDtoDateTime(detail.loaded_at)}
             </span>
           </div>
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] px-4 py-3 text-sm text-[var(--shell-muted)]">
+          {detail.source_period_start && detail.source_period_end ? (
+            <>
+              Período do snapshot: <strong className="text-[var(--shell-text)]">{formatDtoDate(detail.source_period_start)} a {formatDtoDate(detail.source_period_end)}</strong>
+              {detail.source_updated_at ? ` · exportado em ${formatDtoDateTime(detail.source_updated_at)}` : ""}
+            </>
+          ) : (
+            <>Ainda não há snapshot local. Use <strong className="text-[var(--shell-text)]">Atualizar dados</strong> para escolher o primeiro período.</>
+          )}
         </div>
 
         <div className="mt-6 flex flex-wrap gap-2" role="tablist" aria-label="Modo do formulário">
@@ -189,6 +225,14 @@ export default function DtoFormAnalysis({
         ) : null}
       </DtoPanel>
 
+      {refreshDialogOpen ? (
+        <DtoRefreshDialog
+          formName={detail.form.name}
+          onClose={closeRefreshDialog}
+          onRefresh={onRefreshData}
+        />
+      ) : null}
+
       {activeTab === "configuration" ? (
         <DtoConfigurationPanel
           key={`${detail.configuration.revision}-${configurationNeedsAttention ? "attention" : "all"}`}
@@ -202,8 +246,12 @@ export default function DtoFormAnalysis({
 
           {detail.records.length === 0 ? (
             <DtoStatePanel
-              title="Formulário sem respostas"
-              description="A DTO foi descoberta e seu catálogo de campos foi carregado, mas ainda não existem aplicações para analisar. A configuração continua disponível nesta tela."
+              title={detail.source_updated_at ? "Nenhuma resposta no período" : "Dados ainda não atualizados"}
+              description={
+                detail.source_updated_at
+                  ? "O arquivo foi validado, mas o SAVI não devolveu aplicações para o período escolhido. Você pode selecionar outro intervalo em Atualizar dados."
+                  : "A DTO foi descoberta no SAVI, mas ainda não possui um snapshot local. Escolha o período no botão Atualizar dados."
+              }
             />
           ) : (
             <>

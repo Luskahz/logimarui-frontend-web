@@ -11,9 +11,13 @@ import type {
   DtoFormResource,
   DtoFormResourceMap,
   DtoFormsResponse,
+  DtoRefreshJob,
+  DtoRefreshRequest,
 } from "@/features/dpo/lib/dtoTypes";
 
 const DETAIL_CONCURRENCY = 3;
+const REFRESH_CHECK_INTERVAL_MS = 2_000;
+const REFRESH_MAX_CHECKS = 45;
 
 function toErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -21,6 +25,24 @@ function toErrorMessage(error: unknown, fallback: string): string {
 
 function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === "AbortError";
+}
+
+function waitForNextCheck(signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException("Operação cancelada", "AbortError"));
+      return;
+    }
+    const timeout = window.setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, REFRESH_CHECK_INTERVAL_MS);
+    const onAbort = () => {
+      window.clearTimeout(timeout);
+      reject(new DOMException("Operação cancelada", "AbortError"));
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
 }
 
 function createIdleResource(): DtoFormResource {
@@ -331,6 +353,75 @@ export function useDtoForms() {
     [createController, loadFormDetail, releaseController],
   );
 
+  const refreshFormData = useCallback(
+    async (
+      formId: string,
+      period: DtoRefreshRequest,
+      onProgress?: (job: DtoRefreshJob) => void,
+      signal?: AbortSignal,
+    ): Promise<DtoFormDetail> => {
+      const form = formsPayloadRef.current?.forms.find((item) => item.id === formId);
+      if (!form) {
+        throw new Error("O formulário DTO não está mais disponível.");
+      }
+      setResources((current) => {
+        const previous = current[formId] || createIdleResource();
+        return {
+          ...current,
+          [formId]: { ...previous, error: null, isRefreshing: true },
+        };
+      });
+
+      try {
+        let job = await dtoApi.startFormRefresh(formId, period, signal);
+        onProgress?.(job);
+        for (let attempt = 0; attempt < REFRESH_MAX_CHECKS; attempt += 1) {
+          if (job.status === "failed") {
+            throw new Error(job.error_message || "O SAVI não conseguiu gerar a exportação.");
+          }
+          if (job.status === "completed") {
+            if (!job.detail) {
+              throw new Error("A exportação terminou sem devolver os dados atualizados.");
+            }
+            const detail = validateFormDetail(job.detail);
+            setResources((current) => ({
+              ...current,
+              [formId]: {
+                status: detail.records.length > 0 ? "ready" : "empty",
+                data: detail,
+                error: null,
+                isRefreshing: false,
+              },
+            }));
+            return detail;
+          }
+          await waitForNextCheck(signal);
+          job = await dtoApi.checkFormRefresh(formId, job.job_id, signal);
+          onProgress?.(job);
+        }
+        throw new Error(
+          "A exportação continua em processamento no SAVI. A espera automática foi encerrada após 90 segundos; tente atualizar novamente mais tarde.",
+        );
+      } catch (refreshFormError) {
+        setResources((current) => {
+          const previous = current[formId] || createIdleResource();
+          return {
+            ...current,
+            [formId]: {
+              ...previous,
+              error: isAbortError(refreshFormError)
+                ? previous.error
+                : toErrorMessage(refreshFormError, "Não foi possível atualizar os dados."),
+              isRefreshing: false,
+            },
+          };
+        });
+        throw refreshFormError;
+      }
+    },
+    [],
+  );
+
   const lastUpdatedAt = useMemo(() => {
     const candidates = [
       formsPayload?.discovered_at,
@@ -356,6 +447,7 @@ export function useDtoForms() {
     refreshError,
     refreshing,
     resources,
+    refreshFormData,
     saveConfiguration,
     retryDiscovery: () => discoverForms(),
     retryForm,

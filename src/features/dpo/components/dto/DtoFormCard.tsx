@@ -115,7 +115,8 @@ export default function DtoFormCard({
         </div>
         <div className="flex flex-wrap gap-2">
           {resource.isRefreshing ? <DtoBadge tone="accent">Atualizando</DtoBadge> : null}
-          {detail.quality_issues.length > 0 ? <DtoBadge>Schema parcial</DtoBadge> : null}
+          {!detail.source_updated_at ? <DtoBadge>Sem snapshot</DtoBadge> : null}
+          {detail.quality_issues.some((issue) => issue.code !== "form_without_records") ? <DtoBadge>Schema parcial</DtoBadge> : null}
           {detail.cached ? <DtoBadge>Cache</DtoBadge> : null}
         </div>
       </div>
