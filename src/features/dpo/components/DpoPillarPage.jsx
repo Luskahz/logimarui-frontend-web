@@ -14,7 +14,9 @@ function ChevronDownIcon() {
 
 export default function DpoPillarPage({
   beforeQuestionGroups = null,
+  initialOpenGroupCode = DPO_QUESTION_GROUPS[0]?.code,
   pillar,
+  questionGroupLeadByCode = {},
 }) {
   return (
     <AuthenticatedShell>
@@ -67,10 +69,10 @@ export default function DpoPillarPage({
           ) : null}
 
           <div className="mt-6 space-y-3">
-            {DPO_QUESTION_GROUPS.map((group, index) => (
+            {DPO_QUESTION_GROUPS.map((group) => (
               <details
                 key={group.code}
-                open={index === 0}
+                open={group.code === initialOpenGroupCode}
                 className="group overflow-hidden rounded-[24px] border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)]"
               >
                 <summary className="flex cursor-pointer list-none items-start justify-between gap-4 px-5 py-4 [&::-webkit-details-marker]:hidden">
@@ -92,6 +94,12 @@ export default function DpoPillarPage({
                 </summary>
 
                 <div className="border-t border-[color:var(--shell-line)] px-5 py-4">
+                  {questionGroupLeadByCode[group.code] ? (
+                    <div className="mb-4">
+                      {questionGroupLeadByCode[group.code]}
+                    </div>
+                  ) : null}
+
                   <div className="space-y-2">
                     {group.questions.map((question) => (
                       <div

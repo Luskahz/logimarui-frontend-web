@@ -10,6 +10,7 @@ export const APP_ROUTES = {
   DPO: "/dpo",
   DPO_MANAGEMENT: "/dpo/gestao",
   DPO_DTO_MANAGER: "/dpo/gestao/gerenciador-dto",
+  DPO_DELIVERY_ROUTE_CME: "/dpo/entrega/acompanhamento-rota-cme",
   CRITICA_PEDIDOS: "/critica-pedidos",
   AUTHORIZATION_ROLES: "/admin/roles",
   EXTRATOR_MANAGER: "/extrator",

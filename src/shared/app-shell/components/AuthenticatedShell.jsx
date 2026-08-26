@@ -129,6 +129,7 @@ const SERVICE_ITEMS = [
 
 const BREADCRUMB_LABELS = {
   [APP_ROUTES.DPO_DTO_MANAGER]: "Gerenciador de DTOs",
+  [APP_ROUTES.DPO_DELIVERY_ROUTE_CME]: "Acompanhamento de rota CME",
 };
 
 function IconButton({
