@@ -13,10 +13,18 @@ export interface PagedResponse<T> {
 export interface OrderSummary {
   orderNumber: number;
   invoiceNumber: number;
+  customerId: number;
+  customerName: string | null;
+  tradeName: string | null;
   deliveryDate: string;
   invoiceIssueDate: string;
   orderValue: DecimalValue;
   totalHectoliters: DecimalValue;
+  routeNumber: number | null;
+  sectorCode: number | null;
+  driverName: string | null;
+  orderType: string | null;
+  externalStatus: string | null;
 }
 
 export interface InvoiceItem {

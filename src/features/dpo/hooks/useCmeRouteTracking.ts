@@ -46,16 +46,17 @@ function errorMessage(error: unknown): string {
 
 export function useCmeRouteTracking() {
   const [customerInput, setCustomerInput] = useState("");
-  const [invoiceInput, setInvoiceInput] = useState("");
   const [orders, setOrders] = useState<PagedResponse<OrderSummary> | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<OrderSummary | null>(null);
   const [context, setContext] = useState<ReturnAlertContext | null>(null);
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [occurrence, setOccurrence] = useState<Occurrence | null>(null);
   const [phase, setPhase] = useState<RequestPhase>(null);
+  const [isDebouncing, setIsDebouncing] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const requestControllerRef = useRef<AbortController | null>(null);
+  const debounceTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => requestControllerRef.current?.abort();
@@ -66,37 +67,16 @@ export function useCmeRouteTracking() {
     setSuccess("");
   }, []);
 
-  const clearSelection = useCallback(() => {
+  const clearResult = useCallback(() => {
     setOrders(null);
     setSelectedOrder(null);
     setContext(null);
     setItems([]);
     setOccurrence(null);
-    clearFeedback();
-  }, [clearFeedback]);
-
-  const changeCustomerInput = useCallback(
-    (value: string) => {
-      setCustomerInput(value);
-      clearSelection();
-    },
-    [clearSelection],
-  );
-
-  const changeInvoiceInput = useCallback(
-    (value: string) => {
-      setInvoiceInput(value);
-      clearSelection();
-    },
-    [clearSelection],
-  );
+  }, []);
 
   const loadInvoice = useCallback(
-    async (
-      customerId: number,
-      invoiceNumber: number,
-      order: OrderSummary | null = null,
-    ) => {
+    async (order: OrderSummary) => {
       requestControllerRef.current?.abort();
       const controller = new AbortController();
       requestControllerRef.current = controller;
@@ -107,19 +87,18 @@ export function useCmeRouteTracking() {
       setItems([]);
       setOccurrence(null);
       setSelectedOrder(order);
-      setInvoiceInput(String(invoiceNumber));
 
       try {
         const [nextContext, itemPage, occurrencePage] = await Promise.all([
           cmeOccurrenceApi.getReturnContext(
-            customerId,
-            invoiceNumber,
+            order.customerId,
+            order.invoiceNumber,
             controller.signal,
           ),
-          cmeOccurrenceApi.getInvoiceItems(invoiceNumber, controller.signal),
+          cmeOccurrenceApi.getInvoiceItems(order.invoiceNumber, controller.signal),
           cmeOccurrenceApi.searchOccurrences(
-            customerId,
-            invoiceNumber,
+            order.customerId,
+            order.invoiceNumber,
             controller.signal,
           ),
         ]);
@@ -141,73 +120,101 @@ export function useCmeRouteTracking() {
     [clearFeedback],
   );
 
-  const consult = useCallback(async () => {
-    clearFeedback();
+  const searchCustomer = useCallback(
+    async (rawCustomerId: string) => {
+      clearFeedback();
 
-    let customerId: number;
+      let customerId: number;
 
-    try {
-      customerId = parsePositiveInteger(customerInput, "Código do cliente");
-    } catch (validationError) {
-      setError(errorMessage(validationError));
-      return;
-    }
-
-    if (invoiceInput.trim()) {
       try {
-        const invoiceNumber = parsePositiveInteger(invoiceInput, "Nota fiscal");
-        await loadInvoice(customerId, invoiceNumber);
+        customerId = parsePositiveInteger(rawCustomerId, "Código do cliente");
       } catch (validationError) {
         setError(errorMessage(validationError));
+        return;
       }
+
+      requestControllerRef.current?.abort();
+      const controller = new AbortController();
+      requestControllerRef.current = controller;
+
+      setPhase("searching");
+      clearResult();
+
+      try {
+        const result = await cmeOccurrenceApi.getCustomerOrders(
+          customerId,
+          controller.signal,
+        );
+        setOrders(result);
+
+        if (result.content.length === 0) {
+          setError("Nenhuma nota fiscal foi encontrada para este cliente.");
+          return;
+        }
+
+        await loadInvoice(result.content[0]);
+      } catch (searchError) {
+        if (!isAbortError(searchError)) {
+          setError(errorMessage(searchError));
+        }
+      } finally {
+        if (requestControllerRef.current === controller) {
+          requestControllerRef.current = null;
+          setPhase(null);
+        }
+      }
+    },
+    [clearFeedback, clearResult, loadInvoice],
+  );
+
+  useEffect(() => {
+    const normalized = customerInput.trim();
+
+    if (!normalized) {
       return;
     }
 
-    requestControllerRef.current?.abort();
-    const controller = new AbortController();
-    requestControllerRef.current = controller;
+    debounceTimeoutRef.current = window.setTimeout(() => {
+      debounceTimeoutRef.current = null;
+      setIsDebouncing(false);
+      void searchCustomer(normalized);
+    }, 2000);
 
-    setPhase("searching");
-    setOrders(null);
-    setSelectedOrder(null);
-    setContext(null);
-    setItems([]);
-    setOccurrence(null);
+    return () => {
+      if (debounceTimeoutRef.current !== null) {
+        window.clearTimeout(debounceTimeoutRef.current);
+        debounceTimeoutRef.current = null;
+      }
+    };
+  }, [customerInput, searchCustomer]);
 
-    try {
-      const result = await cmeOccurrenceApi.getCustomerOrders(
-        customerId,
-        controller.signal,
-      );
-      setOrders(result);
+  const changeCustomerInput = useCallback(
+    (value: string) => {
+      const normalized = value.replace(/\D/g, "");
+      requestControllerRef.current?.abort();
+      setCustomerInput(normalized);
+      setIsDebouncing(Boolean(normalized));
+      setPhase(null);
+      clearFeedback();
+      clearResult();
+    },
+    [clearFeedback, clearResult],
+  );
 
-      if (result.content.length === 0) {
-        setError("Nenhum pedido foi encontrado para este cliente.");
-      } else if (result.content.length === 1) {
-        await loadInvoice(customerId, result.content[0].invoiceNumber, result.content[0]);
-      }
-    } catch (searchError) {
-      if (!isAbortError(searchError)) {
-        setError(errorMessage(searchError));
-      }
-    } finally {
-      if (requestControllerRef.current === controller) {
-        requestControllerRef.current = null;
-        setPhase(null);
-      }
+  const consult = useCallback(() => {
+    if (debounceTimeoutRef.current !== null) {
+      window.clearTimeout(debounceTimeoutRef.current);
+      debounceTimeoutRef.current = null;
     }
-  }, [clearFeedback, customerInput, invoiceInput, loadInvoice]);
+    setIsDebouncing(false);
+    void searchCustomer(customerInput);
+  }, [customerInput, searchCustomer]);
 
   const selectOrder = useCallback(
-    async (order: OrderSummary) => {
-      try {
-        const customerId = parsePositiveInteger(customerInput, "Código do cliente");
-        await loadInvoice(customerId, order.invoiceNumber, order);
-      } catch (selectionError) {
-        setError(errorMessage(selectionError));
-      }
+    (order: OrderSummary) => {
+      void loadInvoice(order);
     },
-    [customerInput, loadInvoice],
+    [loadInvoice],
   );
 
   const confirmReturn = useCallback(async () => {
@@ -231,9 +238,7 @@ export function useCmeRouteTracking() {
       }
 
       if (currentOccurrence.status !== "RETURNED") {
-        currentOccurrence = await cmeOccurrenceApi.confirmReturn(
-          currentOccurrence.id,
-        );
+        currentOccurrence = await cmeOccurrenceApi.confirmReturn(currentOccurrence.id);
         setOccurrence(currentOccurrence);
       }
 
@@ -267,13 +272,12 @@ export function useCmeRouteTracking() {
 
   return {
     changeCustomerInput,
-    changeInvoiceInput,
-    consult,
     confirmReturn,
+    consult,
     context,
     customerInput,
     error,
-    invoiceInput,
+    isDebouncing,
     items,
     occurrence,
     orders,
