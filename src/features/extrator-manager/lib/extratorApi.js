@@ -41,7 +41,9 @@ async function readJsonResponse(response) {
         ? payload
         : payload?.message || payload?.error || `Falha HTTP ${response.status}`;
 
-    throw new Error(message);
+    const error = new Error(message);
+    error.payload = payload;
+    throw error;
   }
 
   return payload;
@@ -63,6 +65,12 @@ async function request(path, options = {}) {
 export const extratorApi = {
   getStatus() {
     return request("/status");
+  },
+  submitBeesVerificationCode(code) {
+    return request("/bees-auth/verify", {
+      method: "POST",
+      body: { code },
+    });
   },
   getClientLog() {
     return request("/client-log");

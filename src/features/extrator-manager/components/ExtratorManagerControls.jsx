@@ -390,6 +390,122 @@ export function PasswordActionModal({
   );
 }
 
+export function BeesVerificationModal({
+  code,
+  error,
+  inputRef,
+  isOpen,
+  onChange,
+  onClose,
+  onSubmit,
+  status,
+  submitting,
+}) {
+  if (!isOpen) {
+    return null;
+  }
+
+  const recoverable = Boolean(status?.recoverable);
+
+  return (
+    <div
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-[var(--shell-overlay)] px-4 py-6 backdrop-blur-md"
+      onClick={submitting ? undefined : onClose}
+      role="presentation"
+    >
+      <div
+        aria-labelledby="bees-verification-title"
+        aria-modal="true"
+        className="w-full max-w-[520px] rounded-[24px] border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-5 shadow-[0_28px_80px_rgba(0,0,0,0.38)] sm:p-6"
+        onClick={(event) => event.stopPropagation()}
+        role="dialog"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--shell-accent)]">
+              Autenticacao Bees
+            </p>
+            <h2
+              id="bees-verification-title"
+              className="mt-2 text-2xl font-semibold text-[var(--shell-text)]"
+            >
+              Codigo enviado por e-mail
+            </h2>
+            <p className="mt-2 text-sm leading-7 text-[var(--shell-muted)]">
+              O Bees enviou um codigo para o e-mail principal da conta. Esta e a
+              mesma tentativa de login iniciada pelo report; usuario e senha nao
+              serao enviados novamente.
+            </p>
+          </div>
+          <ActionButton disabled={submitting} onClick={onClose}>
+            Fechar
+          </ActionButton>
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] px-4 py-3 text-sm leading-6 text-[var(--shell-muted)]">
+          {status?.message || "A tentativa permanece aguardando o codigo."}
+          {status?.created_at ? (
+            <span className="mt-1 block text-xs">
+              Tentativa iniciada em {status.created_at}.
+            </span>
+          ) : null}
+        </div>
+
+        {recoverable ? (
+          <div className="mt-5">
+            <FormField label="Codigo de verificacao">
+              <input
+                ref={inputRef}
+                autoComplete="one-time-code"
+                autoFocus
+                inputMode="numeric"
+                maxLength={32}
+                type="text"
+                value={code}
+                onChange={(event) => onChange(event.target.value)}
+                placeholder="Informe o codigo recebido"
+                className="w-full rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-strong)] px-4 py-3 text-sm tracking-[0.12em] text-[var(--shell-text)] outline-none transition placeholder:tracking-normal placeholder:text-[var(--shell-muted)] focus:border-[color:var(--shell-accent)]"
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    void onSubmit();
+                  }
+                }}
+              />
+            </FormField>
+          </div>
+        ) : null}
+
+        {error ? (
+          <div className="mt-4 rounded-2xl border border-[color:var(--shell-danger)] bg-[var(--shell-danger-bg)] px-4 py-3 text-sm leading-6 text-[var(--shell-danger)]">
+            {error}
+          </div>
+        ) : null}
+
+        <div className="mt-5 flex flex-wrap gap-3">
+          {recoverable ? (
+            <ActionButton
+              disabled={submitting || !String(code || "").trim()}
+              onClick={() => void onSubmit()}
+              tone="accent"
+            >
+              {submitting ? "Validando codigo..." : "Concluir login"}
+            </ActionButton>
+          ) : null}
+          <ActionButton disabled={submitting} onClick={onClose}>
+            Cancelar
+          </ActionButton>
+        </div>
+
+        <p className="mt-4 text-xs leading-5 text-[var(--shell-muted)]">
+          Fechar este modal nao cancela a tentativa. Enquanto ela estiver
+          pendente, novas rotinas Bees permanecem bloqueadas sem repetir o login.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function PeriodInputs({
   base,
   onChange,

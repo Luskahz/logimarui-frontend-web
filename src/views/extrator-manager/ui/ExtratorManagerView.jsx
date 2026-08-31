@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import {
+  BeesVerificationModal,
   ModalFrame,
   PasswordActionModal,
   StatusPill,
@@ -491,8 +492,23 @@ function ExtratorManagerScreen() {
   const [passwordActionError, setPasswordActionError] = useState("");
   const [passwordActionSubmitting, setPasswordActionSubmitting] = useState(false);
   const passwordActionInputRef = useRef(null);
+  const [isBeesVerificationModalOpen, setIsBeesVerificationModalOpen] =
+    useState(false);
+  const [beesVerificationCode, setBeesVerificationCode] = useState("");
+  const [beesVerificationError, setBeesVerificationError] = useState("");
+  const [beesVerificationSubmitting, setBeesVerificationSubmitting] =
+    useState(false);
+  const [dismissedBeesFlowId, setDismissedBeesFlowId] = useState("");
+  const beesVerificationInputRef = useRef(null);
 
   const reportsMeta = statusPayload?.reports_meta || {};
+  const beesAuthStatus = statusPayload?.bees_auth || {};
+  const beesVerificationModalVisible =
+    isBeesVerificationModalOpen ||
+    (Boolean(beesAuthStatus?.verification_required) &&
+      Boolean(beesAuthStatus?.recoverable) &&
+      Boolean(beesAuthStatus?.flow_id) &&
+      String(beesAuthStatus.flow_id) !== dismissedBeesFlowId);
   const bases = statusPayload?.bases || [];
   const defaultOperationBase = bases[0] || "";
   const defaultOperationForm = defaultOperationBase
@@ -735,6 +751,97 @@ function ExtratorManagerScreen() {
     };
   }, [passwordActionModal, passwordActionSubmitting]);
 
+  useEffect(() => {
+    if (!beesVerificationModalVisible) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      beesVerificationInputRef.current?.focus();
+    }, 0);
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape" && !beesVerificationSubmitting) {
+        if (beesAuthStatus?.verification_required) {
+          setDismissedBeesFlowId(String(beesAuthStatus?.flow_id || ""));
+        }
+        setIsBeesVerificationModalOpen(false);
+        setBeesVerificationCode("");
+        setBeesVerificationError("");
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.clearTimeout(timeoutId);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [
+    beesAuthStatus?.flow_id,
+    beesAuthStatus?.verification_required,
+    beesVerificationModalVisible,
+    beesVerificationSubmitting,
+  ]);
+
+  function closeBeesVerificationModal() {
+    if (beesVerificationSubmitting) {
+      return;
+    }
+    if (beesAuthStatus?.verification_required) {
+      setDismissedBeesFlowId(String(beesAuthStatus?.flow_id || ""));
+    }
+    setIsBeesVerificationModalOpen(false);
+    setBeesVerificationCode("");
+    setBeesVerificationError("");
+  }
+
+  function showPendingBeesVerification(base) {
+    const reportInterface = String(reportsMeta?.[base]?.interface || "");
+    if (
+      reportInterface !== "bees-deliver" ||
+      !beesAuthStatus?.verification_required ||
+      !beesAuthStatus?.recoverable
+    ) {
+      return false;
+    }
+
+    setDismissedBeesFlowId("");
+    setBeesVerificationError("");
+    setIsBeesVerificationModalOpen(true);
+    return true;
+  }
+
+  async function submitBeesVerificationCode() {
+    const code = String(beesVerificationCode || "").trim();
+    if (!code) {
+      setBeesVerificationError("Informe o codigo recebido por e-mail.");
+      return;
+    }
+
+    setBeesVerificationSubmitting(true);
+    setBeesVerificationError("");
+    try {
+      await extratorApi.submitBeesVerificationCode(code);
+      setDismissedBeesFlowId(String(beesAuthStatus?.flow_id || ""));
+      setIsBeesVerificationModalOpen(false);
+      setBeesVerificationCode("");
+      await refreshAll({
+        historyPage: clientHistoryPayload?.page || 1,
+        historyPageSize: clientHistoryPayload?.page_size || 8,
+        silent: true,
+      });
+      setDismissedBeesFlowId("");
+    } catch (verificationError) {
+      setBeesVerificationError(
+        verificationError instanceof Error && verificationError.message
+          ? verificationError.message
+          : "Nao foi possivel concluir o login do Bees.",
+      );
+    } finally {
+      setBeesVerificationSubmitting(false);
+    }
+  }
+
   function closePasswordActionModal() {
     if (passwordActionSubmitting) {
       return;
@@ -974,6 +1081,10 @@ function ExtratorManagerScreen() {
   }
 
   async function handleRunSingle() {
+    if (showPendingBeesVerification(operationForm.base)) {
+      return;
+    }
+
     await runAction(
       "executar rotina",
       () => extratorApi.enqueue(buildOperationRequest()),
@@ -1032,6 +1143,13 @@ function ExtratorManagerScreen() {
   }
 
   async function handleRunBatch() {
+    const pendingBeesItem = (batchDraft.items || []).find((item) =>
+      showPendingBeesVerification(item.base),
+    );
+    if (pendingBeesItem) {
+      return;
+    }
+
     await runAction(
       "executar lote",
       () =>
@@ -1815,6 +1933,18 @@ function ExtratorManagerScreen() {
             </div>
           </ModalFrame>
         ) : null}
+
+        <BeesVerificationModal
+          code={beesVerificationCode}
+          error={beesVerificationError}
+          inputRef={beesVerificationInputRef}
+          isOpen={beesVerificationModalVisible}
+          onChange={setBeesVerificationCode}
+          onClose={closeBeesVerificationModal}
+          onSubmit={submitBeesVerificationCode}
+          status={beesAuthStatus}
+          submitting={beesVerificationSubmitting}
+        />
 
         <PasswordActionModal
           config={passwordActionModal}
