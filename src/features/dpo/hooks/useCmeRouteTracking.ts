@@ -51,15 +51,24 @@ export function useCmeRouteTracking() {
   const [context, setContext] = useState<ReturnAlertContext | null>(null);
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [occurrence, setOccurrence] = useState<Occurrence | null>(null);
+  const [occurrences, setOccurrences] = useState<PagedResponse<Occurrence> | null>(
+    null,
+  );
+  const [occurrencesError, setOccurrencesError] = useState("");
+  const [occurrencesLoading, setOccurrencesLoading] = useState(false);
   const [phase, setPhase] = useState<RequestPhase>(null);
   const [isDebouncing, setIsDebouncing] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const requestControllerRef = useRef<AbortController | null>(null);
+  const occurrenceListControllerRef = useRef<AbortController | null>(null);
   const debounceTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
-    return () => requestControllerRef.current?.abort();
+    return () => {
+      requestControllerRef.current?.abort();
+      occurrenceListControllerRef.current?.abort();
+    };
   }, []);
 
   const clearFeedback = useCallback(() => {
@@ -217,6 +226,28 @@ export function useCmeRouteTracking() {
     [loadInvoice],
   );
 
+  const loadOccurrences = useCallback(async () => {
+    occurrenceListControllerRef.current?.abort();
+    const controller = new AbortController();
+    occurrenceListControllerRef.current = controller;
+
+    setOccurrencesError("");
+    setOccurrencesLoading(true);
+
+    try {
+      setOccurrences(await cmeOccurrenceApi.listOccurrences(controller.signal));
+    } catch (loadError) {
+      if (!isAbortError(loadError)) {
+        setOccurrencesError(errorMessage(loadError));
+      }
+    } finally {
+      if (occurrenceListControllerRef.current === controller) {
+        occurrenceListControllerRef.current = null;
+        setOccurrencesLoading(false);
+      }
+    }
+  }, []);
+
   const confirmReturn = useCallback(async () => {
     if (!context) {
       setError("Consulte e selecione uma nota fiscal antes de confirmar.");
@@ -279,7 +310,11 @@ export function useCmeRouteTracking() {
     error,
     isDebouncing,
     items,
+    loadOccurrences,
     occurrence,
+    occurrences,
+    occurrencesError,
+    occurrencesLoading,
     orders,
     phase,
     revertOccurrence,

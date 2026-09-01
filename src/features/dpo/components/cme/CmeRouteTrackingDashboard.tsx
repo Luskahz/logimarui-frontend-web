@@ -8,14 +8,14 @@ import {
   LoaderCircle,
   PackageOpen,
   RotateCcw,
-  Search,
   Send,
 } from "lucide-react";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import { useCmeRouteTracking } from "@/features/dpo/hooks/useCmeRouteTracking";
 import type {
   DecimalValue,
+  Occurrence,
   OccurrenceStatus,
   OrderSummary,
 } from "@/features/dpo/lib/cmeTypes";
@@ -23,7 +23,7 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Typography } from "@/shared/ui/typography";
 
-type SectionId = "consulta" | "apontamento" | "itens";
+type DashboardTab = "operation" | "occurrences";
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -36,6 +36,10 @@ const decimalFormatter = new Intl.NumberFormat("pt-BR", {
 });
 
 const dateFormatter = new Intl.DateTimeFormat("pt-BR");
+const dateTimeFormatter = new Intl.DateTimeFormat("pt-BR", {
+  dateStyle: "short",
+  timeStyle: "short",
+});
 
 const OCCURRENCE_STATUS: Record<
   OccurrenceStatus,
@@ -124,6 +128,15 @@ function formatDate(value: string | undefined): string {
   return Number.isNaN(parsed.getTime()) ? value : dateFormatter.format(parsed);
 }
 
+function formatDateTime(value: string | null | undefined): string {
+  if (!value) {
+    return "—";
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : dateTimeFormatter.format(parsed);
+}
+
 function calculateAns(value: DecimalValue | undefined): string {
   const parsed = toNumber(value);
 
@@ -166,11 +179,11 @@ function DetailRow({
       <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--shell-muted)]">
         {label}
       </span>
-      <span
+      <div
         className={`min-w-0 text-right text-sm font-bold uppercase tracking-[0.02em] text-[var(--shell-text)] sm:text-base ${valueClassName}`}
       >
         {value}
-      </span>
+      </div>
     </div>
   );
 }
@@ -187,17 +200,17 @@ function InvoiceRail({
   onSelect: (order: OrderSummary) => void;
 }) {
   return (
-    <aside className="flex min-h-[220px] flex-col border-b border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] md:min-h-[460px] md:border-b-0 md:border-r">
+    <aside className="flex h-full min-h-[260px] flex-col bg-[var(--shell-surface-muted)]">
       <div className="flex items-center justify-between border-b border-[color:var(--shell-line)] px-4 py-3">
         <span className="text-xs font-extrabold uppercase tracking-[0.16em] text-[var(--shell-text)]">
-          Notas
+          Notas fiscais
         </span>
         <span className="rounded-full bg-[var(--shell-surface)] px-2.5 py-1 text-[10px] font-bold text-[var(--shell-muted)]">
           {orders.length}
         </span>
       </div>
 
-      <div className="max-h-[500px] flex-1 space-y-1 overflow-y-auto p-2">
+      <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
         {orders.length ? (
           orders.map((order) => {
             const selected = selectedOrder?.invoiceNumber === order.invoiceNumber;
@@ -223,7 +236,7 @@ function InvoiceRail({
           })
         ) : (
           <div className="flex min-h-52 items-center justify-center px-4 text-center text-xs leading-5 text-[var(--shell-muted)]">
-            As notas do cliente aparecerão aqui após a consulta.
+            Digite o cliente no formulário para carregar as notas.
           </div>
         )}
       </div>
@@ -231,17 +244,77 @@ function InvoiceRail({
   );
 }
 
+function OccurrenceCard({ occurrence }: { occurrence: Occurrence }) {
+  const status = OCCURRENCE_STATUS[occurrence.status];
+
+  return (
+    <article className="min-w-[260px] flex-1 basis-[280px] rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] p-4 shadow-[0_12px_32px_rgba(2,6,23,0.08)]">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--shell-muted)]">
+            Ocorrência #{occurrence.id}
+          </p>
+          <p className="mt-2 font-serif text-xl font-semibold text-[var(--shell-text)]">
+            NF {occurrence.invoiceNumber}
+          </p>
+        </div>
+        <span
+          className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-semibold ${status.className}`}
+        >
+          {status.label}
+        </span>
+      </div>
+
+      <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+        <div>
+          <dt className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--shell-muted)]">
+            Cliente
+          </dt>
+          <dd className="mt-1 font-bold text-[var(--shell-text)]">
+            {occurrence.customerId}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--shell-muted)]">
+            Tipo
+          </dt>
+          <dd className="mt-1 font-bold text-[var(--shell-text)]">Devolução</dd>
+        </div>
+        <div>
+          <dt className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--shell-muted)]">
+            Criada em
+          </dt>
+          <dd className="mt-1 font-semibold text-[var(--shell-text)]">
+            {formatDateTime(occurrence.createdAt)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--shell-muted)]">
+            Atualizada em
+          </dt>
+          <dd className="mt-1 font-semibold text-[var(--shell-text)]">
+            {formatDateTime(occurrence.updatedAt)}
+          </dd>
+        </div>
+      </dl>
+    </article>
+  );
+}
+
 export default function CmeRouteTrackingDashboard() {
   const {
     changeCustomerInput,
     confirmReturn,
-    consult,
     context,
     customerInput,
     error,
     isDebouncing,
     items,
+    loadOccurrences,
     occurrence,
+    occurrences,
+    occurrencesError,
+    occurrencesLoading,
     orders,
     phase,
     revertOccurrence,
@@ -249,11 +322,12 @@ export default function CmeRouteTrackingDashboard() {
     selectOrder,
     success,
   } = useCmeRouteTracking();
-  const [activeSection, setActiveSection] = useState<SectionId>("consulta");
+  const [activeTab, setActiveTab] = useState<DashboardTab>("operation");
   const [labelInput, setLabelInput] = useState("");
 
   const isBusy = phase !== null;
   const occurrenceView = occurrence ? OCCURRENCE_STATUS[occurrence.status] : null;
+  const occurrenceCards = occurrences?.content ?? [];
   const invoiceOrders = orders?.content ?? [];
   const ans = calculateAns(selectedOrder?.orderValue);
   const searchState = isDebouncing
@@ -266,279 +340,226 @@ export default function CmeRouteTrackingDashboard() {
           ? "Consulta atualizada"
           : "Digite o código do cliente";
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    consult();
+  const handleCustomerInputChange = (value: string) => {
+    setLabelInput("");
+    changeCustomerInput(value);
   };
 
-  const sections: Array<{ id: SectionId; label: string; count?: number }> = [
-    { id: "consulta", label: "Consulta CME", count: invoiceOrders.length || undefined },
-    { id: "apontamento", label: "Apontamento" },
-    { id: "itens", label: "Itens da nota", count: items.length || undefined },
-  ];
+  const handleSelectOrder = (order: OrderSummary) => {
+    setLabelInput("");
+    selectOrder(order);
+  };
+
+  const handleTabChange = (tab: DashboardTab) => {
+    setActiveTab(tab);
+
+    if (tab === "occurrences") {
+      void loadOccurrences();
+    }
+  };
 
   return (
-    <div className="space-y-4">
-      <Panel className="overflow-hidden">
-        <div className="p-5 sm:p-6">
-          <div className="flex flex-wrap items-end justify-between gap-5">
-            <div>
-              <Typography variant="eyebrow">Entrega DPO · Bloco 4.0</Typography>
-              <Typography variant="pageTitle" className="mt-3">
-                Acompanhamento de rota CME
-              </Typography>
-              <Typography variant="description" className="mt-3 max-w-3xl">
-                Consulta operacional de clientes, notas fiscais e devoluções em rota.
-              </Typography>
-            </div>
-
-            <span className="inline-flex items-center gap-2 rounded-full border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--shell-muted)]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[var(--shell-accent)]" />
-              Fonte: banco READ
-            </span>
-          </div>
-        </div>
-
+    <div className="space-y-3">
+      <Panel className="overflow-hidden p-2">
         <nav
           aria-label="Seções do acompanhamento CME"
-          className="flex gap-2 overflow-x-auto border-t border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] px-4 py-3 sm:px-6"
+          className="flex flex-wrap gap-2"
         >
-          {sections.map((section) => {
-            const active = activeSection === section.id;
-
-            return (
-              <button
-                key={section.id}
-                type="button"
-                onClick={() => setActiveSection(section.id)}
-                className={`inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${
-                  active
-                    ? "bg-[var(--shell-contrast)] text-[var(--shell-contrast-ink)]"
-                    : "border border-[color:var(--shell-line)] bg-[var(--shell-surface)] text-[var(--shell-text)] hover:border-[color:var(--shell-line-strong)]"
-                }`}
-              >
-                {section.label}
-                {section.count ? (
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] ${active ? "bg-white/20" : "bg-[var(--shell-accent-soft)] text-[var(--shell-accent)]"}`}>
-                    {section.count}
-                  </span>
-                ) : null}
-              </button>
-            );
-          })}
+          <button
+            type="button"
+            onClick={() => handleTabChange("operation")}
+            className={`rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${
+              activeTab === "operation"
+                ? "bg-[var(--shell-contrast)] text-[var(--shell-contrast-ink)]"
+                : "border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] text-[var(--shell-muted)] hover:text-[var(--shell-text)]"
+            }`}
+          >
+            Acompanhamento de rota
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabChange("occurrences")}
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${
+              activeTab === "occurrences"
+                ? "bg-[var(--shell-contrast)] text-[var(--shell-contrast-ink)]"
+                : "border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] text-[var(--shell-muted)] hover:text-[var(--shell-text)]"
+            }`}
+          >
+            Acompanhamento das ocorrências
+            {occurrences ? (
+              <span className="rounded-full bg-[var(--shell-accent-soft)] px-2 py-0.5 text-[10px] text-[var(--shell-accent)]">
+                {occurrences.totalElements}
+              </span>
+            ) : null}
+          </button>
         </nav>
       </Panel>
 
-      {error ? <Feedback tone="error">{error}</Feedback> : null}
-      {success ? <Feedback tone="success">{success}</Feedback> : null}
+      {activeTab === "operation" ? (
+        <>
+          {error ? <Feedback tone="error">{error}</Feedback> : null}
+          {success ? <Feedback tone="success">{success}</Feedback> : null}
 
-      {activeSection === "consulta" ? (
-        <div className="space-y-4">
-          <Panel className="p-4 sm:p-5">
-            <form
-              onSubmit={handleSubmit}
-              className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.7fr)] lg:items-end"
-            >
+          <div className="grid gap-4 xl:min-h-[calc(100vh-13rem)] xl:grid-cols-[minmax(300px,0.9fr)_minmax(420px,1.65fr)_minmax(210px,0.65fr)]">
+        <Panel className="order-1 flex min-h-[560px] flex-col overflow-hidden p-4 sm:p-5 xl:min-h-0">
+          <div className="flex h-full min-h-0 flex-col">
+            <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <Typography variant="overline">Localização automática</Typography>
+                <Typography variant="overline">Apontamento</Typography>
                 <Typography variant="sectionTitle" className="mt-2">
-                  Informe o cliente
+                  Controle de devolução
                 </Typography>
                 <Typography variant="supportingText" className="mt-2">
-                  A consulta inicia automaticamente após 2 segundos sem digitação.
+                  O formulário acompanha a nota fiscal selecionada.
                 </Typography>
               </div>
-
-              <div>
-                <label
-                  htmlFor="cme-customer-code"
-                  className="mb-2 block text-xs font-bold uppercase tracking-[0.12em] text-[var(--shell-muted)]"
+              {occurrenceView ? (
+                <span
+                  className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold ${occurrenceView.className}`}
                 >
-                  Cliente
-                </label>
-                <div className="flex gap-2">
-                  <div className="relative min-w-0 flex-1">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--shell-muted)]" />
+                  {occurrenceView.label}
+                </span>
+              ) : null}
+            </div>
+
+            <div className="mt-5 min-h-0 flex-1 overflow-y-auto rounded-xl border border-[color:var(--shell-line)]">
+              <DetailRow
+                label="Rótulo"
+                emphasis
+                value={
+                  <Input
+                    value={labelInput}
+                    onChange={(event) => setLabelInput(event.target.value)}
+                    placeholder="Informe o rótulo"
+                    disabled={!selectedOrder}
+                    className="ml-auto h-8 max-w-48 rounded-lg border-[color:var(--shell-line-strong)] bg-[var(--shell-surface)] text-right text-sm font-bold uppercase"
+                  />
+                }
+              />
+              <DetailRow
+                label="Cód. cliente"
+                value={
+                  <div className="ml-auto w-full max-w-48">
                     <Input
                       id="cme-customer-code"
                       inputMode="numeric"
                       autoComplete="off"
                       value={customerInput}
-                      onChange={(event) => changeCustomerInput(event.target.value)}
-                      placeholder="Ex.: 59148"
-                      className="h-12 rounded-xl border-[color:var(--shell-line-strong)] bg-[var(--shell-surface-muted)] pl-10 text-base font-bold text-[var(--shell-text)]"
+                      onChange={(event) =>
+                        handleCustomerInputChange(event.target.value)
+                      }
+                      placeholder="Informe o código"
+                      className="h-8 w-full rounded-lg border-[color:var(--shell-line-strong)] bg-[var(--shell-surface)] text-right text-sm font-bold"
                     />
+                    <span
+                      className="mt-1 flex items-center justify-end gap-1.5 text-[9px] font-semibold normal-case tracking-normal text-[var(--shell-muted)]"
+                      aria-live="polite"
+                    >
+                      {isDebouncing || phase === "searching" ? (
+                        <LoaderCircle className="h-3 w-3 animate-spin text-[var(--shell-accent)]" />
+                      ) : (
+                        <Clock3 className="h-3 w-3" />
+                      )}
+                      {searchState}
+                    </span>
                   </div>
-                  <Button
-                    type="submit"
-                    disabled={!customerInput || isBusy}
-                    aria-label="Consultar cliente agora"
-                    className="h-12 rounded-xl bg-[var(--shell-contrast)] px-4 text-[var(--shell-contrast-ink)]"
-                  >
-                    {isBusy ? <LoaderCircle className="animate-spin" /> : <Search />}
-                    <span className="hidden sm:inline">Consultar</span>
-                  </Button>
-                </div>
-                <p className="mt-2 flex items-center gap-2 text-xs text-[var(--shell-muted)]" aria-live="polite">
-                  {isDebouncing || isBusy ? (
-                    <LoaderCircle className="h-3.5 w-3.5 animate-spin text-[var(--shell-accent)]" />
-                  ) : (
-                    <Clock3 className="h-3.5 w-3.5" />
-                  )}
-                  {searchState}
-                </p>
-              </div>
-            </form>
-          </Panel>
-
-          <Panel className="overflow-hidden">
-            <div className="grid md:grid-cols-[180px_minmax(0,1fr)]">
-              <InvoiceRail
-                orders={invoiceOrders}
-                selectedOrder={selectedOrder}
-                disabled={isBusy}
-                onSelect={selectOrder}
+                }
               />
-
-              <div className="min-w-0 bg-[var(--shell-surface)] p-3 sm:p-4">
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[var(--shell-contrast)] px-4 py-2.5 text-[var(--shell-contrast-ink)]">
-                  <div className="flex items-center gap-3">
-                    <span className="text-[10px] font-bold uppercase tracking-[0.14em] opacity-65">Mapa</span>
-                    <span className="text-sm font-extrabold">{selectedOrder?.routeNumber ?? "—"}</span>
-                  </div>
-                  <span className="text-xs font-extrabold uppercase tracking-[0.1em]">
-                    Controle de devoluções
-                  </span>
-                </div>
-
-                <div className="overflow-hidden rounded-xl border border-[color:var(--shell-line)]">
-                  <DetailRow
-                    label="Rótulo"
-                    emphasis
-                    value={
-                      <Input
-                        value={labelInput}
-                        onChange={(event) => setLabelInput(event.target.value)}
-                        placeholder="Informe o rótulo"
-                        className="ml-auto h-8 max-w-sm rounded-lg border-[color:var(--shell-line-strong)] bg-[var(--shell-surface)] text-right text-sm font-bold uppercase"
-                      />
-                    }
-                  />
-                  <DetailRow label="Cliente" value={selectedOrder?.customerId ?? (customerInput || "—")} />
-                  <DetailRow
-                    label="Nome"
-                    value={selectedOrder?.tradeName || selectedOrder?.customerName || "—"}
-                  />
-                  <DetailRow label="Valor" value={formatCurrency(selectedOrder?.orderValue)} />
-                  <DetailRow label="Hecto" value={formatDecimal(selectedOrder?.totalHectoliters)} />
-                  <DetailRow label="Motor" value={selectedOrder?.driverName || "—"} />
-                  <DetailRow label="Setor" value={selectedOrder?.sectorCode ?? "—"} />
-                  <DetailRow
-                    label="ANS"
-                    value={ans}
-                    valueClassName={ans === "GERENCIAL" ? "text-orange-500" : "text-[var(--shell-accent)]"}
-                  />
-                  <DetailRow
-                    label="Pedido"
-                    emphasis
-                    value={selectedOrder?.orderType || "—"}
-                    valueClassName="text-[var(--shell-accent)]"
-                  />
-                  <DetailRow label="NF" value={selectedOrder?.invoiceNumber ?? "—"} />
-                  <DetailRow label="Entrega" value={formatDate(selectedOrder?.deliveryDate)} />
-                  <DetailRow
-                    label="Status"
-                    value={selectedOrder?.externalStatus || occurrenceView?.label || "Sem apontamento"}
-                  />
-                </div>
-
-                <div className="mt-3 rounded-xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--shell-muted)]">
-                  {selectedOrder
-                    ? selectedOrder.customerName || "Cliente carregado pelo banco READ"
-                    : "Aguardando um código de cliente para montar o painel"}
-                </div>
-              </div>
+              <DetailRow
+                label="Nome"
+                value={selectedOrder?.tradeName || selectedOrder?.customerName || "—"}
+              />
+              <DetailRow label="Mapa" value={selectedOrder?.routeNumber ?? "—"} />
+              <DetailRow label="NF" value={selectedOrder?.invoiceNumber ?? "—"} />
+              <DetailRow label="Valor" value={formatCurrency(selectedOrder?.orderValue)} />
+              <DetailRow label="Hecto" value={formatDecimal(selectedOrder?.totalHectoliters)} />
+              <DetailRow label="Motor" value={selectedOrder?.driverName || "—"} />
+              <DetailRow label="Setor" value={selectedOrder?.sectorCode ?? "—"} />
+              <DetailRow
+                label="ANS"
+                value={ans}
+                valueClassName={
+                  ans === "GERENCIAL"
+                    ? "text-orange-500"
+                    : "text-[var(--shell-accent)]"
+                }
+              />
+              <DetailRow
+                label="Pedido"
+                emphasis
+                value={selectedOrder?.orderType || "—"}
+                valueClassName="text-[var(--shell-accent)]"
+              />
+              <DetailRow label="Entrega" value={formatDate(selectedOrder?.deliveryDate)} />
+              <DetailRow
+                label="Status"
+                value={
+                  selectedOrder?.externalStatus ||
+                  occurrenceView?.label ||
+                  "Sem apontamento"
+                }
+              />
             </div>
-          </Panel>
-        </div>
-      ) : null}
 
-      {activeSection === "apontamento" ? (
-        <Panel className="p-5 sm:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <Typography variant="overline">Apontamento de devolução</Typography>
-              <Typography variant="sectionTitle" className="mt-2">
-                Confirmação da ocorrência
-              </Typography>
-              <Typography variant="supportingText" className="mt-2 max-w-2xl">
-                Selecione uma nota na consulta para confirmar ou reverter a devolução.
-              </Typography>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isBusy || !occurrence || occurrence.status === "REVERTED"}
+                onClick={revertOccurrence}
+                className="h-11 rounded-xl border-[color:var(--shell-line-strong)] bg-[var(--shell-surface)]"
+              >
+                {phase === "reverting" ? (
+                  <LoaderCircle className="animate-spin" />
+                ) : (
+                  <RotateCcw />
+                )}
+                Reverter
+              </Button>
+              <Button
+                type="button"
+                disabled={isBusy || !context || occurrence?.status === "RETURNED"}
+                onClick={confirmReturn}
+                className="h-11 rounded-xl bg-[var(--shell-contrast)] px-5 text-[var(--shell-contrast-ink)]"
+              >
+                {phase === "confirming" ? (
+                  <LoaderCircle className="animate-spin" />
+                ) : (
+                  <Send />
+                )}
+                {occurrence?.status === "RETURNED" ? "Confirmada" : "Confirmar"}
+              </Button>
             </div>
-            {occurrenceView ? (
-              <span className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${occurrenceView.className}`}>
-                {occurrenceView.label}
-              </span>
-            ) : null}
-          </div>
-
-          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              ["Cliente", selectedOrder?.customerId ?? "—"],
-              ["Nota fiscal", selectedOrder?.invoiceNumber ?? "—"],
-              ["Valor", formatCurrency(selectedOrder?.orderValue)],
-              ["ANS", ans],
-            ].map(([label, value]) => (
-              <div key={label} className="rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] p-4">
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--shell-muted)]">{label}</p>
-                <p className="mt-2 text-base font-bold text-[var(--shell-text)]">{value}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-6 flex flex-wrap justify-end gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isBusy || !occurrence || occurrence.status === "REVERTED"}
-              onClick={revertOccurrence}
-              className="h-11 rounded-xl border-[color:var(--shell-line-strong)] bg-[var(--shell-surface)]"
-            >
-              {phase === "reverting" ? <LoaderCircle className="animate-spin" /> : <RotateCcw />}
-              Reverter apontamento
-            </Button>
-            <Button
-              type="button"
-              disabled={isBusy || !context || occurrence?.status === "RETURNED"}
-              onClick={confirmReturn}
-              className="h-11 rounded-xl bg-[var(--shell-contrast)] px-5 text-[var(--shell-contrast-ink)]"
-            >
-              {phase === "confirming" ? <LoaderCircle className="animate-spin" /> : <Send />}
-              {occurrence?.status === "RETURNED" ? "Devolução confirmada" : "Confirmar devolução"}
-            </Button>
           </div>
         </Panel>
-      ) : null}
 
-      {activeSection === "itens" ? (
-        <Panel className="overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[color:var(--shell-line)] p-5 sm:p-6">
+        <Panel className="order-3 flex min-h-[420px] flex-col overflow-hidden xl:order-2 xl:min-h-0">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[color:var(--shell-line)] p-4 sm:p-5">
             <div>
-              <Typography variant="overline">Itens da nota fiscal</Typography>
+              <Typography variant="overline">Produtos da nota</Typography>
               <Typography variant="sectionTitle" className="mt-2">
-                {selectedOrder ? `NF ${selectedOrder.invoiceNumber}` : "Nenhuma nota selecionada"}
+                {selectedOrder
+                  ? `NF ${selectedOrder.invoiceNumber}`
+                  : "Nenhuma nota selecionada"}
               </Typography>
             </div>
             <span className="inline-flex items-center gap-2 rounded-full border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] px-3 py-1.5 text-xs font-semibold text-[var(--shell-muted)]">
-              <PackageOpen className="h-4 w-4" />
+              {phase === "loading-context" ? (
+                <LoaderCircle className="h-4 w-4 animate-spin text-[var(--shell-accent)]" />
+              ) : (
+                <PackageOpen className="h-4 w-4" />
+              )}
               {items.length} itens
             </span>
           </div>
 
           {items.length ? (
-            <div className="divide-y divide-[color:var(--shell-line)]">
+            <div className="min-h-0 flex-1 divide-y divide-[color:var(--shell-line)] overflow-y-auto">
               {items.map((item) => (
-                <article key={item.productCode} className="grid gap-2 px-5 py-4 sm:grid-cols-[110px_1fr_auto] sm:items-center sm:px-6">
+                <article
+                  key={item.productCode}
+                  className="grid gap-2 px-4 py-4 sm:grid-cols-[110px_1fr_auto] sm:items-center sm:px-5"
+                >
                   <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--shell-accent)]">
                     {item.productCode}
                   </span>
@@ -552,15 +573,81 @@ export default function CmeRouteTrackingDashboard() {
               ))}
             </div>
           ) : (
-            <div className="flex min-h-64 flex-col items-center justify-center px-6 text-center">
-              <FileText className="h-9 w-9 text-[var(--shell-muted)]" />
-              <p className="mt-4 text-sm font-semibold text-[var(--shell-text)]">
-                Consulte um cliente e selecione uma nota fiscal.
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-6 text-center">
+              {phase === "loading-context" ? (
+                <LoaderCircle className="h-9 w-9 animate-spin text-[var(--shell-accent)]" />
+              ) : (
+                <FileText className="h-9 w-9 text-[var(--shell-muted)]" />
+              )}
+              <p className="mt-4 max-w-sm text-sm font-semibold text-[var(--shell-text)]">
+                {selectedOrder
+                  ? "Carregando ou aguardando os produtos desta nota fiscal."
+                  : "Digite o cliente no formulário e selecione uma nota fiscal."}
               </p>
             </div>
           )}
         </Panel>
-      ) : null}
+
+        <Panel className="order-2 min-h-[340px] overflow-hidden xl:order-3 xl:min-h-0">
+          <InvoiceRail
+            orders={invoiceOrders}
+            selectedOrder={selectedOrder}
+            disabled={isBusy}
+            onSelect={handleSelectOrder}
+          />
+        </Panel>
+          </div>
+        </>
+      ) : (
+        <Panel className="min-h-[calc(100vh-13rem)] overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[color:var(--shell-line)] p-4 sm:p-5">
+            <div>
+              <Typography variant="overline">Ocorrências de devolução</Typography>
+              <Typography variant="sectionTitle" className="mt-2">
+                Acompanhamento das ocorrências
+              </Typography>
+              <Typography variant="supportingText" className="mt-2">
+                Cards em ordem da ocorrência mais recente para a mais antiga.
+              </Typography>
+            </div>
+            <span className="inline-flex items-center gap-2 rounded-full border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] px-3 py-1.5 text-xs font-semibold text-[var(--shell-muted)]">
+              {occurrencesLoading ? (
+                <LoaderCircle className="h-4 w-4 animate-spin text-[var(--shell-accent)]" />
+              ) : (
+                <FileText className="h-4 w-4" />
+              )}
+              {occurrences?.totalElements ?? 0} ocorrências
+            </span>
+          </div>
+
+          {occurrencesError ? (
+            <div className="p-4 sm:p-5">
+              <Feedback tone="error">{occurrencesError}</Feedback>
+            </div>
+          ) : null}
+
+          {occurrenceCards.length ? (
+            <div className="flex flex-wrap gap-4 p-4 sm:p-5">
+              {occurrenceCards.map((item) => (
+                <OccurrenceCard key={item.id} occurrence={item} />
+              ))}
+            </div>
+          ) : (
+            <div className="flex min-h-80 flex-col items-center justify-center px-6 text-center">
+              {occurrencesLoading ? (
+                <LoaderCircle className="h-9 w-9 animate-spin text-[var(--shell-accent)]" />
+              ) : (
+                <FileText className="h-9 w-9 text-[var(--shell-muted)]" />
+              )}
+              <p className="mt-4 text-sm font-semibold text-[var(--shell-text)]">
+                {occurrencesLoading
+                  ? "Carregando ocorrências..."
+                  : "Nenhuma ocorrência de devolução foi encontrada."}
+              </p>
+            </div>
+          )}
+        </Panel>
+      )}
     </div>
   );
 }

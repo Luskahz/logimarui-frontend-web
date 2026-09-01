@@ -180,6 +180,20 @@ export const cmeOccurrenceApi = {
     );
   },
 
+  listOccurrences(signal?: AbortSignal) {
+    const search = new URLSearchParams({
+      type: "RETURN",
+      page: "0",
+      size: "50",
+      sort: "createdAt,desc",
+    });
+
+    return request<PagedResponse<Occurrence>>(
+      `/api/v2/occurrences?${search.toString()}`,
+      { signal },
+    );
+  },
+
   createReturn(customerId: number, invoiceNumber: number) {
     return request<Occurrence>("/api/v2/occurrences/returns", {
       method: "POST",
