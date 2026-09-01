@@ -10,7 +10,7 @@ import {
   RotateCcw,
   Send,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { useCmeRouteTracking } from "@/features/dpo/hooks/useCmeRouteTracking";
 import type {
@@ -22,8 +22,14 @@ import type {
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Typography } from "@/shared/ui/typography";
+import ExtratorSectionNav from "@/features/extrator-manager/components/ExtratorSectionNav";
 
 type DashboardTab = "operation" | "occurrences";
+
+const CME_TAB_ITEMS = [
+  { id: "operation", label: "Acompanhamento de rota" },
+  { id: "occurrences", label: "Acompanhamento das ocorrências" },
+];
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -137,6 +143,64 @@ function formatDateTime(value: string | null | undefined): string {
   return Number.isNaN(parsed.getTime()) ? value : dateTimeFormatter.format(parsed);
 }
 
+function formatElapsed(start: string | undefined, end?: string | null): string {
+  if (!start) {
+    return "—";
+  }
+
+  const startTime = new Date(start).getTime();
+  const endTime = end ? new Date(end).getTime() : Date.now();
+  if (!Number.isFinite(startTime) || !Number.isFinite(endTime)) {
+    return "—";
+  }
+
+  const totalMinutes = Math.max(0, Math.floor((endTime - startTime) / 60000));
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+
+  if (days) return `${days}d ${hours}h ${minutes}min`;
+  if (hours) return `${hours}h ${minutes}min`;
+  return `${minutes}min`;
+}
+
+function displayValue(value: string | number | null | undefined): string {
+  return value === null || value === undefined || value === "" ? "—" : String(value);
+}
+
+function buildTransferMessage({
+  order,
+  reason,
+  observation,
+  transferPossible,
+  ans,
+  elapsed,
+}: {
+  order: OrderSummary;
+  reason: string;
+  observation: string;
+  transferPossible: boolean;
+  ans: string;
+  elapsed: string;
+}): string {
+  return [
+    "🚨🚨 Alerta Devolução 🚨🚨",
+    "",
+    `🏪 PDV-Código: ${displayValue(order.customerId)}`,
+    `®️ Nome PDV: ${displayValue(order.tradeName || order.customerName)}`,
+    `👔 RN: ${order.sectorCode ? `@Setor ${order.sectorCode}` : "—"}`,
+    `🚚 Motorista: ${displayValue(order.driverName)}`,
+    `💸 Valor Pedido: ${formatCurrency(order.orderValue)}`,
+    `📦 Volume: ${formatDecimal(order.totalHectoliters, " hl")}`,
+    `⚖️ Peso: ${formatDecimal(order.totalWeightKg, " kg")}`,
+    `🚦 Motivo: ${displayValue(reason.trim())}`,
+    `📝 Observação: ${displayValue(observation.trim())}`,
+    `🛣️ Possibilidade Repasse: ${transferPossible ? "Sim" : "Não"}`,
+    `⏰ Tempo Espera: ${elapsed}`,
+    `⚖️ ANS: ${displayValue(ans)}`,
+  ].join("\n");
+}
+
 function calculateAns(value: DecimalValue | undefined): string {
   const parsed = toNumber(value);
 
@@ -244,8 +308,21 @@ function InvoiceRail({
   );
 }
 
-function OccurrenceCard({ occurrence }: { occurrence: Occurrence }) {
+function OccurrenceCard({
+  occurrence,
+  busy,
+  now,
+  onConfirm,
+  onRevert,
+}: {
+  occurrence: Occurrence;
+  busy: boolean;
+  now: number;
+  onConfirm: (occurrenceId: number) => void;
+  onRevert: (occurrenceId: number) => void;
+}) {
   const status = OCCURRENCE_STATUS[occurrence.status];
+  const decisionAt = occurrence.returnConfirmedAt || occurrence.revertedAt;
 
   return (
     <article className="min-w-[260px] flex-1 basis-[280px] rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] p-4 shadow-[0_12px_32px_rgba(2,6,23,0.08)]">
@@ -296,7 +373,56 @@ function OccurrenceCard({ occurrence }: { occurrence: Occurrence }) {
             {formatDateTime(occurrence.updatedAt)}
           </dd>
         </div>
+        <div>
+          <dt className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--shell-muted)]">
+            Tempo em tratativa
+          </dt>
+          <dd className="mt-1 font-bold text-[var(--shell-accent)]">
+            {formatElapsed(occurrence.createdAt, decisionAt || new Date(now).toISOString())}
+          </dd>
+        </div>
       </dl>
+
+      <div className="mt-4 space-y-2 rounded-xl border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-3 text-sm">
+        <p>
+          <span className="font-bold text-[var(--shell-muted)]">Motivo: </span>
+          <span className="text-[var(--shell-text)]">{displayValue(occurrence.reason)}</span>
+        </p>
+        <p className="whitespace-pre-wrap">
+          <span className="font-bold text-[var(--shell-muted)]">Observação: </span>
+          <span className="text-[var(--shell-text)]">{displayValue(occurrence.observation)}</span>
+        </p>
+        <p>
+          <span className="font-bold text-[var(--shell-muted)]">Repasse: </span>
+          <span className="text-[var(--shell-text)]">{occurrence.transferPossible ? "Sim" : "Não"}</span>
+        </p>
+      </div>
+
+      {occurrence.status !== "REVERTED" ? (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {occurrence.status === "OPEN" ? (
+            <Button
+              type="button"
+              disabled={busy}
+              onClick={() => onConfirm(occurrence.id)}
+              className="h-10 rounded-xl bg-[var(--shell-accent)] px-4 text-white"
+            >
+              {busy ? <LoaderCircle className="animate-spin" /> : <CheckCircle2 />}
+              Confirmar devolução
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            disabled={busy}
+            onClick={() => onRevert(occurrence.id)}
+            className="h-10 rounded-xl border-[color:var(--shell-line-strong)] bg-[var(--shell-surface)]"
+          >
+            {busy ? <LoaderCircle className="animate-spin" /> : <RotateCcw />}
+            Reverter
+          </Button>
+        </div>
+      ) : null}
     </article>
   );
 }
@@ -318,12 +444,29 @@ export default function CmeRouteTrackingDashboard() {
     orders,
     phase,
     revertOccurrence,
+    startTreatment,
     selectedOrder,
     selectOrder,
     success,
   } = useCmeRouteTracking();
   const [activeTab, setActiveTab] = useState<DashboardTab>("operation");
   const [labelInput, setLabelInput] = useState("");
+  const [reasonInput, setReasonInput] = useState("");
+  const [observationInput, setObservationInput] = useState("");
+  const [transferPossibleInput, setTransferPossibleInput] = useState(false);
+  const [clipboardFeedback, setClipboardFeedback] = useState("");
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const hasOpenOccurrence = occurrence?.status === "OPEN" ||
+      occurrences?.content.some((item) => item.status === "OPEN");
+    if (!hasOpenOccurrence) {
+      return;
+    }
+
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [occurrence, occurrences]);
 
   const isBusy = phase !== null;
   const occurrenceView = occurrence ? OCCURRENCE_STATUS[occurrence.status] : null;
@@ -338,16 +481,59 @@ export default function CmeRouteTrackingDashboard() {
         ? "Carregando dados da nota"
         : selectedOrder
           ? "Consulta atualizada"
-          : "Digite o código do cliente";
+          : "";
 
   const handleCustomerInputChange = (value: string) => {
     setLabelInput("");
+    setReasonInput("");
+    setObservationInput("");
+    setTransferPossibleInput(false);
+    setClipboardFeedback("");
     changeCustomerInput(value);
   };
 
   const handleSelectOrder = (order: OrderSummary) => {
     setLabelInput("");
+    setReasonInput("");
+    setObservationInput("");
+    setTransferPossibleInput(false);
+    setClipboardFeedback("");
     selectOrder(order);
+  };
+
+  const handleStartTreatment = async () => {
+    if (!selectedOrder) {
+      return;
+    }
+
+    setClipboardFeedback("");
+    const created = await startTreatment({
+      reason: reasonInput,
+      observation: observationInput,
+      transferPossible: transferPossibleInput,
+    });
+
+    if (!created) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(
+        buildTransferMessage({
+          order: selectedOrder,
+          reason: reasonInput,
+          observation: observationInput,
+          transferPossible: transferPossibleInput,
+          ans,
+          elapsed: formatElapsed(created.createdAt, created.updatedAt),
+        }),
+      );
+      setClipboardFeedback("Alerta copiado para a área de transferência.");
+    } catch {
+      setClipboardFeedback(
+        "Tratativa iniciada, mas não foi possível copiar o alerta automaticamente.",
+      );
+    }
   };
 
   const handleTabChange = (tab: DashboardTab) => {
@@ -361,46 +547,22 @@ export default function CmeRouteTrackingDashboard() {
   return (
     <div className="space-y-3">
       <Panel className="overflow-hidden p-2">
-        <nav
-          aria-label="Seções do acompanhamento CME"
+        <ExtratorSectionNav
+          activeTab={activeTab}
+          items={CME_TAB_ITEMS}
+          onTabChange={(tab) => handleTabChange(tab as DashboardTab)}
+          ariaLabel="Seções do acompanhamento CME"
           className="flex flex-wrap gap-2"
-        >
-          <button
-            type="button"
-            onClick={() => handleTabChange("operation")}
-            className={`rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${
-              activeTab === "operation"
-                ? "bg-[var(--shell-contrast)] text-[var(--shell-contrast-ink)]"
-                : "border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] text-[var(--shell-muted)] hover:text-[var(--shell-text)]"
-            }`}
-          >
-            Acompanhamento de rota
-          </button>
-          <button
-            type="button"
-            onClick={() => handleTabChange("occurrences")}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${
-              activeTab === "occurrences"
-                ? "bg-[var(--shell-contrast)] text-[var(--shell-contrast-ink)]"
-                : "border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] text-[var(--shell-muted)] hover:text-[var(--shell-text)]"
-            }`}
-          >
-            Acompanhamento das ocorrências
-            {occurrences ? (
-              <span className="rounded-full bg-[var(--shell-accent-soft)] px-2 py-0.5 text-[10px] text-[var(--shell-accent)]">
-                {occurrences.totalElements}
-              </span>
-            ) : null}
-          </button>
-        </nav>
+        />
       </Panel>
 
       {activeTab === "operation" ? (
         <>
           {error ? <Feedback tone="error">{error}</Feedback> : null}
           {success ? <Feedback tone="success">{success}</Feedback> : null}
+          {clipboardFeedback ? <Feedback tone="success">{clipboardFeedback}</Feedback> : null}
 
-          <div className="grid gap-4 xl:min-h-[calc(100vh-13rem)] xl:grid-cols-[minmax(300px,0.9fr)_minmax(420px,1.65fr)_minmax(210px,0.65fr)]">
+          <div className="grid gap-4 xl:min-h-[calc(100vh-13rem)] xl:grid-cols-[minmax(360px,1.1fr)_minmax(400px,1.4fr)_minmax(190px,0.58fr)]">
         <Panel className="order-1 flex min-h-[560px] flex-col overflow-hidden p-4 sm:p-5 xl:min-h-0">
           <div className="flex h-full min-h-0 flex-col">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -451,17 +613,19 @@ export default function CmeRouteTrackingDashboard() {
                       placeholder="Informe o código"
                       className="h-8 w-full rounded-lg border-[color:var(--shell-line-strong)] bg-[var(--shell-surface)] text-right text-sm font-bold"
                     />
-                    <span
-                      className="mt-1 flex items-center justify-end gap-1.5 text-[9px] font-semibold normal-case tracking-normal text-[var(--shell-muted)]"
-                      aria-live="polite"
-                    >
-                      {isDebouncing || phase === "searching" ? (
-                        <LoaderCircle className="h-3 w-3 animate-spin text-[var(--shell-accent)]" />
-                      ) : (
-                        <Clock3 className="h-3 w-3" />
-                      )}
-                      {searchState}
-                    </span>
+                    {searchState ? (
+                      <span
+                        className="mt-1 flex items-center justify-end gap-1.5 text-[9px] font-semibold normal-case tracking-normal text-[var(--shell-muted)]"
+                        aria-live="polite"
+                      >
+                        {isDebouncing || phase === "searching" ? (
+                          <LoaderCircle className="h-3 w-3 animate-spin text-[var(--shell-accent)]" />
+                        ) : (
+                          <Clock3 className="h-3 w-3" />
+                        )}
+                        {searchState}
+                      </span>
+                    ) : null}
                   </div>
                 }
               />
@@ -472,7 +636,8 @@ export default function CmeRouteTrackingDashboard() {
               <DetailRow label="Mapa" value={selectedOrder?.routeNumber ?? "—"} />
               <DetailRow label="NF" value={selectedOrder?.invoiceNumber ?? "—"} />
               <DetailRow label="Valor" value={formatCurrency(selectedOrder?.orderValue)} />
-              <DetailRow label="Hecto" value={formatDecimal(selectedOrder?.totalHectoliters)} />
+              <DetailRow label="Volume" value={formatDecimal(selectedOrder?.totalHectoliters, " hl")} />
+              <DetailRow label="Peso" value={formatDecimal(selectedOrder?.totalWeightKg, " kg")} />
               <DetailRow label="Motor" value={selectedOrder?.driverName || "—"} />
               <DetailRow label="Setor" value={selectedOrder?.sectorCode ?? "—"} />
               <DetailRow
@@ -499,35 +664,68 @@ export default function CmeRouteTrackingDashboard() {
                   "Sem apontamento"
                 }
               />
+              <div className="space-y-3 border-b border-[color:var(--shell-line)] bg-[var(--shell-accent-soft)] px-3 py-3">
+                <label className="block text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--shell-muted)]" htmlFor="cme-reason">
+                  Motivo
+                </label>
+                <Input
+                  id="cme-reason"
+                  value={reasonInput}
+                  onChange={(event) => setReasonInput(event.target.value)}
+                  placeholder="Ex.: PDV fechado"
+                  disabled={!selectedOrder || isBusy}
+                  maxLength={120}
+                  className="h-9 rounded-lg border-[color:var(--shell-line-strong)] bg-[var(--shell-surface)] text-sm"
+                />
+                <label className="block text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--shell-muted)]" htmlFor="cme-observation">
+                  Observação
+                </label>
+                <textarea
+                  id="cme-observation"
+                  value={observationInput}
+                  onChange={(event) => setObservationInput(event.target.value)}
+                  placeholder="Descreva o contexto da ocorrência"
+                  disabled={!selectedOrder || isBusy}
+                  maxLength={2000}
+                  rows={4}
+                  className="w-full resize-y rounded-lg border border-[color:var(--shell-line-strong)] bg-[var(--shell-surface)] px-3 py-2 text-sm text-[var(--shell-text)] outline-none transition focus:border-[color:var(--shell-accent)]"
+                />
+                <label className="block text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--shell-muted)]" htmlFor="cme-transfer-possible">
+                  Possibilidade de repasse
+                </label>
+                <select
+                  id="cme-transfer-possible"
+                  value={transferPossibleInput ? "true" : "false"}
+                  onChange={(event) => setTransferPossibleInput(event.target.value === "true")}
+                  disabled={!selectedOrder || isBusy}
+                  className="h-9 w-full rounded-lg border border-[color:var(--shell-line-strong)] bg-[var(--shell-surface)] px-3 text-sm text-[var(--shell-text)] outline-none focus:border-[color:var(--shell-accent)]"
+                >
+                  <option value="false">Não</option>
+                  <option value="true">Sim</option>
+                </select>
+              </div>
             </div>
 
-            <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+            <div className="mt-4">
               <Button
                 type="button"
-                variant="outline"
-                disabled={isBusy || !occurrence || occurrence.status === "REVERTED"}
-                onClick={revertOccurrence}
-                className="h-11 rounded-xl border-[color:var(--shell-line-strong)] bg-[var(--shell-surface)]"
+                disabled={
+                  isBusy || !context || Boolean(occurrence && occurrence.status !== "REVERTED") ||
+                  !reasonInput.trim() || !observationInput.trim()
+                }
+                onClick={() => void handleStartTreatment()}
+                className="h-11 w-full rounded-xl bg-[var(--shell-contrast)] px-5 text-[var(--shell-contrast-ink)]"
               >
-                {phase === "reverting" ? (
-                  <LoaderCircle className="animate-spin" />
-                ) : (
-                  <RotateCcw />
-                )}
-                Reverter
-              </Button>
-              <Button
-                type="button"
-                disabled={isBusy || !context || occurrence?.status === "RETURNED"}
-                onClick={confirmReturn}
-                className="h-11 rounded-xl bg-[var(--shell-contrast)] px-5 text-[var(--shell-contrast-ink)]"
-              >
-                {phase === "confirming" ? (
+                {phase === "starting" ? (
                   <LoaderCircle className="animate-spin" />
                 ) : (
                   <Send />
                 )}
-                {occurrence?.status === "RETURNED" ? "Confirmada" : "Confirmar"}
+                {occurrence?.status === "OPEN"
+                  ? "Tratativa em andamento"
+                  : occurrence?.status === "RETURNED"
+                    ? "Devolução confirmada"
+                    : "Iniciar tratativa"}
               </Button>
             </div>
           </div>
@@ -629,7 +827,14 @@ export default function CmeRouteTrackingDashboard() {
           {occurrenceCards.length ? (
             <div className="flex flex-wrap gap-4 p-4 sm:p-5">
               {occurrenceCards.map((item) => (
-                <OccurrenceCard key={item.id} occurrence={item} />
+                <OccurrenceCard
+                  key={item.id}
+                  occurrence={item}
+                  now={now}
+                  busy={isBusy}
+                  onConfirm={(occurrenceId) => void confirmReturn(occurrenceId)}
+                  onRevert={(occurrenceId) => void revertOccurrence(occurrenceId)}
+                />
               ))}
             </div>
           ) : (

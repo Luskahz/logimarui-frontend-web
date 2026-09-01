@@ -14,6 +14,7 @@ import type {
 type RequestPhase =
   | "searching"
   | "loading-context"
+  | "starting"
   | "confirming"
   | "reverting"
   | null;
@@ -248,58 +249,88 @@ export function useCmeRouteTracking() {
     }
   }, []);
 
-  const confirmReturn = useCallback(async () => {
+  const startTreatment = useCallback(async (treatment: {
+    reason: string;
+    observation: string;
+    transferPossible: boolean;
+  }) => {
     if (!context) {
-      setError("Consulte e selecione uma nota fiscal antes de confirmar.");
-      return;
+      setError("Consulte e selecione uma nota fiscal antes de iniciar a tratativa.");
+      return null;
     }
 
+    if (!treatment.reason.trim() || !treatment.observation.trim()) {
+      setError("Informe o motivo e a observação antes de iniciar a tratativa.");
+      return null;
+    }
+
+    if (occurrence && occurrence.status !== "REVERTED") {
+      setError("A nota já possui uma tratativa ativa ou encerrada.");
+      return null;
+    }
+
+    clearFeedback();
+    setPhase("starting");
+
+    try {
+      const created = await cmeOccurrenceApi.createReturn(
+        context.customerId,
+        context.invoiceNumber,
+        treatment,
+      );
+      setOccurrence(created);
+      setSuccess("Tratativa iniciada com sucesso.");
+      void loadOccurrences();
+      return created;
+    } catch (startError) {
+      setError(errorMessage(startError));
+      return null;
+    } finally {
+      setPhase(null);
+    }
+  }, [clearFeedback, context, loadOccurrences, occurrence]);
+
+  const confirmReturn = useCallback(async (occurrenceId: number) => {
     clearFeedback();
     setPhase("confirming");
 
     try {
-      let currentOccurrence = occurrence;
-
-      if (!currentOccurrence || currentOccurrence.status === "REVERTED") {
-        currentOccurrence = await cmeOccurrenceApi.createReturn(
-          context.customerId,
-          context.invoiceNumber,
-        );
-        setOccurrence(currentOccurrence);
-      }
-
-      if (currentOccurrence.status !== "RETURNED") {
-        currentOccurrence = await cmeOccurrenceApi.confirmReturn(currentOccurrence.id);
-        setOccurrence(currentOccurrence);
-      }
-
+      const confirmed = await cmeOccurrenceApi.confirmReturn(occurrenceId);
+      setOccurrence((current) => current?.id === occurrenceId ? confirmed : current);
       setSuccess("Devolução confirmada com sucesso.");
+      void loadOccurrences();
+      return confirmed;
     } catch (confirmError) {
       setError(errorMessage(confirmError));
+      return null;
     } finally {
       setPhase(null);
     }
-  }, [clearFeedback, context, occurrence]);
+  }, [clearFeedback, loadOccurrences]);
 
-  const revertOccurrence = useCallback(async () => {
-    if (!occurrence || occurrence.status === "REVERTED") {
+  const revertOccurrence = useCallback(async (occurrenceId: number) => {
+    clearFeedback();
+
+    if (!occurrenceId) {
       setError("Não existe uma ocorrência ativa para reverter.");
       return;
     }
 
-    clearFeedback();
     setPhase("reverting");
 
     try {
-      const reverted = await cmeOccurrenceApi.revertOccurrence(occurrence.id);
-      setOccurrence(reverted);
+      const reverted = await cmeOccurrenceApi.revertOccurrence(occurrenceId);
+      setOccurrence((current) => current?.id === occurrenceId ? reverted : current);
       setSuccess("Apontamento revertido com sucesso.");
+      void loadOccurrences();
+      return reverted;
     } catch (revertError) {
       setError(errorMessage(revertError));
+      return null;
     } finally {
       setPhase(null);
     }
-  }, [clearFeedback, occurrence]);
+  }, [clearFeedback, loadOccurrences]);
 
   return {
     changeCustomerInput,
@@ -318,6 +349,7 @@ export function useCmeRouteTracking() {
     orders,
     phase,
     revertOccurrence,
+    startTreatment,
     selectedOrder,
     selectOrder,
     success,

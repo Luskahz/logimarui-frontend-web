@@ -194,10 +194,18 @@ export const cmeOccurrenceApi = {
     );
   },
 
-  createReturn(customerId: number, invoiceNumber: number) {
+  createReturn(
+    customerId: number,
+    invoiceNumber: number,
+    treatment: {
+      reason: string;
+      observation: string;
+      transferPossible: boolean;
+    },
+  ) {
     return request<Occurrence>("/api/v2/occurrences/returns", {
       method: "POST",
-      body: { customerId, invoiceNumber },
+      body: { customerId, invoiceNumber, ...treatment },
     });
   },
 

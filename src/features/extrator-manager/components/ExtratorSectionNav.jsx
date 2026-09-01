@@ -11,12 +11,12 @@ export const EXTRATOR_TAB_ITEMS = [
   { id: "globalQueue", label: "Fila global" },
 ];
 
-export function normalizeExtratorTabId(value) {
+export function normalizeExtratorTabId(value, items = EXTRATOR_TAB_ITEMS) {
   const normalizedValue = String(value || "");
 
-  return EXTRATOR_TAB_ITEMS.some((tabItem) => tabItem.id === normalizedValue)
+  return items.some((tabItem) => tabItem.id === normalizedValue)
     ? normalizedValue
-    : EXTRATOR_TAB_ITEMS[0].id;
+    : items[0].id;
 }
 
 function buildTabHref(tabId) {
@@ -38,12 +38,15 @@ function getItemClassName(active) {
 export default function ExtratorSectionNav({
   activeTab = EXTRATOR_TAB_ITEMS[0].id,
   onTabChange,
+  items = EXTRATOR_TAB_ITEMS,
+  ariaLabel = "Navegacao do extrator",
+  className = "mt-6 flex flex-wrap gap-2",
 }) {
-  const normalizedActiveTab = normalizeExtratorTabId(activeTab);
+  const normalizedActiveTab = normalizeExtratorTabId(activeTab, items);
 
   return (
-    <nav aria-label="Navegacao do extrator" className="mt-6 flex flex-wrap gap-2">
-      {EXTRATOR_TAB_ITEMS.map((tabItem) => {
+    <nav aria-label={ariaLabel} className={className}>
+      {items.map((tabItem) => {
         const active = normalizedActiveTab === tabItem.id;
 
         if (typeof onTabChange === "function") {
@@ -52,6 +55,19 @@ export default function ExtratorSectionNav({
               key={tabItem.id}
               type="button"
               onClick={() => onTabChange(tabItem.id)}
+              className={getItemClassName(active)}
+            >
+              {tabItem.label}
+            </button>
+          );
+        }
+
+        if (items !== EXTRATOR_TAB_ITEMS) {
+          return (
+            <button
+              key={tabItem.id}
+              type="button"
+              onClick={() => onTabChange?.(tabItem.id)}
               className={getItemClassName(active)}
             >
               {tabItem.label}

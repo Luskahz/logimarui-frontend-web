@@ -20,6 +20,7 @@ export interface OrderSummary {
   invoiceIssueDate: string;
   orderValue: DecimalValue;
   totalHectoliters: DecimalValue;
+  totalWeightKg: DecimalValue;
   routeNumber: number | null;
   sectorCode: number | null;
   driverName: string | null;
@@ -38,6 +39,7 @@ export interface ReturnAlertContext {
   invoiceNumber: number;
   orderValue: DecimalValue;
   totalHectoliters: DecimalValue;
+  totalWeightKg: DecimalValue;
 }
 
 export type OccurrenceStatus = "OPEN" | "RETURNED" | "REVERTED";
@@ -49,6 +51,9 @@ export interface Occurrence {
   type: "RETURN";
   status: OccurrenceStatus;
   problemResolved: boolean;
+  reason: string | null;
+  observation: string | null;
+  transferPossible: boolean;
   createdAt: string;
   updatedAt: string;
   returnConfirmedAt: string | null;
