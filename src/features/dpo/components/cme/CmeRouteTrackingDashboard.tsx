@@ -185,7 +185,6 @@ function buildTransferMessage({
 }): string {
   return [
     "🚨🚨 Alerta Devolução 🚨🚨",
-    "",
     `🏪 PDV-Código: ${displayValue(order.customerId)}`,
     `®️ Nome PDV: ${displayValue(order.tradeName || order.customerName)}`,
     `👔 RN: ${order.sectorCode ? `@Setor ${order.sectorCode}` : "—"}`,
@@ -199,6 +198,29 @@ function buildTransferMessage({
     `⏰ Tempo Espera: ${elapsed}`,
     `⚖️ ANS: ${displayValue(ans)}`,
   ].join("\n");
+}
+
+async function copyTransferMessage(message: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(message);
+    return;
+  }
+
+  const textArea = document.createElement("textarea");
+  textArea.value = message;
+  textArea.setAttribute("readonly", "true");
+  textArea.style.position = "fixed";
+  textArea.style.opacity = "0";
+  document.body.appendChild(textArea);
+  textArea.select();
+
+  try {
+    if (!document.execCommand("copy")) {
+      throw new Error("Falha ao copiar a mensagem.");
+    }
+  } finally {
+    document.body.removeChild(textArea);
+  }
 }
 
 function calculateAns(value: DecimalValue | undefined): string {
@@ -507,6 +529,18 @@ export default function CmeRouteTrackingDashboard() {
     }
 
     setClipboardFeedback("");
+    const transferMessage = buildTransferMessage({
+      order: selectedOrder,
+      reason: reasonInput,
+      observation: observationInput,
+      transferPossible: transferPossibleInput,
+      ans,
+      elapsed: "0min",
+    });
+
+    const copyPromise = copyTransferMessage(transferMessage)
+      .then(() => true)
+      .catch(() => false);
     const created = await startTreatment({
       reason: reasonInput,
       observation: observationInput,
@@ -514,22 +548,13 @@ export default function CmeRouteTrackingDashboard() {
     });
 
     if (!created) {
+      await copyPromise;
       return;
     }
 
-    try {
-      await navigator.clipboard.writeText(
-        buildTransferMessage({
-          order: selectedOrder,
-          reason: reasonInput,
-          observation: observationInput,
-          transferPossible: transferPossibleInput,
-          ans,
-          elapsed: formatElapsed(created.createdAt, created.updatedAt),
-        }),
-      );
+    if (await copyPromise) {
       setClipboardFeedback("Alerta copiado para a área de transferência.");
-    } catch {
+    } else {
       setClipboardFeedback(
         "Tratativa iniciada, mas não foi possível copiar o alerta automaticamente.",
       );
