@@ -200,7 +200,6 @@ export const cmeOccurrenceApi = {
     treatment: {
       reason: string;
       observation: string;
-      transferPossible: boolean;
     },
   ) {
     return request<Occurrence>("/api/v2/occurrences/returns", {
