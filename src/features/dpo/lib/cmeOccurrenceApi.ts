@@ -11,6 +11,7 @@ import type {
   OrderSummary,
   PagedResponse,
   ReturnAlertContext,
+  CustomerLabel,
 } from "@/features/dpo/lib/cmeTypes";
 
 interface RequestOptions {
@@ -138,6 +139,13 @@ export const cmeOccurrenceApi = {
   getCustomerOrders(customerId: number, signal?: AbortSignal) {
     return request<PagedResponse<OrderSummary>>(
       `/api/v1/customers/${encodeId(customerId)}/orders?page=0&size=100&sort=deliveryDate,desc`,
+      { signal },
+    );
+  },
+
+  getCustomerLabel(customerId: number, signal?: AbortSignal) {
+    return request<CustomerLabel>(
+      `/api/v1/customers/${encodeId(customerId)}/label`,
       { signal },
     );
   },

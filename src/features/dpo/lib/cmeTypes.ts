@@ -42,6 +42,12 @@ export interface ReturnAlertContext {
   totalWeightKg: DecimalValue;
 }
 
+export interface CustomerLabel {
+  customerId: number;
+  label: string;
+  generatedAt: string;
+}
+
 export type OccurrenceStatus = "OPEN" | "RETURNED" | "REVERTED";
 
 export interface Occurrence {
