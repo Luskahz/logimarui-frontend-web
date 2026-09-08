@@ -172,14 +172,12 @@ function buildTransferMessage({
   order,
   reason,
   observation,
-  transferPossible,
   ans,
   elapsed,
 }: {
   order: OrderSummary;
   reason: string;
   observation: string;
-  transferPossible: boolean;
   ans: string;
   elapsed: string;
 }): string {
@@ -194,7 +192,6 @@ function buildTransferMessage({
     `⚖️ Peso: ${formatDecimal(order.totalWeightKg, " kg")}`,
     `🚦 Motivo: ${displayValue(reason.trim())}`,
     `📝 Observação: ${displayValue(observation.trim())}`,
-    `🛣️ Possibilidade Repasse: ${transferPossible ? "Sim" : "Não"}`,
     `⏰ Tempo Espera: ${elapsed}`,
     `⚖️ ANS: ${displayValue(ans)}`,
   ].join("\n");
@@ -475,7 +472,6 @@ export default function CmeRouteTrackingDashboard() {
   const [labelInput, setLabelInput] = useState("");
   const [reasonInput, setReasonInput] = useState("");
   const [observationInput, setObservationInput] = useState("");
-  const [transferPossibleInput, setTransferPossibleInput] = useState(false);
   const [clipboardFeedback, setClipboardFeedback] = useState("");
   const [now, setNow] = useState(() => Date.now());
 
@@ -509,7 +505,6 @@ export default function CmeRouteTrackingDashboard() {
     setLabelInput("");
     setReasonInput("");
     setObservationInput("");
-    setTransferPossibleInput(false);
     setClipboardFeedback("");
     changeCustomerInput(value);
   };
@@ -518,7 +513,6 @@ export default function CmeRouteTrackingDashboard() {
     setLabelInput("");
     setReasonInput("");
     setObservationInput("");
-    setTransferPossibleInput(false);
     setClipboardFeedback("");
     selectOrder(order);
   };
@@ -533,7 +527,6 @@ export default function CmeRouteTrackingDashboard() {
       order: selectedOrder,
       reason: reasonInput,
       observation: observationInput,
-      transferPossible: transferPossibleInput,
       ans,
       elapsed: "0min",
     });
@@ -544,7 +537,6 @@ export default function CmeRouteTrackingDashboard() {
     const created = await startTreatment({
       reason: reasonInput,
       observation: observationInput,
-      transferPossible: transferPossibleInput,
     });
 
     if (!created) {
@@ -658,13 +650,12 @@ export default function CmeRouteTrackingDashboard() {
                 label="Nome"
                 value={selectedOrder?.tradeName || selectedOrder?.customerName || "—"}
               />
-              <DetailRow label="Mapa" value={selectedOrder?.routeNumber ?? "—"} />
+              <DetailRow label="Setor" value={selectedOrder?.sectorCode ?? "—"} />
               <DetailRow label="NF" value={selectedOrder?.invoiceNumber ?? "—"} />
               <DetailRow label="Valor" value={formatCurrency(selectedOrder?.orderValue)} />
               <DetailRow label="Volume" value={formatDecimal(selectedOrder?.totalHectoliters, " hl")} />
               <DetailRow label="Peso" value={formatDecimal(selectedOrder?.totalWeightKg, " kg")} />
-              <DetailRow label="Motor" value={selectedOrder?.driverName || "—"} />
-              <DetailRow label="Setor" value={selectedOrder?.sectorCode ?? "—"} />
+              <DetailRow label="Motorista" value={selectedOrder?.driverName || "—"} />
               <DetailRow
                 label="ANS"
                 value={ans}
@@ -673,12 +664,6 @@ export default function CmeRouteTrackingDashboard() {
                     ? "text-orange-500"
                     : "text-[var(--shell-accent)]"
                 }
-              />
-              <DetailRow
-                label="Pedido"
-                emphasis
-                value={selectedOrder?.orderType || "—"}
-                valueClassName="text-[var(--shell-accent)]"
               />
               <DetailRow label="Entrega" value={formatDate(selectedOrder?.deliveryDate)} />
               <DetailRow
@@ -715,19 +700,6 @@ export default function CmeRouteTrackingDashboard() {
                   rows={4}
                   className="w-full resize-y rounded-lg border border-[color:var(--shell-line-strong)] bg-[var(--shell-surface)] px-3 py-2 text-sm text-[var(--shell-text)] outline-none transition focus:border-[color:var(--shell-accent)]"
                 />
-                <label className="block text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--shell-muted)]" htmlFor="cme-transfer-possible">
-                  Possibilidade de repasse
-                </label>
-                <select
-                  id="cme-transfer-possible"
-                  value={transferPossibleInput ? "true" : "false"}
-                  onChange={(event) => setTransferPossibleInput(event.target.value === "true")}
-                  disabled={!selectedOrder || isBusy}
-                  className="h-9 w-full rounded-lg border border-[color:var(--shell-line-strong)] bg-[var(--shell-surface)] px-3 text-sm text-[var(--shell-text)] outline-none focus:border-[color:var(--shell-accent)]"
-                >
-                  <option value="false">Não</option>
-                  <option value="true">Sim</option>
-                </select>
               </div>
             </div>
 

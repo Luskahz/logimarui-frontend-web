@@ -252,7 +252,6 @@ export function useCmeRouteTracking() {
   const startTreatment = useCallback(async (treatment: {
     reason: string;
     observation: string;
-    transferPossible: boolean;
   }) => {
     if (!context) {
       setError("Consulte e selecione uma nota fiscal antes de iniciar a tratativa.");
