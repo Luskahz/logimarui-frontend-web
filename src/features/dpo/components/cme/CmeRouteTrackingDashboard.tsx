@@ -452,6 +452,7 @@ export default function CmeRouteTrackingDashboard() {
     confirmReturn,
     context,
     customerInput,
+    customerLabel,
     error,
     isDebouncing,
     items,
@@ -469,7 +470,6 @@ export default function CmeRouteTrackingDashboard() {
     success,
   } = useCmeRouteTracking();
   const [activeTab, setActiveTab] = useState<DashboardTab>("operation");
-  const [labelInput, setLabelInput] = useState("");
   const [reasonInput, setReasonInput] = useState("");
   const [observationInput, setObservationInput] = useState("");
   const [clipboardFeedback, setClipboardFeedback] = useState("");
@@ -502,7 +502,6 @@ export default function CmeRouteTrackingDashboard() {
           : "";
 
   const handleCustomerInputChange = (value: string) => {
-    setLabelInput("");
     setReasonInput("");
     setObservationInput("");
     setClipboardFeedback("");
@@ -510,7 +509,6 @@ export default function CmeRouteTrackingDashboard() {
   };
 
   const handleSelectOrder = (order: OrderSummary) => {
-    setLabelInput("");
     setReasonInput("");
     setObservationInput("");
     setClipboardFeedback("");
@@ -607,10 +605,10 @@ export default function CmeRouteTrackingDashboard() {
                 emphasis
                 value={
                   <Input
-                    value={labelInput}
-                    onChange={(event) => setLabelInput(event.target.value)}
-                    placeholder="Informe o rótulo"
-                    disabled={!selectedOrder}
+                    value={customerLabel?.label ?? "—"}
+                    readOnly
+                    aria-label="Rótulo calculado do cliente"
+                    disabled={!customerLabel}
                     className="ml-auto h-8 max-w-48 rounded-lg border-[color:var(--shell-line-strong)] bg-[var(--shell-surface)] text-right text-sm font-bold uppercase"
                   />
                 }

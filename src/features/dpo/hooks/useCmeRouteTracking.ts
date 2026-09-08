@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { cmeOccurrenceApi } from "@/features/dpo/lib/cmeOccurrenceApi";
 import type {
   InvoiceItem,
+  CustomerLabel,
   Occurrence,
   OrderSummary,
   PagedResponse,
@@ -48,6 +49,7 @@ function errorMessage(error: unknown): string {
 export function useCmeRouteTracking() {
   const [customerInput, setCustomerInput] = useState("");
   const [orders, setOrders] = useState<PagedResponse<OrderSummary> | null>(null);
+  const [customerLabel, setCustomerLabel] = useState<CustomerLabel | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<OrderSummary | null>(null);
   const [context, setContext] = useState<ReturnAlertContext | null>(null);
   const [items, setItems] = useState<InvoiceItem[]>([]);
@@ -79,6 +81,7 @@ export function useCmeRouteTracking() {
 
   const clearResult = useCallback(() => {
     setOrders(null);
+    setCustomerLabel(null);
     setSelectedOrder(null);
     setContext(null);
     setItems([]);
@@ -151,11 +154,19 @@ export function useCmeRouteTracking() {
       clearResult();
 
       try {
-        const result = await cmeOccurrenceApi.getCustomerOrders(
-          customerId,
-          controller.signal,
-        );
+        const [result, labelResult] = await Promise.all([
+          cmeOccurrenceApi.getCustomerOrders(customerId, controller.signal),
+          cmeOccurrenceApi.getCustomerLabel(customerId, controller.signal).catch(
+            (labelError) => {
+              if (isAbortError(labelError)) {
+                throw labelError;
+              }
+              return null;
+            },
+          ),
+        ]);
         setOrders(result);
+        setCustomerLabel(labelResult);
 
         if (result.content.length === 0) {
           setError("Nenhuma nota fiscal foi encontrada para este cliente.");
@@ -337,6 +348,7 @@ export function useCmeRouteTracking() {
     consult,
     context,
     customerInput,
+    customerLabel,
     error,
     isDebouncing,
     items,
