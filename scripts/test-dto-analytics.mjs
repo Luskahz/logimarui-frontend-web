@@ -40,6 +40,18 @@ const analytics = evaluate(
   transpile("src/features/dpo/lib/dtoAnalytics.ts"),
   { "@/features/dpo/lib/dtoFormatters": formatters },
 );
+const tracking = evaluate(
+  transpile("src/features/dpo/lib/dtoTracking.ts"),
+  { "@/features/dpo/lib/dtoFormatters": formatters },
+);
+
+const saviDate = formatters.parseDtoDate("11/08/2026 17:20");
+assert.ok(saviDate);
+assert.equal(saviDate.getFullYear(), 2026);
+assert.equal(saviDate.getMonth(), 7);
+assert.equal(saviDate.getDate(), 11);
+assert.equal(saviDate.getHours(), 17);
+assert.equal(saviDate.getMinutes(), 20);
 
 const columns = [
   { key: "collaborator", role: "COLLABORATOR", observation_status: "OBSERVED" },
@@ -103,4 +115,34 @@ assert.deepEqual(maria.recurringGaps[0].recordIds, ["app-1", "app-2"]);
 const duplicateApplication = [records[0], { ...records[0] }];
 assert.equal(analytics.computeRecurringGaps(duplicateApplication).length, 0);
 
-console.log("DTO analytics: 3 cenários validados com sucesso.");
+const trackingDetail = {
+  configuration: {
+    tracking: {
+      roster_field_key: "person",
+      realization_date_field_key: "realized-at",
+      interval_days: 60,
+      excluded_collaborators: ["Diego"],
+      manual_collaborators: ["Carla"],
+    },
+  },
+  records: [
+    { values: { person: "Ana", "realized-at": "11/08/2026 17:20" } },
+    { values: { person: "Bruno", "realized-at": "01/06/2026 08:00" } },
+    { values: { person: "Diego", "realized-at": "09/09/2026 08:00" } },
+  ],
+};
+const trackingSummary = tracking.computeDtoTracking(
+  trackingDetail,
+  new Date(2026, 8, 10, 12),
+);
+assert.equal(trackingSummary.total, 3);
+assert.equal(trackingSummary.current, 1);
+assert.equal(trackingSummary.overdue, 1);
+assert.equal(trackingSummary.never, 1);
+assert.equal(Math.round(trackingSummary.realizationAdherence), 33);
+assert.equal(
+  trackingSummary.collaborators.find((item) => item.name === "Carla").applications,
+  0,
+);
+
+console.log("DTO analytics e acompanhamento: 5 cenários validados com sucesso.");

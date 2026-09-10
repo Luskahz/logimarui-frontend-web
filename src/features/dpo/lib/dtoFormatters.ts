@@ -1,5 +1,6 @@
 const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
-const BRAZILIAN_DATE_PATTERN = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+const BRAZILIAN_DATE_TIME_PATTERN =
+  /^(\d{2})\/(\d{2})\/(\d{4})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/;
 const SAVI_DATE_TIME_PATTERN =
   /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?$/;
 const ISO_DATE_TIME_WITH_ZONE_PATTERN =
@@ -70,13 +71,17 @@ export function parseDtoDate(value: unknown): Date | null {
     });
   }
 
-  const brazilianMatch = normalized.match(BRAZILIAN_DATE_PATTERN);
+  const brazilianMatch = normalized.match(BRAZILIAN_DATE_TIME_PATTERN);
   if (brazilianMatch) {
-    const [, day, month, year] = brazilianMatch;
+    const [, day, month, year, hour = "0", minute = "0", second = "0"] =
+      brazilianMatch;
     return buildValidatedLocalDate({
       year: Number(year),
       month: Number(month),
       day: Number(day),
+      hour: Number(hour),
+      minute: Number(minute),
+      second: Number(second),
     });
   }
 

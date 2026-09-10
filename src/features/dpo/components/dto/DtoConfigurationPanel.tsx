@@ -12,6 +12,7 @@ import type {
 import { formatDtoNumber, formatDtoPercentage, normalizeSearchText } from "@/features/dpo/lib/dtoFormatters";
 import { DtoBadge, DtoButton, DtoPanel } from "@/features/dpo/components/dto/DtoPrimitives";
 import { Typography } from "@/shared/ui/typography";
+import DtoTrackingConfigurationPanel from "@/features/dpo/components/dto/DtoTrackingConfigurationPanel";
 
 const ROLE_LABELS: Record<DtoFieldRole, string> = {
   EVALUATION: "Pergunta avaliativa",
@@ -165,7 +166,12 @@ export default function DtoConfigurationPanel({
   }, [configuration.fields, filter, search]);
 
   return (
-    <DtoPanel className="p-5 sm:p-6">
+    <div className="space-y-4">
+      <DtoTrackingConfigurationPanel
+        configuration={configuration}
+        onSave={onSave}
+      />
+      <DtoPanel className="p-5 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <Typography variant="overline">Parametrização do formulário</Typography>
@@ -203,6 +209,7 @@ export default function DtoConfigurationPanel({
           <div className="rounded-2xl border border-dashed border-[color:var(--shell-line-strong)] px-4 py-8 text-center text-sm text-[var(--shell-muted)]">Nenhum campo corresponde aos filtros atuais.</div>
         )}
       </div>
-    </DtoPanel>
+      </DtoPanel>
+    </div>
   );
 }

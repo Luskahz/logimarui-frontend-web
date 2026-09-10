@@ -8,6 +8,10 @@ const SECURITY_SHORTCUTS = [
     href: APP_ROUTES.DPO_BLITZ_MANAGER,
     label: "Gerenciador de Blitz",
   },
+  {
+    href: APP_ROUTES.DPO_SECURITY_TEMPLATES_MANAGER,
+    label: "Gerenciador de Gabaritos de Segurança",
+  },
 ];
 
 export default function DpoSecurityPage() {

@@ -93,6 +93,16 @@ function validateFormDetail(payload: DtoFormDetail, singular: string): DtoFormDe
 
   return {
     ...payload,
+    configuration: {
+      ...payload.configuration,
+      tracking: payload.configuration.tracking || {
+        roster_field_key: null,
+        realization_date_field_key: null,
+        interval_days: null,
+        excluded_collaborators: [],
+        manual_collaborators: [],
+      },
+    },
     quality_issues: Array.isArray(payload.quality_issues)
       ? payload.quality_issues
       : [],

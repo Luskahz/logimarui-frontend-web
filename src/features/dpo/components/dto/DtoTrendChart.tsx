@@ -1,80 +1,17 @@
 "use client";
 
-import {
-  Bar,
-  CartesianGrid,
-  ComposedChart,
-  Line,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { useMemo } from "react";
 import { Minus, TrendingDown, TrendingUp } from "lucide-react";
+import type { EChartsOption } from "echarts";
+import DtoEChart from "@/features/dpo/components/dto/DtoEChart";
 import {
   formatDtoNumber,
   formatDtoPercentage,
   formatPercentagePointDelta,
 } from "@/features/dpo/lib/dtoFormatters";
-import type {
-  DtoTimelinePoint,
-  DtoTrend,
-} from "@/features/dpo/lib/dtoTypes";
-import {
-  DtoBadge,
-  DtoPanel,
-} from "@/features/dpo/components/dto/DtoPrimitives";
+import type { DtoTimelinePoint, DtoTrend } from "@/features/dpo/lib/dtoTypes";
+import { DtoBadge, DtoPanel } from "@/features/dpo/components/dto/DtoPrimitives";
 import { Typography } from "@/shared/ui/typography";
-
-interface TooltipEntry {
-  color?: string;
-  dataKey?: string;
-  name?: string;
-  value?: number | string | null;
-}
-
-function DtoChartTooltip({
-  active,
-  label,
-  payload,
-}: {
-  active?: boolean;
-  label?: string;
-  payload?: TooltipEntry[];
-}) {
-  if (!active || !payload?.length) {
-    return null;
-  }
-
-  return (
-    <div className="min-w-44 rounded-2xl border border-[color:var(--shell-line-strong)] bg-[var(--shell-surface)] p-3 text-xs shadow-xl">
-      <p className="font-semibold text-[var(--shell-text)]">{label}</p>
-      <div className="mt-2 space-y-1.5">
-        {payload.map((item) => (
-          <p
-            key={item.dataKey || item.name}
-            className="flex items-center justify-between gap-4 text-[var(--shell-muted)]"
-          >
-            <span>{item.name}</span>
-            <strong className="text-[var(--shell-text)]">
-              {item.dataKey === "adherence"
-                ? formatDtoPercentage(
-                    item.value === null || item.value === undefined
-                      ? null
-                      : Number(item.value),
-                  )
-                : formatDtoNumber(
-                    item.value === null || item.value === undefined
-                      ? null
-                      : Number(item.value),
-                  )}
-            </strong>
-          </p>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 export default function DtoTrendChart({
   hasDateColumn,
@@ -85,6 +22,68 @@ export default function DtoTrendChart({
   timeline: DtoTimelinePoint[];
   trend: DtoTrend | null;
 }) {
+  const option = useMemo<EChartsOption>(
+    () => ({
+      animationDuration: 450,
+      color: ["#2dd4bf", "#14b8a6"],
+      grid: { top: 20, right: 46, bottom: 32, left: 46 },
+      tooltip: { trigger: "axis", axisPointer: { type: "cross" } },
+      legend: {
+        top: 0,
+        right: 0,
+        textStyle: { color: "#94a3b8", fontSize: 11 },
+      },
+      xAxis: {
+        type: "category",
+        data: timeline.map((point) => point.label),
+        axisLine: { lineStyle: { color: "#334155" } },
+        axisTick: { show: false },
+        axisLabel: { color: "#94a3b8", hideOverlap: true },
+      },
+      yAxis: [
+        {
+          type: "value",
+          min: 0,
+          max: 100,
+          axisLabel: { color: "#94a3b8", formatter: "{value}%" },
+          splitLine: { lineStyle: { color: "#334155", type: "dashed" } },
+        },
+        {
+          type: "value",
+          min: 0,
+          minInterval: 1,
+          axisLabel: { color: "#94a3b8" },
+          splitLine: { show: false },
+        },
+      ],
+      series: [
+        {
+          name: "Aplicações",
+          type: "bar",
+          yAxisIndex: 1,
+          barMaxWidth: 34,
+          data: timeline.map((point) => point.applications),
+          itemStyle: { color: "#5eead4", opacity: 0.45, borderRadius: [6, 6, 0, 0] },
+          tooltip: { valueFormatter: (value) => formatDtoNumber(Number(value)) },
+        },
+        {
+          name: "Aderência",
+          type: "line",
+          yAxisIndex: 0,
+          connectNulls: false,
+          smooth: 0.25,
+          symbolSize: 7,
+          data: timeline.map((point) => point.adherence),
+          lineStyle: { width: 3, color: "#14b8a6" },
+          itemStyle: { color: "#14b8a6" },
+          areaStyle: { color: "rgba(20, 184, 166, 0.10)" },
+          tooltip: { valueFormatter: (value) => formatDtoPercentage(Number(value)) },
+        },
+      ],
+    }),
+    [timeline],
+  );
+
   return (
     <DtoPanel className="p-5 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -94,8 +93,7 @@ export default function DtoTrendChart({
             Aderência e volume por período
           </Typography>
           <Typography variant="caption" className="mt-1">
-            A granularidade muda entre dia, semana e mês conforme o intervalo
-            disponível.
+            A granularidade muda entre dia, semana e mês conforme o intervalo disponível.
           </Typography>
         </div>
 
@@ -122,71 +120,11 @@ export default function DtoTrendChart({
       </div>
 
       {timeline.length > 0 ? (
-        <div
-          role="img"
-          aria-label="Gráfico temporal de aderência e quantidade de aplicações"
+        <DtoEChart
+          ariaLabel="Gráfico temporal de aderência e quantidade de aplicações"
           className="mt-5 h-72 min-w-0"
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart
-              accessibilityLayer
-              data={timeline}
-              margin={{ top: 12, right: 8, bottom: 4, left: 0 }}
-            >
-              <CartesianGrid
-                vertical={false}
-                stroke="var(--shell-line)"
-                strokeDasharray="4 4"
-              />
-              <XAxis
-                dataKey="label"
-                axisLine={false}
-                tickLine={false}
-                minTickGap={18}
-                tick={{ fill: "var(--shell-muted)", fontSize: 11 }}
-              />
-              <YAxis
-                yAxisId="adherence"
-                domain={[0, 100]}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={(value) => `${value}%`}
-                width={42}
-                tick={{ fill: "var(--shell-muted)", fontSize: 11 }}
-              />
-              <YAxis
-                yAxisId="applications"
-                orientation="right"
-                allowDecimals={false}
-                axisLine={false}
-                tickLine={false}
-                width={30}
-                tick={{ fill: "var(--shell-muted)", fontSize: 11 }}
-              />
-              <Tooltip content={<DtoChartTooltip />} />
-              <Bar
-                yAxisId="applications"
-                dataKey="applications"
-                name="Aplicações"
-                fill="var(--shell-accent-soft)"
-                stroke="var(--shell-accent)"
-                radius={[6, 6, 0, 0]}
-                maxBarSize={34}
-              />
-              <Line
-                yAxisId="adherence"
-                type="monotone"
-                dataKey="adherence"
-                name="Aderência"
-                connectNulls={false}
-                stroke="var(--shell-accent)"
-                strokeWidth={3}
-                dot={{ r: 3, fill: "var(--shell-surface)", strokeWidth: 2 }}
-                activeDot={{ r: 5 }}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
+          option={option}
+        />
       ) : (
         <div className="mt-5 rounded-2xl border border-dashed border-[color:var(--shell-line-strong)] bg-[var(--shell-surface-muted)] px-4 py-8 text-center text-sm leading-6 text-[var(--shell-muted)]">
           {hasDateColumn

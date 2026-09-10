@@ -89,6 +89,14 @@ export interface DtoFieldConfiguration {
   warnings: string[];
 }
 
+export interface DtoTrackingConfiguration {
+  roster_field_key: string | null;
+  realization_date_field_key: string | null;
+  interval_days: number | null;
+  excluded_collaborators: string[];
+  manual_collaborators: string[];
+}
+
 export interface DtoFormConfiguration {
   schema_version: number;
   form_id: string;
@@ -96,6 +104,7 @@ export interface DtoFormConfiguration {
   revision: number;
   updated_at: string;
   fields: DtoFieldConfiguration[];
+  tracking: DtoTrackingConfiguration;
   unmapped_values_count: number;
   fields_requiring_configuration: number;
 }
@@ -110,6 +119,7 @@ export interface DtoConfigurationUpdate {
   revision: number;
   fields?: DtoFieldOverride[];
   reset_fields?: string[];
+  tracking?: DtoTrackingConfiguration | null;
 }
 
 export interface DtoFormDetail {
@@ -235,6 +245,32 @@ export interface DtoTrend {
   delta: number;
   previousLabel: string;
   currentLabel: string;
+}
+
+export type DtoTrackingStatus = "current" | "dueSoon" | "overdue" | "never";
+
+export interface DtoTrackedCollaborator {
+  key: string;
+  name: string;
+  source: "observed" | "manual";
+  applications: number;
+  lastRealization: Date | null;
+  nextDueDate: Date | null;
+  daysUntilDue: number | null;
+  status: DtoTrackingStatus;
+}
+
+export interface DtoTrackingSummary {
+  configured: boolean;
+  collaborators: DtoTrackedCollaborator[];
+  excludedCollaborators: string[];
+  total: number;
+  current: number;
+  dueSoon: number;
+  overdue: number;
+  never: number;
+  realizationAdherence: number | null;
+  lastRealization: Date | null;
 }
 
 export interface DtoAttentionPoint {

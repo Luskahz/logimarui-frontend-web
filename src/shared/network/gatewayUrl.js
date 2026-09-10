@@ -1,4 +1,3 @@
-const LOCAL_DEV_HOSTNAMES = new Set(["localhost", "127.0.0.1"]);
 const LOCAL_FRONTEND_GATEWAY_PORTS = {
   8091: "",
   8191: "81",
@@ -8,14 +7,14 @@ function trimTrailingSlash(value) {
   return String(value ?? "").replace(/\/+$/, "");
 }
 
-function isNonDefaultHttpPort(port) {
-  return Boolean(port) && port !== "80" && port !== "443";
-}
-
-function buildLocalGatewayOrigin(frontendPort) {
+function buildMappedGatewayOrigin(protocol, hostname, frontendPort) {
   const gatewayPort = LOCAL_FRONTEND_GATEWAY_PORTS[frontendPort];
 
-  return gatewayPort ? `http://127.0.0.1:${gatewayPort}` : "http://127.0.0.1";
+  if (gatewayPort === undefined) {
+    return "";
+  }
+
+  return `${protocol}//${hostname}${gatewayPort ? `:${gatewayPort}` : ""}`;
 }
 
 export function resolveGatewayBaseUrl() {
@@ -35,13 +34,14 @@ export function resolveGatewayBaseUrl() {
   }
 
   const { hostname, port, protocol } = window.location;
+  const mappedGatewayOrigin = buildMappedGatewayOrigin(
+    protocol,
+    hostname,
+    port,
+  );
 
-  if (LOCAL_DEV_HOSTNAMES.has(hostname) && isNonDefaultHttpPort(port)) {
-    return buildLocalGatewayOrigin(port);
-  }
-
-  if (!LOCAL_DEV_HOSTNAMES.has(hostname) && isNonDefaultHttpPort(port)) {
-    return `${protocol}//${hostname}`;
+  if (mappedGatewayOrigin) {
+    return mappedGatewayOrigin;
   }
 
   return window.location.origin;

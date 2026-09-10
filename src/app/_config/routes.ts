@@ -11,6 +11,7 @@ export const APP_ROUTES = {
   DPO_MANAGEMENT: "/dpo/gestao",
   DPO_DTO_MANAGER: "/dpo/gestao/gerenciador-dto",
   DPO_BLITZ_MANAGER: "/dpo/seguranca/gerenciador-blitz",
+  DPO_SECURITY_TEMPLATES_MANAGER: "/dpo/seguranca/gerenciador-gabaritos-seguranca",
   DPO_DELIVERY_ROUTE_CME: "/dpo/entrega/acompanhamento-rota-cme",
   CRITICA_PEDIDOS: "/critica-pedidos",
   AUTHORIZATION_ROLES: "/admin/roles",

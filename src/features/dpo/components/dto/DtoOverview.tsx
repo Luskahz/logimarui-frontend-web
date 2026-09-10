@@ -57,7 +57,7 @@ export default function DtoOverview({
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <DtoMetricCard
-          label={`Formulários ${config.singular}`}
+          label={`Formulários de ${config.singular}`}
           value={formatDtoNumber(metrics.forms)}
           hint="Descobertos dinamicamente no SAVI."
         />

@@ -192,3 +192,7 @@ export type DtoApi = ReturnType<typeof createDtoApi>;
 
 export const dtoApi = createDtoApi("/api/savi/api/v1/dtos", "DTOs");
 export const blitzApi = createDtoApi("/api/savi/api/v1/blitz", "Blitz");
+export const securityTemplatesApi = createDtoApi(
+  "/api/savi/api/v1/gabaritos-seguranca",
+  "Gabaritos de Segurança",
+);

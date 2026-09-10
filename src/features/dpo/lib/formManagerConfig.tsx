@@ -1,7 +1,12 @@
 "use client";
 
 import { createContext, useContext, type ReactNode } from "react";
-import { blitzApi, dtoApi, type DtoApi } from "@/features/dpo/lib/dtoApi";
+import {
+  blitzApi,
+  dtoApi,
+  securityTemplatesApi,
+  type DtoApi,
+} from "@/features/dpo/lib/dtoApi";
 
 export interface FormManagerConfig {
   api: DtoApi;
@@ -12,6 +17,7 @@ export interface FormManagerConfig {
   formLabel: string;
   appliedLabel: string;
   description: string;
+  discoveryKey: string;
   routeKey: string;
 }
 
@@ -25,6 +31,7 @@ export const DTO_MANAGER_CONFIG: FormManagerConfig = {
   appliedLabel: "DTOs aplicadas",
   description:
     "Análise gerencial das aplicações de Diagnóstico Operacional do Trabalho, com foco em aderência, recorrências e oportunidades de atuação sobre os resultados negativos.",
+  discoveryKey: "DTO",
   routeKey: "dto",
 };
 
@@ -38,7 +45,22 @@ export const BLITZ_MANAGER_CONFIG: FormManagerConfig = {
   appliedLabel: "Blitz aplicadas",
   description:
     "Análise gerencial das aplicações de Blitz de Segurança, com foco em aderência, recorrências e oportunidades de atuação sobre os resultados negativos.",
+  discoveryKey: "Blitz",
   routeKey: "blitz",
+};
+
+export const SECURITY_TEMPLATES_MANAGER_CONFIG: FormManagerConfig = {
+  api: securityTemplatesApi,
+  managerTitle: "Gerenciador de Gabaritos de Segurança",
+  pillarEyebrow: "Segurança DPO",
+  singular: "Gabarito de Segurança",
+  plural: "Gabaritos de Segurança",
+  formLabel: "Formulário de Gabarito de Segurança",
+  appliedLabel: "Gabaritos aplicados",
+  description:
+    "Análise gerencial das aplicações dos Gabaritos de Segurança, com foco em aderência, recorrências e oportunidades de atuação sobre os resultados negativos.",
+  discoveryKey: "Gabarito-segurança",
+  routeKey: "gabaritos-seguranca",
 };
 
 const FormManagerContext = createContext<FormManagerConfig>(DTO_MANAGER_CONFIG);

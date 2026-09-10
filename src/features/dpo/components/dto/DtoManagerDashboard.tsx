@@ -43,7 +43,7 @@ export default function DtoManagerDashboard() {
       ) : manager.status === "error" && !manager.formsPayload ? (
         <DtoStatePanel
           tone="danger"
-          title={`Não foi possível descobrir as ${config.plural}`}
+          title={`Não foi possível descobrir formulários de ${config.plural}`}
           description={manager.error || "O serviço de integração com o SAVI não respondeu."}
           action={
             <DtoButton tone="danger" onClick={() => void manager.retryDiscovery()}>
@@ -54,8 +54,8 @@ export default function DtoManagerDashboard() {
         />
       ) : manager.status === "empty" ? (
         <DtoStatePanel
-          title={`Nenhum formulário ${config.singular} encontrado`}
-          description={`A descoberta foi concluída, mas nenhum formulário com a chave ${config.singular} em algum trecho do nome foi localizado no SAVI. Use Atualizar depois que um novo formulário for criado.`}
+          title={`Nenhum formulário de ${config.singular} encontrado`}
+          description={`A descoberta foi concluída, mas nenhum formulário com a chave ${config.discoveryKey} em algum trecho do nome foi localizado no SAVI. Use Atualizar depois que um novo formulário for criado.`}
         />
       ) : effectiveSelectedFormId && selectedResource?.data ? (
         <DtoFormAnalysis
@@ -89,7 +89,7 @@ export default function DtoManagerDashboard() {
               <div>
                 <Typography variant="overline">Por formulário</Typography>
                 <Typography id="dto-forms-title" as="h2" variant="sectionTitle" className="mt-2">
-                  {config.plural} descobertas
+                  Formulários de {config.plural}
                 </Typography>
               </div>
               <p className="text-xs text-[var(--shell-muted)]">

@@ -100,7 +100,7 @@ export default function DtoRefreshDialog({
         setError(
           refreshError instanceof Error
             ? refreshError.message
-            : `Não foi possível atualizar esta ${config.singular}.`,
+            : `Não foi possível atualizar o formulário de ${config.singular}.`,
         );
         setStatus("error");
       }

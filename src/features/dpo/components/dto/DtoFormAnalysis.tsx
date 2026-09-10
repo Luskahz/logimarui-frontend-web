@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { ArrowLeft, RefreshCw, Settings2, TriangleAlert } from "lucide-react";
+import { Activity, ArrowLeft, RefreshCw, Settings2, TriangleAlert } from "lucide-react";
 import { useDtoForm } from "@/features/dpo/hooks/useDtoForm";
 import {
   formatDtoDate,
@@ -22,6 +22,7 @@ import DtoConfigurationPanel from "@/features/dpo/components/dto/DtoConfiguratio
 import DtoCriticalQuestions from "@/features/dpo/components/dto/DtoCriticalQuestions";
 import DtoFilters from "@/features/dpo/components/dto/DtoFilters";
 import DtoTrendChart from "@/features/dpo/components/dto/DtoTrendChart";
+import DtoTrackingPanel from "@/features/dpo/components/dto/DtoTrackingPanel";
 import DtoRefreshDialog from "@/features/dpo/components/dto/DtoRefreshDialog";
 import {
   DtoBadge,
@@ -33,7 +34,7 @@ import {
 import { Typography } from "@/shared/ui/typography";
 import { useFormManagerConfig } from "@/features/dpo/lib/formManagerConfig";
 
-type ActiveTab = "analysis" | "configuration";
+type ActiveTab = "analysis" | "tracking" | "configuration";
 
 function DtoQualityIssues({
   detail,
@@ -205,6 +206,15 @@ export default function DtoFormAnalysis({
           </DtoButton>
           <DtoButton
             role="tab"
+            aria-selected={activeTab === "tracking"}
+            tone={activeTab === "tracking" ? "accent" : "default"}
+            onClick={() => setActiveTab("tracking")}
+          >
+            <Activity aria-hidden="true" />
+            Acompanhamento
+          </DtoButton>
+          <DtoButton
+            role="tab"
             aria-selected={activeTab === "configuration"}
             tone={activeTab === "configuration" ? "accent" : "default"}
             onClick={() => openConfiguration(false)}
@@ -242,6 +252,11 @@ export default function DtoFormAnalysis({
           initialNeedsAttention={configurationNeedsAttention}
           onSave={onSaveConfiguration}
         />
+      ) : activeTab === "tracking" ? (
+        <DtoTrackingPanel
+          detail={detail}
+          onConfigure={() => openConfiguration(false)}
+        />
       ) : (
         <>
           <DtoQualityIssues detail={detail} onConfigure={() => openConfiguration(true)} />
@@ -252,7 +267,7 @@ export default function DtoFormAnalysis({
               description={
                 detail.source_updated_at
                   ? "O arquivo foi validado, mas o SAVI não devolveu aplicações para o período escolhido. Você pode selecionar outro intervalo em Atualizar dados."
-                  : `A ${config.singular} foi descoberta no SAVI, mas ainda não possui um snapshot local. Escolha o período no botão Atualizar dados.`
+                  : `O formulário de ${config.singular} foi descoberto no SAVI, mas ainda não possui um snapshot local. Escolha o período no botão Atualizar dados.`
               }
             />
           ) : (
@@ -271,7 +286,7 @@ export default function DtoFormAnalysis({
               />
 
               <section aria-labelledby="dto-kpis-title">
-                <h2 id="dto-kpis-title" className="sr-only">Indicadores da {config.singular}</h2>
+                <h2 id="dto-kpis-title" className="sr-only">Indicadores de {config.singular}</h2>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                   <DtoMetricCard label="Aplicações" value={formatDtoNumber(metrics.applications)} hint="No recorte atual." />
                   <DtoMetricCard label="Aderência" tone="accent" value={formatDtoPercentage(metrics.adherence)} hint="Positivas / (positivas + negativas)." />
