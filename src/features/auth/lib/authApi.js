@@ -10,53 +10,15 @@ import {
   isTestAccessToken,
   isTestAuthSession,
 } from "@/features/auth/lib/testAuth";
+import { buildGatewayUrl } from "@/shared/network/gatewayUrl";
 
-const DEFAULT_LOCAL_API_ORIGIN = "http://127.0.0.1";
-const LOCAL_DEV_HOSTNAMES = new Set(["localhost", "127.0.0.1"]);
 const AUTHENTICATION_BASE_PATH = "/api/v1/authentication";
 const PASSWORD_RECOVERY_REQUESTS_PATH =
   `${AUTHENTICATION_BASE_PATH}/password-recovery/requests`;
 
-function trimTrailingSlash(value) {
-  return String(value ?? "").replace(/\/+$/, "");
-}
-
-function isNonDefaultHttpPort(port) {
-  return Boolean(port) && port !== "80" && port !== "443";
-}
-
-function resolveApiBaseUrl() {
-  const configuredOrigin = trimTrailingSlash(
-    process.env.NEXT_PUBLIC_CORE_API_URL ||
-      process.env.NEXT_PUBLIC_API_URL ||
-      process.env.NEXT_PUBLIC_BACKEND_URL,
-  );
-
-  if (configuredOrigin) {
-    return configuredOrigin;
-  }
-
-  if (typeof window === "undefined") {
-    return "";
-  }
-
-  const { hostname, origin, port } = window.location;
-  const isLoopbackHost = LOCAL_DEV_HOSTNAMES.has(hostname);
-
-  if (isLoopbackHost && isNonDefaultHttpPort(port)) {
-    return DEFAULT_LOCAL_API_ORIGIN;
-  }
-
-  if (!isLoopbackHost && isNonDefaultHttpPort(port)) {
-    return `${window.location.protocol}//${hostname}`;
-  }
-
-  return origin;
-}
-
 function buildUrl(path) {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  return `${resolveApiBaseUrl()}${normalizedPath}`;
+  return buildGatewayUrl(normalizedPath);
 }
 
 function normalizeProfilePayload(profile) {
