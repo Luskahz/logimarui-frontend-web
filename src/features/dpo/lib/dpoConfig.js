@@ -89,22 +89,54 @@ export const DPO_INTRO_SUMMARY = [
   },
 ];
 
-export const DPO_QUESTION_GROUPS = Array.from({ length: 10 }, (_, groupIndex) => {
-  const groupNumber = groupIndex + 1;
-  const groupCode = `${groupNumber}.0`;
+export const DPO_TOOL_SCOPES = {
+  PILLAR: "PILLAR",
+  BLOCK: "BLOCK",
+  ITEM: "ITEM",
+};
 
-  return {
-    code: groupCode,
-    title: `Bloco ${groupCode}`,
-    description: "Media, cores e escala 0/1/3 entram na proxima etapa.",
-    questions: Array.from({ length: 10 }, (_, questionIndex) => {
-      const questionNumber = questionIndex + 1;
-      const questionCode = `${groupNumber}.${questionNumber}`;
+// Cada ferramenta precisa declarar onde pertence para aparecer no catalogo do pilar.
+// A lista pode crescer sem criar blocos ou perguntas artificiais para preencher a tela.
+export const DPO_TOOL_DEFINITIONS = [
+  {
+    id: "dto-manager",
+    pillarSlug: "gestao",
+    scope: DPO_TOOL_SCOPES.PILLAR,
+    locationLabel: "Geral do pilar",
+    href: "/dpo/gestao/gerenciador-dto",
+    label: "Gerenciador de DTOs",
+    description: "Analise, configuracao e acompanhamento dos formularios DTO.",
+  },
+  {
+    id: "blitz-manager",
+    pillarSlug: "seguranca",
+    scope: DPO_TOOL_SCOPES.PILLAR,
+    locationLabel: "Geral do pilar",
+    href: "/dpo/seguranca/gerenciador-blitz",
+    label: "Gerenciador de Blitz",
+    description: "Analise, configuracao e acompanhamento das Blitz de seguranca.",
+  },
+  {
+    id: "security-templates-manager",
+    pillarSlug: "seguranca",
+    scope: DPO_TOOL_SCOPES.PILLAR,
+    locationLabel: "Geral do pilar",
+    href: "/dpo/seguranca/gerenciador-gabaritos-seguranca",
+    label: "Gerenciador de Gabaritos de Seguranca",
+    description: "Analise, configuracao e acompanhamento dos gabaritos de seguranca.",
+  },
+  {
+    id: "cme-route-tracking",
+    pillarSlug: "entrega",
+    scope: DPO_TOOL_SCOPES.BLOCK,
+    blockCode: "4.0",
+    locationLabel: "Bloco 4.0",
+    href: "/dpo/entrega/acompanhamento-rota-cme",
+    label: "Acompanhamento de rota CME",
+    description: "Consulta operacional das rotas e ocorrencias de devolucao.",
+  },
+];
 
-      return {
-        code: questionCode,
-        label: `Pergunta ${questionCode} em definicao.`,
-      };
-    }),
-  };
-});
+export function getDpoToolsForPillar(pillarSlug) {
+  return DPO_TOOL_DEFINITIONS.filter((tool) => tool.pillarSlug === pillarSlug);
+}

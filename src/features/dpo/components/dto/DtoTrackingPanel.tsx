@@ -20,7 +20,7 @@ import {
 } from "@/features/dpo/lib/dtoFormatters";
 import type {
   DtoFormDetail,
-  DtoTrackedCollaborator,
+  DtoTrackedSubject,
   DtoTrackingStatus,
 } from "@/features/dpo/lib/dtoTypes";
 import { Typography } from "@/shared/ui/typography";
@@ -45,14 +45,14 @@ function statusTone(status: DtoTrackingStatus): "accent" | "danger" | "default" 
   return "default";
 }
 
-function dueHint(collaborator: DtoTrackedCollaborator): string {
-  if (collaborator.status === "never") return "Sem realização válida";
-  if (collaborator.daysUntilDue === null) return "Prazo indisponível";
-  if (collaborator.daysUntilDue < 0) {
-    return `${Math.abs(collaborator.daysUntilDue)} dia(s) em atraso`;
+function dueHint(subject: DtoTrackedSubject): string {
+  if (subject.status === "never") return "Sem realização válida";
+  if (subject.daysUntilDue === null) return "Prazo indisponível";
+  if (subject.daysUntilDue < 0) {
+    return `${Math.abs(subject.daysUntilDue)} dia(s) em atraso`;
   }
-  if (collaborator.daysUntilDue === 0) return "Prazo vence hoje";
-  return `${collaborator.daysUntilDue} dia(s) até o prazo`;
+  if (subject.daysUntilDue === 0) return "Prazo vence hoje";
+  return `${subject.daysUntilDue} dia(s) até o prazo`;
 }
 
 function escapeHtml(value: string): string {
@@ -74,20 +74,25 @@ export default function DtoTrackingPanel({
 }) {
   const [search, setSearch] = useState("");
   const tracking = useMemo(() => computeDtoTracking(detail), [detail]);
-  const visibleCollaborators = useMemo(() => {
+  const isEnvironment = tracking.mode === "ENVIRONMENT";
+  const subjectLabel = isEnvironment ? "ambiente" : "colaborador";
+  const subjectsLabel = isEnvironment ? "ambientes" : "colaboradores";
+  const populationLabel = isEnvironment ? "Ambientes" : "Colaboradores";
+  const subjectHeading = isEnvironment ? "Ambiente" : "Colaborador";
+  const visibleSubjects = useMemo(() => {
     const query = normalizeSearchText(search);
     return query
-      ? tracking.collaborators.filter((item) =>
+      ? tracking.subjects.filter((item) =>
           normalizeSearchText(item.name).includes(query),
         )
-      : tracking.collaborators;
-  }, [search, tracking.collaborators]);
+      : tracking.subjects;
+  }, [search, tracking.subjects]);
 
   if (!tracking.configured) {
     return (
       <DtoStatePanel
         title="Defina a forma de acompanhamento"
-        description="Escolha na Configuração o campo que identifica os colaboradores, a data de realização e a periodicidade exigida para este formulário."
+        description="Escolha na Configuração se o ciclo será por colaborador ou por ambiente, o campo que identifica cada item, a data de realização e a periodicidade exigida."
         action={
           <DtoButton tone="accent" onClick={onConfigure}>
             <Settings2 aria-hidden="true" /> Configurar acompanhamento
@@ -100,8 +105,8 @@ export default function DtoTrackingPanel({
   if (tracking.total === 0) {
     return (
       <DtoStatePanel
-        title="Nenhum colaborador na população acompanhada"
-        description="O campo selecionado ainda não possui nomes válidos no snapshot, ou todos foram desconsiderados. Inclua pessoas manualmente ou revise a configuração."
+        title={`Nenhum ${subjectLabel} na população acompanhada`}
+        description={`O campo selecionado ainda não possui ${subjectsLabel} válidos no snapshot, ou todos foram desconsiderados. Inclua itens manualmente ou revise a configuração.`}
         action={
           <DtoButton tone="accent" onClick={onConfigure}>
             <Settings2 aria-hidden="true" /> Revisar acompanhamento
@@ -143,7 +148,7 @@ export default function DtoTrackingPanel({
     ],
   };
 
-  const chartCollaborators = tracking.collaborators.slice(0, 20).reverse();
+  const chartSubjects = tracking.subjects.slice(0, 20).reverse();
   const applicationsOption: EChartsOption = {
     animationDuration: 450,
     grid: { top: 12, right: 20, bottom: 30, left: 150, containLabel: false },
@@ -153,9 +158,9 @@ export default function DtoTrackingPanel({
       formatter: (params) => {
         const item = Array.isArray(params) ? params[0] : params;
         const index = Number(item?.dataIndex ?? 0);
-        const collaborator = chartCollaborators[index];
-        return collaborator
-          ? `<strong>${escapeHtml(collaborator.name)}</strong><br/>${STATUS_LABELS[collaborator.status]}<br/>${formatDtoNumber(collaborator.applications)} realização(ões)`
+        const subject = chartSubjects[index];
+        return subject
+          ? `<strong>${escapeHtml(subject.name)}</strong><br/>${STATUS_LABELS[subject.status]}<br/>${formatDtoNumber(subject.applications)} realização(ões)`
           : "";
       },
     },
@@ -167,7 +172,7 @@ export default function DtoTrackingPanel({
     },
     yAxis: {
       type: "category",
-      data: chartCollaborators.map((item) => item.name),
+      data: chartSubjects.map((item) => item.name),
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: {
@@ -181,7 +186,7 @@ export default function DtoTrackingPanel({
         name: "Realizações",
         type: "bar",
         barMaxWidth: 22,
-        data: chartCollaborators.map((item) => ({
+        data: chartSubjects.map((item) => ({
           value: item.applications,
           itemStyle: { color: STATUS_COLORS[item.status], borderRadius: [0, 6, 6, 0] },
         })),
@@ -191,12 +196,17 @@ export default function DtoTrackingPanel({
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <DtoBadge tone="accent">
+          Acompanhamento por {subjectLabel}
+        </DtoBadge>
+      </div>
       <section aria-labelledby="tracking-kpis-title">
         <h2 id="tracking-kpis-title" className="sr-only">
           Indicadores do acompanhamento
         </h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          <DtoMetricCard label="Colaboradores" value={formatDtoNumber(tracking.total)} />
+          <DtoMetricCard label={populationLabel} value={formatDtoNumber(tracking.total)} />
           <DtoMetricCard
             label="Aderência de realização"
             tone="accent"
@@ -217,7 +227,7 @@ export default function DtoTrackingPanel({
             Situação da periodicidade
           </Typography>
           <DtoEChart
-            ariaLabel="Distribuição dos colaboradores por situação de realização"
+            ariaLabel={`Distribuição dos ${subjectsLabel} por situação de realização`}
             className="mt-3 h-80"
             option={coverageOption}
           />
@@ -226,13 +236,13 @@ export default function DtoTrackingPanel({
         <DtoPanel className="p-5 sm:p-6">
           <Typography variant="overline">Realizações</Typography>
           <Typography as="h2" variant="cardTitle" className="mt-2">
-            Volume por colaborador
+            Volume por {subjectLabel}
           </Typography>
           <Typography variant="caption" className="mt-1">
-            Mostra até 20 pessoas, priorizando quem nunca realizou ou está em atraso.
+            Mostra até 20 {subjectsLabel}, priorizando quem nunca recebeu uma realização ou está em atraso.
           </Typography>
           <DtoEChart
-            ariaLabel="Quantidade de realizações por colaborador"
+            ariaLabel={`Quantidade de realizações por ${subjectLabel}`}
             className="mt-3 h-96"
             option={applicationsOption}
           />
@@ -248,12 +258,12 @@ export default function DtoTrackingPanel({
             </Typography>
           </div>
           <label className="relative min-w-60 flex-1 sm:max-w-sm">
-            <span className="sr-only">Buscar colaborador</span>
+            <span className="sr-only">Buscar {subjectLabel}</span>
             <Search aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--shell-muted)]" />
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar colaborador"
+              placeholder={`Buscar ${subjectLabel}`}
               className="w-full rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] py-2.5 pl-10 pr-3 text-sm text-[var(--shell-text)]"
             />
           </label>
@@ -263,7 +273,7 @@ export default function DtoTrackingPanel({
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="text-xs uppercase tracking-[0.12em] text-[var(--shell-muted)]">
               <tr className="border-b border-[color:var(--shell-line)]">
-                <th className="px-3 py-3 font-semibold">Colaborador</th>
+                <th className="px-3 py-3 font-semibold">{subjectHeading}</th>
                 <th className="px-3 py-3 font-semibold">Situação</th>
                 <th className="px-3 py-3 font-semibold">Realizações</th>
                 <th className="px-3 py-3 font-semibold">Última realização</th>
@@ -271,32 +281,32 @@ export default function DtoTrackingPanel({
               </tr>
             </thead>
             <tbody>
-              {visibleCollaborators.map((collaborator) => (
-                <tr key={collaborator.key} className="border-b border-[color:var(--shell-line)] last:border-0">
+              {visibleSubjects.map((subject) => (
+                <tr key={subject.key} className="border-b border-[color:var(--shell-line)] last:border-0">
                   <td className="px-3 py-3 font-semibold text-[var(--shell-text)]">
-                    {collaborator.name}
-                    {collaborator.source === "manual" ? (
+                    {subject.name}
+                    {subject.source === "manual" ? (
                       <span className="ml-2 text-xs font-normal text-[var(--shell-muted)]">manual</span>
                     ) : null}
                   </td>
                   <td className="px-3 py-3">
-                    <DtoBadge tone={statusTone(collaborator.status)}>
-                      {STATUS_LABELS[collaborator.status]}
+                    <DtoBadge tone={statusTone(subject.status)}>
+                      {STATUS_LABELS[subject.status]}
                     </DtoBadge>
                   </td>
-                  <td className="px-3 py-3 text-[var(--shell-muted)]">{formatDtoNumber(collaborator.applications)}</td>
-                  <td className="px-3 py-3 text-[var(--shell-muted)]">{formatDtoDate(collaborator.lastRealization)}</td>
+                  <td className="px-3 py-3 text-[var(--shell-muted)]">{formatDtoNumber(subject.applications)}</td>
+                  <td className="px-3 py-3 text-[var(--shell-muted)]">{formatDtoDate(subject.lastRealization)}</td>
                   <td className="px-3 py-3 text-[var(--shell-muted)]">
-                    <span className="block text-[var(--shell-text)]">{formatDtoDate(collaborator.nextDueDate)}</span>
-                    <span className="text-xs">{dueHint(collaborator)}</span>
+                    <span className="block text-[var(--shell-text)]">{formatDtoDate(subject.nextDueDate)}</span>
+                    <span className="text-xs">{dueHint(subject)}</span>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {!visibleCollaborators.length ? (
+          {!visibleSubjects.length ? (
             <p className="py-8 text-center text-sm text-[var(--shell-muted)]">
-              Nenhum colaborador corresponde à busca.
+              Nenhum {subjectLabel} corresponde à busca.
             </p>
           ) : null}
         </div>
@@ -305,7 +315,7 @@ export default function DtoTrackingPanel({
           <span>
             Intervalo configurado: <strong className="text-[var(--shell-text)]">{detail.configuration.tracking.interval_days} dias</strong>
           </span>
-          <span>{tracking.excludedCollaborators.length} colaborador(es) desconsiderado(s)</span>
+          <span>{tracking.excludedSubjects.length} {subjectLabel}(es) desconsiderado(s)</span>
         </div>
       </DtoPanel>
     </div>

@@ -89,7 +89,10 @@ export interface DtoFieldConfiguration {
   warnings: string[];
 }
 
+export type DtoTrackingMode = "COLLABORATOR" | "ENVIRONMENT";
+
 export interface DtoTrackingConfiguration {
+  mode: DtoTrackingMode;
   roster_field_key: string | null;
   realization_date_field_key: string | null;
   interval_days: number | null;
@@ -249,7 +252,7 @@ export interface DtoTrend {
 
 export type DtoTrackingStatus = "current" | "dueSoon" | "overdue" | "never";
 
-export interface DtoTrackedCollaborator {
+export interface DtoTrackedSubject {
   key: string;
   name: string;
   source: "observed" | "manual";
@@ -262,8 +265,9 @@ export interface DtoTrackedCollaborator {
 
 export interface DtoTrackingSummary {
   configured: boolean;
-  collaborators: DtoTrackedCollaborator[];
-  excludedCollaborators: string[];
+  mode: DtoTrackingMode;
+  subjects: DtoTrackedSubject[];
+  excludedSubjects: string[];
   total: number;
   current: number;
   dueSoon: number;

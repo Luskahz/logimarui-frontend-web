@@ -79,19 +79,12 @@ export default function DpoHouse({ activeSlug = "" }) {
 
   return (
     <div className="rounded-[28px] border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--shell-accent)]">
-            Casa DPO
-          </p>
-          <h2 className="mt-2 font-serif text-3xl text-[var(--shell-text)]">
-            DPO - pilares
-          </h2>
-        </div>
-      </div>
-
-      <div className="mt-6 px-2 py-1">
-        <svg viewBox="0 0 760 690" className="w-full overflow-visible">
+      <div className="px-2 py-1">
+        <svg
+          viewBox="0 18 760 690"
+          className="block w-full overflow-visible"
+          preserveAspectRatio="xMidYMid meet"
+        >
           <Segment
             active={activeSlug === "dpo"}
             label="Abrir introducao DPO"

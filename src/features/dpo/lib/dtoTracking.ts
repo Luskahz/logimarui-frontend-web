@@ -1,7 +1,8 @@
 import { normalizeSearchText, parseDtoDate } from "@/features/dpo/lib/dtoFormatters";
 import type {
   DtoFormDetail,
-  DtoTrackedCollaborator,
+  DtoTrackedSubject,
+  DtoTrackingMode,
   DtoTrackingStatus,
   DtoTrackingSummary,
 } from "@/features/dpo/lib/dtoTypes";
@@ -62,6 +63,7 @@ export function computeDtoTracking(
   now: Date = new Date(),
 ): DtoTrackingSummary {
   const tracking = detail.configuration.tracking;
+  const mode: DtoTrackingMode = tracking?.mode || "COLLABORATOR";
   const configured = Boolean(
     tracking?.roster_field_key &&
       tracking.realization_date_field_key &&
@@ -69,8 +71,9 @@ export function computeDtoTracking(
   );
   const empty: DtoTrackingSummary = {
     configured,
-    collaborators: [],
-    excludedCollaborators: tracking?.excluded_collaborators || [],
+    mode,
+    subjects: [],
+    excludedSubjects: tracking?.excluded_collaborators || [],
     total: 0,
     current: 0,
     dueSoon: 0,
@@ -101,7 +104,7 @@ export function computeDtoTracking(
   const today = startOfDay(now);
   const dueSoonDays = Math.min(14, Math.max(3, Math.round(intervalDays * 0.2)));
 
-  const collaborators: DtoTrackedCollaborator[] = [];
+  const subjects: DtoTrackedSubject[] = [];
   observed.forEach((name, key) => {
     if (excluded.has(key)) return;
     const matchingRecords = detail.records.filter((record) =>
@@ -127,7 +130,7 @@ export function computeDtoTracking(
         : (daysUntilDue as number) <= dueSoonDays
           ? "dueSoon"
           : "current";
-    collaborators.push({
+    subjects.push({
       key,
       name,
       source: !observedKeys.has(key) && manualKeys.has(key) ? "manual" : "observed",
@@ -139,18 +142,18 @@ export function computeDtoTracking(
     });
   });
 
-  collaborators.sort(
+  subjects.sort(
     (left, right) =>
       statusRank(left.status) - statusRank(right.status) ||
       (left.daysUntilDue ?? Number.NEGATIVE_INFINITY) -
         (right.daysUntilDue ?? Number.NEGATIVE_INFINITY) ||
       left.name.localeCompare(right.name, "pt-BR"),
   );
-  const current = collaborators.filter((item) => item.status === "current").length;
-  const dueSoon = collaborators.filter((item) => item.status === "dueSoon").length;
-  const overdue = collaborators.filter((item) => item.status === "overdue").length;
-  const never = collaborators.filter((item) => item.status === "never").length;
-  const lastRealization = collaborators.reduce<Date | null>(
+  const current = subjects.filter((item) => item.status === "current").length;
+  const dueSoon = subjects.filter((item) => item.status === "dueSoon").length;
+  const overdue = subjects.filter((item) => item.status === "overdue").length;
+  const never = subjects.filter((item) => item.status === "never").length;
+  const lastRealization = subjects.reduce<Date | null>(
     (latest, item) =>
       item.lastRealization && (!latest || item.lastRealization > latest)
         ? item.lastRealization
@@ -160,16 +163,17 @@ export function computeDtoTracking(
 
   return {
     configured,
-    collaborators,
-    excludedCollaborators: tracking.excluded_collaborators,
-    total: collaborators.length,
+    mode,
+    subjects,
+    excludedSubjects: tracking.excluded_collaborators,
+    total: subjects.length,
     current,
     dueSoon,
     overdue,
     never,
     realizationAdherence:
-      collaborators.length > 0
-        ? ((current + dueSoon) / collaborators.length) * 100
+      subjects.length > 0
+        ? ((current + dueSoon) / subjects.length) * 100
         : null,
     lastRealization,
   };

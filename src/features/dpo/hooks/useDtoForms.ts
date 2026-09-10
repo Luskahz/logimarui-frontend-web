@@ -95,12 +95,16 @@ function validateFormDetail(payload: DtoFormDetail, singular: string): DtoFormDe
     ...payload,
     configuration: {
       ...payload.configuration,
-      tracking: payload.configuration.tracking || {
-        roster_field_key: null,
-        realization_date_field_key: null,
-        interval_days: null,
-        excluded_collaborators: [],
-        manual_collaborators: [],
+      tracking: {
+        mode: payload.configuration.tracking?.mode || "COLLABORATOR",
+        roster_field_key: payload.configuration.tracking?.roster_field_key || null,
+        realization_date_field_key:
+          payload.configuration.tracking?.realization_date_field_key || null,
+        interval_days: payload.configuration.tracking?.interval_days || null,
+        excluded_collaborators:
+          payload.configuration.tracking?.excluded_collaborators || [],
+        manual_collaborators:
+          payload.configuration.tracking?.manual_collaborators || [],
       },
     },
     quality_issues: Array.isArray(payload.quality_issues)

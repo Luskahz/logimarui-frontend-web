@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, RotateCcw, Save, UserMinus, X } from "lucide-react";
+import { MapPin, Plus, RotateCcw, Save, UserMinus, UsersRound, X } from "lucide-react";
 import { DtoBadge, DtoButton } from "@/features/dpo/components/dto/DtoPrimitives";
 import { normalizeSearchText } from "@/features/dpo/lib/dtoFormatters";
 import { extractTrackingNames } from "@/features/dpo/lib/dtoTracking";
@@ -9,12 +9,13 @@ import type {
   DtoConfigurationUpdate,
   DtoFormConfiguration,
   DtoTrackingConfiguration,
+  DtoTrackingMode,
 } from "@/features/dpo/lib/dtoTypes";
 import { Typography } from "@/shared/ui/typography";
 
 function inferredFieldKey(
   configuration: DtoFormConfiguration,
-  role: "COLLABORATOR" | "DATE",
+  role: "COLLABORATOR" | "CONTEXT" | "DATE",
 ): string {
   const fields = configuration.fields.filter(
     (field) => field.role === role && field.observation_status === "OBSERVED",
@@ -41,8 +42,17 @@ export default function DtoTrackingConfigurationPanel({
   onSave: (update: DtoConfigurationUpdate) => Promise<unknown>;
 }) {
   const current = configuration.tracking;
+  const [trackingMode, setTrackingMode] = useState<DtoTrackingMode>(
+    current.mode || "COLLABORATOR",
+  );
   const [rosterFieldKey, setRosterFieldKey] = useState(
-    current.roster_field_key || inferredFieldKey(configuration, "COLLABORATOR"),
+    current.roster_field_key ||
+      inferredFieldKey(
+        configuration,
+        (current.mode || "COLLABORATOR") === "ENVIRONMENT"
+          ? "CONTEXT"
+          : "COLLABORATOR",
+      ),
   );
   const [dateFieldKey, setDateFieldKey] = useState(
     current.realization_date_field_key || inferredFieldKey(configuration, "DATE"),
@@ -75,6 +85,23 @@ export default function DtoTrackingConfigurationPanel({
     parsedInterval >= 1 &&
     parsedInterval <= 3660;
   const fieldsDistinct = !rosterFieldKey || rosterFieldKey !== dateFieldKey;
+  const isEnvironment = trackingMode === "ENVIRONMENT";
+  const subject = isEnvironment ? "ambiente" : "colaborador";
+  const subjects = isEnvironment ? "ambientes" : "colaboradores";
+
+  function changeTrackingMode(mode: DtoTrackingMode) {
+    if (mode === trackingMode) return;
+    setTrackingMode(mode);
+    setRosterFieldKey(
+      inferredFieldKey(
+        configuration,
+        mode === "ENVIRONMENT" ? "CONTEXT" : "COLLABORATOR",
+      ),
+    );
+    setExcluded([]);
+    setManual([]);
+    setManualName("");
+  }
 
   function toggleExcluded(name: string) {
     const key = normalizeSearchText(name);
@@ -88,7 +115,7 @@ export default function DtoTrackingConfigurationPanel({
     );
   }
 
-  function addManualCollaborator() {
+  function addManualSubject() {
     const name = manualName.trim();
     const key = normalizeSearchText(name);
     if (!key) return;
@@ -129,24 +156,67 @@ export default function DtoTrackingConfigurationPanel({
         <div className="max-w-3xl">
           <Typography variant="overline">Forma de acompanhamento</Typography>
           <Typography as="h3" variant="cardTitle" className="mt-2">
-            Periodicidade e população acompanhada
+            Dimensão, periodicidade e população acompanhada
           </Typography>
           <Typography variant="supportingText" className="mt-2">
-            Escolha os campos do próprio formulário. Os nomes observados formam
-            a população; inclusões manuais entram com 0% até receberem uma
-            realização, e pessoas desconsideradas saem do denominador.
+            Escolha se cada ciclo pertence a uma pessoa ou a um ambiente. Os
+            valores observados formam a população; inclusões manuais entram sem
+            realização e itens desconsiderados saem do denominador.
           </Typography>
         </div>
         {current.roster_field_key && current.realization_date_field_key && current.interval_days ? (
-          <DtoBadge tone="accent">Acompanhamento configurado</DtoBadge>
+          <DtoBadge tone="accent">
+            {current.mode === "ENVIRONMENT" ? "Por ambiente" : "Por colaborador"}
+          </DtoBadge>
         ) : (
           <DtoBadge>Configuração opcional</DtoBadge>
         )}
       </div>
 
+      <div className="mt-5 grid gap-3 md:grid-cols-2" role="radiogroup" aria-label="Dimensão do acompanhamento">
+        <button
+          type="button"
+          role="radio"
+          aria-checked={trackingMode === "COLLABORATOR"}
+          onClick={() => changeTrackingMode("COLLABORATOR")}
+          className={`flex items-start gap-3 rounded-2xl border p-4 text-left transition ${
+            trackingMode === "COLLABORATOR"
+              ? "border-[color:var(--shell-accent)] bg-[var(--shell-accent-soft)]"
+              : "border-[color:var(--shell-line)] bg-[var(--shell-surface)] hover:border-[color:var(--shell-line-strong)]"
+          }`}
+        >
+          <UsersRound aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-[var(--shell-accent)]" />
+          <span>
+            <span className="block text-sm font-semibold text-[var(--shell-text)]">Por colaborador</span>
+            <span className="mt-1 block text-xs leading-5 text-[var(--shell-muted)]">
+              Cada pessoa possui sua própria última realização e próximo prazo.
+            </span>
+          </span>
+        </button>
+        <button
+          type="button"
+          role="radio"
+          aria-checked={trackingMode === "ENVIRONMENT"}
+          onClick={() => changeTrackingMode("ENVIRONMENT")}
+          className={`flex items-start gap-3 rounded-2xl border p-4 text-left transition ${
+            trackingMode === "ENVIRONMENT"
+              ? "border-[color:var(--shell-accent)] bg-[var(--shell-accent-soft)]"
+              : "border-[color:var(--shell-line)] bg-[var(--shell-surface)] hover:border-[color:var(--shell-line-strong)]"
+          }`}
+        >
+          <MapPin aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-[var(--shell-accent)]" />
+          <span>
+            <span className="block text-sm font-semibold text-[var(--shell-text)]">Por ambiente</span>
+            <span className="mt-1 block text-xs leading-5 text-[var(--shell-muted)]">
+              Cada local possui um único ciclo, independentemente de quem realizou.
+            </span>
+          </span>
+        </button>
+      </div>
+
       <div className="mt-5 grid gap-4 lg:grid-cols-3">
         <label className="text-xs font-semibold text-[var(--shell-muted)]">
-          Pergunta/campo do colaborador
+          Pergunta/campo do {subject}
           <select
             value={rosterFieldKey}
             onChange={(event) => {
@@ -207,10 +277,12 @@ export default function DtoTrackingConfigurationPanel({
             <UserMinus aria-hidden="true" className="mt-0.5 h-4 w-4 text-[var(--shell-muted)]" />
             <div>
               <p className="text-sm font-semibold text-[var(--shell-text)]">
-                Desconsiderar colaboradores
+                Desconsiderar {subjects}
               </p>
               <p className="mt-1 text-xs leading-5 text-[var(--shell-muted)]">
-                Use para desligados ou pessoas que não pertencem mais à operação.
+                {isEnvironment
+                  ? "Use para locais que não pertencem ao escopo desta rotina."
+                  : "Use para desligados ou pessoas que não pertencem mais à operação."}
               </p>
             </div>
           </div>
@@ -237,7 +309,7 @@ export default function DtoTrackingConfigurationPanel({
               })
             ) : (
               <p className="text-sm text-[var(--shell-muted)]">
-                Selecione o campo de colaborador para listar os nomes observados.
+                Selecione o campo de {subject} para listar os valores observados.
               </p>
             )}
           </div>
@@ -245,7 +317,7 @@ export default function DtoTrackingConfigurationPanel({
 
         <div className="rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-4">
           <p className="text-sm font-semibold text-[var(--shell-text)]">
-            Incluir colaborador sem registro
+            Incluir {subject} sem registro
           </p>
           <p className="mt-1 text-xs leading-5 text-[var(--shell-muted)]">
             Inclusões manuais aparecem como “Nunca realizado” até surgir uma aplicação.
@@ -257,13 +329,13 @@ export default function DtoTrackingConfigurationPanel({
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
                   event.preventDefault();
-                  addManualCollaborator();
+                  addManualSubject();
                 }
               }}
-              placeholder="Nome do colaborador"
+              placeholder={isEnvironment ? "Nome do ambiente" : "Nome do colaborador"}
               className="min-w-0 flex-1 rounded-xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] px-3 py-2 text-sm text-[var(--shell-text)]"
             />
-            <DtoButton size="sm" onClick={addManualCollaborator}>
+            <DtoButton size="sm" onClick={addManualSubject}>
               <Plus aria-hidden="true" /> Adicionar
             </DtoButton>
           </div>
@@ -308,7 +380,7 @@ export default function DtoTrackingConfigurationPanel({
       ) : null}
       {!fieldsDistinct ? (
         <p role="alert" className="mt-4 text-sm text-[var(--shell-danger)]">
-          O campo de colaborador e o campo de data devem ser diferentes.
+          O campo de {subject} e o campo de data devem ser diferentes.
         </p>
       ) : null}
       {error ? (
@@ -335,6 +407,7 @@ export default function DtoTrackingConfigurationPanel({
           }
           onClick={() =>
             void save({
+              mode: trackingMode,
               roster_field_key: rosterFieldKey,
               realization_date_field_key: dateFieldKey,
               interval_days: parsedInterval,

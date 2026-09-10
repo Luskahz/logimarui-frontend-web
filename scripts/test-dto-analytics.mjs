@@ -135,14 +135,50 @@ const trackingSummary = tracking.computeDtoTracking(
   trackingDetail,
   new Date(2026, 8, 10, 12),
 );
+assert.equal(trackingSummary.mode, "COLLABORATOR");
 assert.equal(trackingSummary.total, 3);
 assert.equal(trackingSummary.current, 1);
 assert.equal(trackingSummary.overdue, 1);
 assert.equal(trackingSummary.never, 1);
 assert.equal(Math.round(trackingSummary.realizationAdherence), 33);
 assert.equal(
-  trackingSummary.collaborators.find((item) => item.name === "Carla").applications,
+  trackingSummary.subjects.find((item) => item.name === "Carla").applications,
   0,
 );
 
-console.log("DTO analytics e acompanhamento: 5 cenários validados com sucesso.");
+const environmentTracking = tracking.computeDtoTracking(
+  {
+    configuration: {
+      tracking: {
+        mode: "ENVIRONMENT",
+        roster_field_key: "environment",
+        realization_date_field_key: "realized-at",
+        interval_days: 30,
+        excluded_collaborators: ["Escritório"],
+        manual_collaborators: ["Pátio"],
+      },
+    },
+    records: [
+      { values: { environment: "Oficina", "realized-at": "20/08/2026" } },
+      { values: { environment: "Oficina", "realized-at": "01/09/2026" } },
+      { values: { environment: "Armazém", "realized-at": "01/07/2026" } },
+      { values: { environment: "Escritório", "realized-at": "09/09/2026" } },
+    ],
+  },
+  new Date(2026, 8, 10, 12),
+);
+assert.equal(environmentTracking.mode, "ENVIRONMENT");
+assert.equal(environmentTracking.total, 3);
+assert.equal(environmentTracking.current, 1);
+assert.equal(environmentTracking.overdue, 1);
+assert.equal(environmentTracking.never, 1);
+assert.equal(
+  environmentTracking.subjects.find((item) => item.name === "Oficina").applications,
+  2,
+);
+assert.equal(
+  environmentTracking.subjects.find((item) => item.name === "Pátio").applications,
+  0,
+);
+
+console.log("DTO analytics e acompanhamento: 6 cenários validados com sucesso.");
