@@ -31,6 +31,7 @@ import {
   DtoStatePanel,
 } from "@/features/dpo/components/dto/DtoPrimitives";
 import { Typography } from "@/shared/ui/typography";
+import { useFormManagerConfig } from "@/features/dpo/lib/formManagerConfig";
 
 type ActiveTab = "analysis" | "configuration";
 
@@ -114,6 +115,7 @@ export default function DtoFormAnalysis({
   onSaveConfiguration: (update: DtoConfigurationUpdate) => Promise<unknown>;
   resource: DtoFormResource;
 }) {
+  const config = useFormManagerConfig();
   const [activeTab, setActiveTab] = useState<ActiveTab>("analysis");
   const [configurationNeedsAttention, setConfigurationNeedsAttention] = useState(false);
   const [refreshDialogOpen, setRefreshDialogOpen] = useState(false);
@@ -148,7 +150,7 @@ export default function DtoFormAnalysis({
               Voltar à visão geral
             </DtoButton>
             <Typography variant="overline" className="mt-5">
-              Gerenciador de DTOs
+              {config.managerTitle}
             </Typography>
             <Typography as="h2" variant="sectionTitle" className="mt-2 break-words">
               {detail.form.name}
@@ -250,7 +252,7 @@ export default function DtoFormAnalysis({
               description={
                 detail.source_updated_at
                   ? "O arquivo foi validado, mas o SAVI não devolveu aplicações para o período escolhido. Você pode selecionar outro intervalo em Atualizar dados."
-                  : "A DTO foi descoberta no SAVI, mas ainda não possui um snapshot local. Escolha o período no botão Atualizar dados."
+                  : `A ${config.singular} foi descoberta no SAVI, mas ainda não possui um snapshot local. Escolha o período no botão Atualizar dados.`
               }
             />
           ) : (
@@ -269,7 +271,7 @@ export default function DtoFormAnalysis({
               />
 
               <section aria-labelledby="dto-kpis-title">
-                <h2 id="dto-kpis-title" className="sr-only">Indicadores da DTO</h2>
+                <h2 id="dto-kpis-title" className="sr-only">Indicadores da {config.singular}</h2>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                   <DtoMetricCard label="Aplicações" value={formatDtoNumber(metrics.applications)} hint="No recorte atual." />
                   <DtoMetricCard label="Aderência" tone="accent" value={formatDtoPercentage(metrics.adherence)} hint="Positivas / (positivas + negativas)." />

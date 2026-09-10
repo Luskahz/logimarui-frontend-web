@@ -13,8 +13,10 @@ import {
   DtoStatePanel,
 } from "@/features/dpo/components/dto/DtoPrimitives";
 import { Typography } from "@/shared/ui/typography";
+import { useFormManagerConfig } from "@/features/dpo/lib/formManagerConfig";
 
 export default function DtoManagerDashboard() {
+  const config = useFormManagerConfig();
   const manager = useDtoForms();
   const [selectedFormId, setSelectedFormId] = useState<string | null>(null);
   const selectedFormExists = manager.forms.some(
@@ -41,7 +43,7 @@ export default function DtoManagerDashboard() {
       ) : manager.status === "error" && !manager.formsPayload ? (
         <DtoStatePanel
           tone="danger"
-          title="Não foi possível descobrir as DTOs"
+          title={`Não foi possível descobrir as ${config.plural}`}
           description={manager.error || "O serviço de integração com o SAVI não respondeu."}
           action={
             <DtoButton tone="danger" onClick={() => void manager.retryDiscovery()}>
@@ -52,8 +54,8 @@ export default function DtoManagerDashboard() {
         />
       ) : manager.status === "empty" ? (
         <DtoStatePanel
-          title="Nenhum formulário DTO encontrado"
-          description="A descoberta foi concluída, mas nenhum formulário cujo nome começa com DTO foi localizado no SAVI. Use Atualizar depois que um novo formulário for criado."
+          title={`Nenhum formulário ${config.singular} encontrado`}
+          description={`A descoberta foi concluída, mas nenhum formulário com a chave ${config.singular} em algum trecho do nome foi localizado no SAVI. Use Atualizar depois que um novo formulário for criado.`}
         />
       ) : effectiveSelectedFormId && selectedResource?.data ? (
         <DtoFormAnalysis
@@ -87,7 +89,7 @@ export default function DtoManagerDashboard() {
               <div>
                 <Typography variant="overline">Por formulário</Typography>
                 <Typography id="dto-forms-title" as="h2" variant="sectionTitle" className="mt-2">
-                  DTOs descobertas
+                  {config.plural} descobertas
                 </Typography>
               </div>
               <p className="text-xs text-[var(--shell-muted)]">

@@ -23,6 +23,7 @@ import DtoApplicationsHistory from "@/features/dpo/components/dto/DtoApplication
 import DtoCriticalQuestions from "@/features/dpo/components/dto/DtoCriticalQuestions";
 import { DtoBadge, DtoButton, DtoMetricCard, DtoPanel } from "@/features/dpo/components/dto/DtoPrimitives";
 import { Typography } from "@/shared/ui/typography";
+import { useFormManagerConfig } from "@/features/dpo/lib/formManagerConfig";
 
 export default function DtoCollaboratorAnalysisDialog({
   collaborator,
@@ -39,6 +40,8 @@ export default function DtoCollaboratorAnalysisDialog({
   periodLabel: string;
   records: DtoRecord[];
 }) {
+  const config = useFormManagerConfig();
+
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -66,7 +69,7 @@ export default function DtoCollaboratorAnalysisDialog({
       <section role="dialog" aria-modal="true" aria-labelledby="dto-collaborator-dialog-title" className="max-h-[96vh] w-full overflow-y-auto rounded-t-[30px] border border-[color:var(--shell-line)] bg-[var(--shell-surface-strong)] p-4 shadow-2xl sm:max-w-6xl sm:rounded-[30px] sm:p-6">
         <header className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <Typography variant="overline">Análise individual na DTO</Typography>
+            <Typography variant="overline">Análise individual na {config.singular}</Typography>
             <Typography id="dto-collaborator-dialog-title" as="h2" variant="sectionTitle" className="mt-2 break-words">{collaborator}</Typography>
             <p className="mt-2 text-sm text-[var(--shell-muted)]">{formName} · {periodLabel}</p>
             <p className="mt-1 text-xs text-[var(--shell-muted)]">Última aplicação: {formatDtoDate(metrics.lastApplication)}</p>

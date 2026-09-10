@@ -14,8 +14,6 @@ import type {
   DtoRefreshRequest,
 } from "@/features/dpo/lib/dtoTypes";
 
-const DTO_API_PREFIX = "/api/savi/api/v1/dtos";
-
 interface DtoRequestOptions {
   method?: "GET" | "POST" | "PUT";
   body?: unknown;
@@ -44,7 +42,11 @@ async function parseResponseBody(response: Response): Promise<unknown> {
   }
 }
 
-function extractErrorMessage(payload: unknown, response: Response): string {
+function extractErrorMessage(
+  payload: unknown,
+  response: Response,
+  resourceLabel: string,
+): string {
   if (typeof payload === "string" && payload.trim()) {
     return payload;
   }
@@ -66,10 +68,12 @@ function extractErrorMessage(payload: unknown, response: Response): string {
     }
   }
 
-  return `Não foi possível consultar as DTOs (${response.status}).`;
+  return `Não foi possível consultar ${resourceLabel} (${response.status}).`;
 }
 
 async function request<T>(
+  apiPrefix: string,
+  resourceLabel: string,
   path: string,
   {
     method = "GET",
@@ -87,7 +91,7 @@ async function request<T>(
   let response: Response;
 
   try {
-    response = await fetch(buildGatewayUrl(`${DTO_API_PREFIX}${path}`), {
+    response = await fetch(buildGatewayUrl(`${apiPrefix}${path}`), {
       method,
       body: body === undefined ? undefined : JSON.stringify(body),
       signal,
@@ -106,7 +110,7 @@ async function request<T>(
       throw error;
     }
 
-    throw new Error("Não foi possível conectar ao serviço de DTOs.");
+    throw new Error(`Não foi possível conectar ao serviço de ${resourceLabel}.`);
   }
 
   const payload = await parseResponseBody(response);
@@ -114,7 +118,7 @@ async function request<T>(
   if (!response.ok) {
     if (response.status === 401 && retryOnAuthFailure) {
       await authApi.refresh();
-      return request<T>(path, {
+      return request<T>(apiPrefix, resourceLabel, path, {
         method,
         body,
         retryOnAuthFailure: false,
@@ -127,24 +131,25 @@ async function request<T>(
       throw new Error("Sua sessão expirou. Entre novamente.");
     }
 
-    throw new Error(extractErrorMessage(payload, response));
+    throw new Error(extractErrorMessage(payload, response, resourceLabel));
   }
 
   return payload as T;
 }
 
-export const dtoApi = {
+export function createDtoApi(apiPrefix: string, resourceLabel: string) {
+  return {
   listForms(signal?: AbortSignal) {
-    return request<DtoFormsResponse>("/forms", { signal });
+    return request<DtoFormsResponse>(apiPrefix, resourceLabel, "/forms", { signal });
   },
   refreshForms(signal?: AbortSignal) {
-    return request<DtoFormsResponse>("/forms/refresh", {
+    return request<DtoFormsResponse>(apiPrefix, resourceLabel, "/forms/refresh", {
       method: "POST",
       signal,
     });
   },
   getForm(formId: string, signal?: AbortSignal) {
-    return request<DtoFormDetail>(`/forms/${encodeURIComponent(formId)}`, {
+    return request<DtoFormDetail>(apiPrefix, resourceLabel, `/forms/${encodeURIComponent(formId)}`, {
       signal,
     });
   },
@@ -153,19 +158,19 @@ export const dtoApi = {
     period: DtoRefreshRequest,
     signal?: AbortSignal,
   ) {
-    return request<DtoRefreshJob>(
+    return request<DtoRefreshJob>(apiPrefix, resourceLabel,
       `/forms/${encodeURIComponent(formId)}/refresh`,
       { method: "POST", body: period, signal },
     );
   },
   checkFormRefresh(formId: string, jobId: string, signal?: AbortSignal) {
-    return request<DtoRefreshJob>(
+    return request<DtoRefreshJob>(apiPrefix, resourceLabel,
       `/forms/${encodeURIComponent(formId)}/refresh/${encodeURIComponent(jobId)}`,
       { signal },
     );
   },
   getConfiguration(formId: string, signal?: AbortSignal) {
-    return request<DtoFormConfiguration>(
+    return request<DtoFormConfiguration>(apiPrefix, resourceLabel,
       `/forms/${encodeURIComponent(formId)}/configuration`,
       { signal },
     );
@@ -175,9 +180,15 @@ export const dtoApi = {
     update: DtoConfigurationUpdate,
     signal?: AbortSignal,
   ) {
-    return request<DtoFormConfiguration>(
+    return request<DtoFormConfiguration>(apiPrefix, resourceLabel,
       `/forms/${encodeURIComponent(formId)}/configuration`,
       { method: "PUT", body: update, signal },
     );
   },
-};
+  };
+}
+
+export type DtoApi = ReturnType<typeof createDtoApi>;
+
+export const dtoApi = createDtoApi("/api/savi/api/v1/dtos", "DTOs");
+export const blitzApi = createDtoApi("/api/savi/api/v1/blitz", "Blitz");

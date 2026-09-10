@@ -16,6 +16,7 @@ import {
   DtoPanel,
 } from "@/features/dpo/components/dto/DtoPrimitives";
 import { Typography } from "@/shared/ui/typography";
+import { useFormManagerConfig } from "@/features/dpo/lib/formManagerConfig";
 
 export default function DtoOverview({
   formsCount,
@@ -26,6 +27,7 @@ export default function DtoOverview({
   onAnalyze: (formId: string) => void;
   resources: DtoFormResourceMap;
 }) {
+  const config = useFormManagerConfig();
   const metrics = computePortfolioMetrics(formsCount, resources);
   const offenders = getPortfolioOffenders(resources).slice(0, 3);
 
@@ -55,12 +57,12 @@ export default function DtoOverview({
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <DtoMetricCard
-          label="Formulários DTO"
+          label={`Formulários ${config.singular}`}
           value={formatDtoNumber(metrics.forms)}
           hint="Descobertos dinamicamente no SAVI."
         />
         <DtoMetricCard
-          label="DTOs aplicadas"
+          label={config.appliedLabel}
           value={formatDtoNumber(metrics.applications)}
           hint={metrics.partial ? "Total parcial dos formulários disponíveis." : "Aplicações carregadas."}
         />

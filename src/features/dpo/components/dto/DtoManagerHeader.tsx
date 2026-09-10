@@ -2,6 +2,7 @@
 
 import { Clock3, RefreshCw } from "lucide-react";
 import { Typography } from "@/shared/ui/typography";
+import { useFormManagerConfig } from "@/features/dpo/lib/formManagerConfig";
 import { formatDtoDateTime } from "@/features/dpo/lib/dtoFormatters";
 import {
   DtoBadge,
@@ -24,18 +25,18 @@ export default function DtoManagerHeader({
   refreshError: string | null;
   refreshing: boolean;
 }) {
+  const config = useFormManagerConfig();
+
   return (
     <DtoPanel className="p-5 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-5">
         <div className="max-w-3xl">
-          <Typography variant="eyebrow">Gestão DPO</Typography>
+          <Typography variant="eyebrow">{config.pillarEyebrow}</Typography>
           <Typography as="h1" variant="pageTitle" className="mt-3">
-            Gerenciador de DTOs
+            {config.managerTitle}
           </Typography>
           <Typography variant="description" className="mt-3">
-            Análise gerencial das aplicações de Diagnóstico Operacional do
-            Trabalho, com foco em aderência, recorrências e oportunidades de
-            atuação sobre os resultados negativos.
+            {config.description}
           </Typography>
         </div>
 
@@ -81,7 +82,7 @@ export default function DtoManagerHeader({
 
       <p className="sr-only" aria-live="polite">
         {refreshing
-          ? "Atualização da lista de DTOs em andamento."
+          ? `Atualização da lista de ${config.plural} em andamento.`
           : refreshCompletedAt
             ? `Atualização concluída em ${formatDtoDateTime(refreshCompletedAt)}.`
             : ""}
