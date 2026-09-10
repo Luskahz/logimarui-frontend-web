@@ -3,6 +3,7 @@ import { Button } from "@/shared/ui/button";
 import { Card } from "@/shared/ui/card";
 import { Typography } from "@/shared/ui/typography";
 import { cn } from "@/lib/utils";
+import { useFormManagerConfig } from "@/features/dpo/lib/formManagerConfig";
 
 export function DtoPanel({ className, ...props }: ComponentProps<typeof Card>) {
   return (
@@ -140,8 +141,10 @@ export function DtoStatePanel({
 }
 
 export function DtoDashboardSkeleton() {
+  const config = useFormManagerConfig();
+
   return (
-    <div aria-label="Carregando Gerenciador de DTOs" className="space-y-4">
+    <div aria-label={`Carregando ${config.managerTitle}`} className="space-y-4">
       <div className="h-44 animate-pulse rounded-[28px] bg-[var(--shell-surface-muted)]" />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {Array.from({ length: 5 }, (_, index) => (
@@ -162,4 +165,3 @@ export function DtoDashboardSkeleton() {
     </div>
   );
 }
-

@@ -9,6 +9,7 @@ import type {
 } from "@/features/dpo/lib/dtoTypes";
 import { DtoBadge, DtoButton } from "@/features/dpo/components/dto/DtoPrimitives";
 import { Typography } from "@/shared/ui/typography";
+import { useFormManagerConfig } from "@/features/dpo/lib/formManagerConfig";
 
 function toInputDate(value: Date): string {
   const year = value.getFullYear();
@@ -47,6 +48,7 @@ export default function DtoRefreshDialog({
     signal: AbortSignal,
   ) => Promise<DtoFormDetail>;
 }) {
+  const config = useFormManagerConfig();
   const initial = useMemo(() => defaultPeriod(), []);
   const [startDate, setStartDate] = useState(initial.start_date);
   const [endDate, setEndDate] = useState(initial.end_date);
@@ -98,7 +100,7 @@ export default function DtoRefreshDialog({
         setError(
           refreshError instanceof Error
             ? refreshError.message
-            : "Não foi possível atualizar esta DTO.",
+            : `Não foi possível atualizar esta ${config.singular}.`,
         );
         setStatus("error");
       }

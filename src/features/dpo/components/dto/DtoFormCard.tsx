@@ -23,6 +23,7 @@ import {
   DtoPanel,
 } from "@/features/dpo/components/dto/DtoPrimitives";
 import { Typography } from "@/shared/ui/typography";
+import { useFormManagerConfig } from "@/features/dpo/lib/formManagerConfig";
 
 function DtoFormCardSkeleton({ name }: { name: string }) {
   return (
@@ -52,6 +53,8 @@ export default function DtoFormCard({
   onRetry: (formId: string) => Promise<unknown>;
   resource: DtoFormResource | undefined;
 }) {
+  const config = useFormManagerConfig();
+
   const detail = resource?.data || null;
   const metrics = useMemo(
     () => (detail ? computeDtoMetrics(detail.records, detail.columns) : null),
@@ -108,7 +111,7 @@ export default function DtoFormCard({
     <DtoPanel className="flex min-h-72 flex-col p-5 transition hover:border-[color:var(--shell-line-strong)]">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <Typography variant="overline">Formulário DTO</Typography>
+          <Typography variant="overline">{config.formLabel}</Typography>
           <h3 className="mt-2 break-words text-xl font-semibold text-[var(--shell-text)]">
             {form.name}
           </h3>

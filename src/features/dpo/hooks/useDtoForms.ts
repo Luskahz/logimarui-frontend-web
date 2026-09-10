@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { dtoApi } from "@/features/dpo/lib/dtoApi";
+import { useFormManagerConfig } from "@/features/dpo/lib/formManagerConfig";
 import { parseDtoDate } from "@/features/dpo/lib/dtoFormatters";
 import type {
   DtoConfigurationUpdate,
@@ -54,14 +54,18 @@ function createIdleResource(): DtoFormResource {
   };
 }
 
-function validateFormsPayload(payload: DtoFormsResponse): DtoFormsResponse {
+function validateFormsPayload(
+  payload: DtoFormsResponse,
+  singular: string,
+  plural: string,
+): DtoFormsResponse {
   if (!payload || !Array.isArray(payload.forms)) {
-    throw new Error("O serviço retornou uma lista de DTOs inválida.");
+    throw new Error(`O serviço retornou uma lista de ${plural} inválida.`);
   }
 
   payload.forms.forEach((form) => {
     if (!form || !String(form.id ?? "").trim() || !String(form.name ?? "").trim()) {
-      throw new Error("Uma DTO descoberta não possui identificador ou nome válido.");
+      throw new Error(`Uma ${singular} descoberta não possui identificador ou nome válido.`);
     }
   });
 
@@ -75,7 +79,7 @@ function validateFormsPayload(payload: DtoFormsResponse): DtoFormsResponse {
   };
 }
 
-function validateFormDetail(payload: DtoFormDetail): DtoFormDetail {
+function validateFormDetail(payload: DtoFormDetail, singular: string): DtoFormDetail {
   if (
     !payload ||
     !payload.form ||
@@ -84,7 +88,7 @@ function validateFormDetail(payload: DtoFormDetail): DtoFormDetail {
     !payload.configuration ||
     !Array.isArray(payload.configuration.fields)
   ) {
-    throw new Error("O serviço retornou dados inválidos para esta DTO.");
+    throw new Error(`O serviço retornou dados inválidos para esta ${singular}.`);
   }
 
   return {
@@ -98,6 +102,7 @@ function validateFormDetail(payload: DtoFormDetail): DtoFormDetail {
 }
 
 export function useDtoForms() {
+  const { api, plural, singular } = useFormManagerConfig();
   const [formsPayload, setFormsPayload] = useState<DtoFormsResponse | null>(null);
   const [resources, setResources] = useState<DtoFormResourceMap>({});
   const [status, setStatus] = useState<"loading" | "ready" | "empty" | "error">(
@@ -150,7 +155,8 @@ export function useDtoForms() {
 
       try {
         const detail = validateFormDetail(
-          await dtoApi.getForm(form.id, controller.signal),
+          await api.getForm(form.id, controller.signal),
+          singular,
         );
 
         if (
@@ -205,7 +211,7 @@ export function useDtoForms() {
         releaseController(controller);
       }
     },
-    [createController, releaseController],
+    [api, createController, releaseController, singular],
   );
 
   const loadAllDetails = useCallback(
@@ -252,8 +258,10 @@ export function useDtoForms() {
       try {
         const payload = validateFormsPayload(
           forceRefresh
-            ? await dtoApi.refreshForms(controller.signal)
-            : await dtoApi.listForms(controller.signal),
+            ? await api.refreshForms(controller.signal)
+            : await api.listForms(controller.signal),
+          singular,
+          plural,
         );
 
         if (generation !== generationRef.current) {
@@ -284,7 +292,7 @@ export function useDtoForms() {
 
         const message = toErrorMessage(
           discoveryError,
-          "Não foi possível descobrir os formulários DTO no SAVI.",
+          `Não foi possível descobrir os formulários ${singular} no SAVI.`,
         );
 
         if (forceRefresh && formsPayloadRef.current) {
@@ -302,9 +310,12 @@ export function useDtoForms() {
     },
     [
       abortPendingRequests,
+      api,
       createController,
       loadAllDetails,
+      plural,
       releaseController,
+      singular,
     ],
   );
 
@@ -335,11 +346,11 @@ export function useDtoForms() {
     ): Promise<DtoFormConfiguration> => {
       const form = formsPayloadRef.current?.forms.find((item) => item.id === formId);
       if (!form) {
-        throw new Error("O formulário DTO não está mais disponível.");
+        throw new Error(`O formulário ${singular} não está mais disponível.`);
       }
       const controller = createController();
       try {
-        const configuration = await dtoApi.updateConfiguration(
+        const configuration = await api.updateConfiguration(
           formId,
           update,
           controller.signal,
@@ -350,7 +361,7 @@ export function useDtoForms() {
         releaseController(controller);
       }
     },
-    [createController, loadFormDetail, releaseController],
+    [api, createController, loadFormDetail, releaseController, singular],
   );
 
   const refreshFormData = useCallback(
@@ -362,7 +373,7 @@ export function useDtoForms() {
     ): Promise<DtoFormDetail> => {
       const form = formsPayloadRef.current?.forms.find((item) => item.id === formId);
       if (!form) {
-        throw new Error("O formulário DTO não está mais disponível.");
+        throw new Error(`O formulário ${singular} não está mais disponível.`);
       }
       setResources((current) => {
         const previous = current[formId] || createIdleResource();
@@ -373,7 +384,7 @@ export function useDtoForms() {
       });
 
       try {
-        let job = await dtoApi.startFormRefresh(formId, period, signal);
+        let job = await api.startFormRefresh(formId, period, signal);
         onProgress?.(job);
         for (let attempt = 0; attempt < REFRESH_MAX_CHECKS; attempt += 1) {
           if (job.status === "failed") {
@@ -383,7 +394,7 @@ export function useDtoForms() {
             if (!job.detail) {
               throw new Error("A exportação terminou sem devolver os dados atualizados.");
             }
-            const detail = validateFormDetail(job.detail);
+            const detail = validateFormDetail(job.detail, singular);
             setResources((current) => ({
               ...current,
               [formId]: {
@@ -396,7 +407,7 @@ export function useDtoForms() {
             return detail;
           }
           await waitForNextCheck(signal);
-          job = await dtoApi.checkFormRefresh(formId, job.job_id, signal);
+          job = await api.checkFormRefresh(formId, job.job_id, signal);
           onProgress?.(job);
         }
         throw new Error(
@@ -419,7 +430,7 @@ export function useDtoForms() {
         throw refreshFormError;
       }
     },
-    [],
+    [api, singular],
   );
 
   const lastUpdatedAt = useMemo(() => {
