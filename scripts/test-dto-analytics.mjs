@@ -151,6 +151,7 @@ const environmentTracking = tracking.computeDtoTracking(
     configuration: {
       tracking: {
         mode: "ENVIRONMENT",
+        environment_source: "FIELD",
         roster_field_key: "environment",
         realization_date_field_key: "realized-at",
         interval_days: 30,
@@ -181,4 +182,32 @@ assert.equal(
   0,
 );
 
-console.log("DTO analytics e acompanhamento: 6 cenários validados com sucesso.");
+const formEnvironmentTracking = tracking.computeDtoTracking(
+  {
+    configuration: {
+      tracking: {
+        mode: "ENVIRONMENT",
+        environment_source: "FORM",
+        roster_field_key: null,
+        realization_date_field_key: "realized-at",
+        interval_days: 30,
+        excluded_collaborators: [],
+        manual_collaborators: ["Armazém"],
+      },
+    },
+    records: [
+      { values: { "realized-at": "20/08/2026", evaluator: "Ana" } },
+      { values: { "realized-at": "01/09/2026", evaluator: "Bruno" } },
+    ],
+  },
+  new Date(2026, 8, 10, 12),
+);
+assert.equal(formEnvironmentTracking.configured, true);
+assert.equal(formEnvironmentTracking.environmentSource, "FORM");
+assert.equal(formEnvironmentTracking.total, 1);
+assert.equal(formEnvironmentTracking.current, 1);
+assert.equal(formEnvironmentTracking.subjects[0].name, "Armazém");
+assert.equal(formEnvironmentTracking.subjects[0].applications, 2);
+assert.equal(formEnvironmentTracking.subjects[0].source, "form");
+
+console.log("DTO analytics e acompanhamento: 7 cenários validados com sucesso.");

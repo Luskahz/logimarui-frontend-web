@@ -90,9 +90,11 @@ export interface DtoFieldConfiguration {
 }
 
 export type DtoTrackingMode = "COLLABORATOR" | "ENVIRONMENT";
+export type DtoEnvironmentSource = "FIELD" | "FORM";
 
 export interface DtoTrackingConfiguration {
   mode: DtoTrackingMode;
+  environment_source: DtoEnvironmentSource;
   roster_field_key: string | null;
   realization_date_field_key: string | null;
   interval_days: number | null;
@@ -255,7 +257,7 @@ export type DtoTrackingStatus = "current" | "dueSoon" | "overdue" | "never";
 export interface DtoTrackedSubject {
   key: string;
   name: string;
-  source: "observed" | "manual";
+  source: "observed" | "manual" | "form";
   applications: number;
   lastRealization: Date | null;
   nextDueDate: Date | null;
@@ -266,6 +268,7 @@ export interface DtoTrackedSubject {
 export interface DtoTrackingSummary {
   configured: boolean;
   mode: DtoTrackingMode;
+  environmentSource: DtoEnvironmentSource;
   subjects: DtoTrackedSubject[];
   excludedSubjects: string[];
   total: number;

@@ -75,6 +75,7 @@ export default function DtoTrackingPanel({
   const [search, setSearch] = useState("");
   const tracking = useMemo(() => computeDtoTracking(detail), [detail]);
   const isEnvironment = tracking.mode === "ENVIRONMENT";
+  const isFormEnvironment = isEnvironment && tracking.environmentSource === "FORM";
   const subjectLabel = isEnvironment ? "ambiente" : "colaborador";
   const subjectsLabel = isEnvironment ? "ambientes" : "colaboradores";
   const populationLabel = isEnvironment ? "Ambientes" : "Colaboradores";
@@ -92,7 +93,7 @@ export default function DtoTrackingPanel({
     return (
       <DtoStatePanel
         title="Defina a forma de acompanhamento"
-        description="Escolha na Configuração se o ciclo será por colaborador ou por ambiente, o campo que identifica cada item, a data de realização e a periodicidade exigida."
+        description="Escolha na Configuração se o ciclo será por colaborador ou por ambiente. Para um ambiente geral, defina um único rótulo: todas as realizações do formulário serão atribuídas a ele."
         action={
           <DtoButton tone="accent" onClick={onConfigure}>
             <Settings2 aria-hidden="true" /> Configurar acompanhamento
@@ -198,7 +199,7 @@ export default function DtoTrackingPanel({
     <div className="space-y-4">
       <div className="flex justify-end">
         <DtoBadge tone="accent">
-          Acompanhamento por {subjectLabel}
+          {isFormEnvironment ? "Acompanhamento do ambiente geral" : `Acompanhamento por ${subjectLabel}`}
         </DtoBadge>
       </div>
       <section aria-labelledby="tracking-kpis-title">
@@ -285,8 +286,10 @@ export default function DtoTrackingPanel({
                 <tr key={subject.key} className="border-b border-[color:var(--shell-line)] last:border-0">
                   <td className="px-3 py-3 font-semibold text-[var(--shell-text)]">
                     {subject.name}
-                    {subject.source === "manual" ? (
-                      <span className="ml-2 text-xs font-normal text-[var(--shell-muted)]">manual</span>
+                    {subject.source !== "observed" ? (
+                      <span className="ml-2 text-xs font-normal text-[var(--shell-muted)]">
+                        {subject.source === "form" ? "formulário" : "manual"}
+                      </span>
                     ) : null}
                   </td>
                   <td className="px-3 py-3">
@@ -315,7 +318,11 @@ export default function DtoTrackingPanel({
           <span>
             Intervalo configurado: <strong className="text-[var(--shell-text)]">{detail.configuration.tracking.interval_days} dias</strong>
           </span>
-          <span>{tracking.excludedSubjects.length} {subjectLabel}(es) desconsiderado(s)</span>
+          <span>
+            {isFormEnvironment
+              ? "Todas as realizações deste formulário contam para o ambiente geral."
+              : `${tracking.excludedSubjects.length} ${subjectLabel}(es) desconsiderado(s)`}
+          </span>
         </div>
       </DtoPanel>
     </div>

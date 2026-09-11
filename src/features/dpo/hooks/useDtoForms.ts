@@ -97,6 +97,8 @@ function validateFormDetail(payload: DtoFormDetail, singular: string): DtoFormDe
       ...payload.configuration,
       tracking: {
         mode: payload.configuration.tracking?.mode || "COLLABORATOR",
+        environment_source:
+          payload.configuration.tracking?.environment_source || "FIELD",
         roster_field_key: payload.configuration.tracking?.roster_field_key || null,
         realization_date_field_key:
           payload.configuration.tracking?.realization_date_field_key || null,

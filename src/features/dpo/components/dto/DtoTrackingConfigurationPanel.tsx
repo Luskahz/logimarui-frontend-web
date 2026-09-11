@@ -7,6 +7,7 @@ import { normalizeSearchText } from "@/features/dpo/lib/dtoFormatters";
 import { extractTrackingNames } from "@/features/dpo/lib/dtoTracking";
 import type {
   DtoConfigurationUpdate,
+  DtoEnvironmentSource,
   DtoFormConfiguration,
   DtoTrackingConfiguration,
   DtoTrackingMode,
@@ -45,14 +46,19 @@ export default function DtoTrackingConfigurationPanel({
   const [trackingMode, setTrackingMode] = useState<DtoTrackingMode>(
     current.mode || "COLLABORATOR",
   );
+  const [environmentSource, setEnvironmentSource] = useState<DtoEnvironmentSource>(
+    current.environment_source || "FIELD",
+  );
   const [rosterFieldKey, setRosterFieldKey] = useState(
-    current.roster_field_key ||
-      inferredFieldKey(
-        configuration,
-        (current.mode || "COLLABORATOR") === "ENVIRONMENT"
-          ? "CONTEXT"
-          : "COLLABORATOR",
-      ),
+    (current.mode === "ENVIRONMENT" && current.environment_source === "FORM")
+      ? ""
+      : current.roster_field_key ||
+        inferredFieldKey(
+          configuration,
+          (current.mode || "COLLABORATOR") === "ENVIRONMENT"
+            ? "CONTEXT"
+            : "COLLABORATOR",
+        ),
   );
   const [dateFieldKey, setDateFieldKey] = useState(
     current.realization_date_field_key || inferredFieldKey(configuration, "DATE"),
@@ -86,17 +92,44 @@ export default function DtoTrackingConfigurationPanel({
     parsedInterval <= 3660;
   const fieldsDistinct = !rosterFieldKey || rosterFieldKey !== dateFieldKey;
   const isEnvironment = trackingMode === "ENVIRONMENT";
+  const isFormEnvironment = isEnvironment && environmentSource === "FORM";
   const subject = isEnvironment ? "ambiente" : "colaborador";
   const subjects = isEnvironment ? "ambientes" : "colaboradores";
+  const hasPopulationSource = isFormEnvironment
+    ? manual.length === 1
+    : Boolean(rosterFieldKey);
+  const currentIsFormEnvironment =
+    current.mode === "ENVIRONMENT" && current.environment_source === "FORM";
+  const currentConfigured = Boolean(
+    current.realization_date_field_key &&
+      current.interval_days &&
+      (currentIsFormEnvironment
+        ? current.manual_collaborators.length === 1 && !current.roster_field_key
+        : current.roster_field_key),
+  );
 
   function changeTrackingMode(mode: DtoTrackingMode) {
     if (mode === trackingMode) return;
     setTrackingMode(mode);
+    setEnvironmentSource("FIELD");
     setRosterFieldKey(
       inferredFieldKey(
         configuration,
         mode === "ENVIRONMENT" ? "CONTEXT" : "COLLABORATOR",
       ),
+    );
+    setExcluded([]);
+    setManual([]);
+    setManualName("");
+  }
+
+  function changeEnvironmentSource(source: DtoEnvironmentSource) {
+    if (source === environmentSource) return;
+    setEnvironmentSource(source);
+    setRosterFieldKey(
+      source === "FORM"
+        ? ""
+        : inferredFieldKey(configuration, "CONTEXT"),
     );
     setExcluded([]);
     setManual([]);
@@ -119,6 +152,7 @@ export default function DtoTrackingConfigurationPanel({
     const name = manualName.trim();
     const key = normalizeSearchText(name);
     if (!key) return;
+    if (isFormEnvironment && manual.length > 0) return;
     if (observedNames.some((value) => normalizeSearchText(value) === key)) {
       setManualName("");
       return;
@@ -159,14 +193,18 @@ export default function DtoTrackingConfigurationPanel({
             Dimensão, periodicidade e população acompanhada
           </Typography>
           <Typography variant="supportingText" className="mt-2">
-            Escolha se cada ciclo pertence a uma pessoa ou a um ambiente. Os
-            valores observados formam a população; inclusões manuais entram sem
-            realização e itens desconsiderados saem do denominador.
+            Escolha se cada ciclo pertence a uma pessoa ou a um ambiente. No
+            ambiente, você pode usar uma coluna com vários locais ou um único
+            rótulo que representa todas as realizações do formulário.
           </Typography>
         </div>
-        {current.roster_field_key && current.realization_date_field_key && current.interval_days ? (
+        {currentConfigured ? (
           <DtoBadge tone="accent">
-            {current.mode === "ENVIRONMENT" ? "Por ambiente" : "Por colaborador"}
+            {current.mode === "ENVIRONMENT"
+              ? currentIsFormEnvironment
+                ? "Ambiente geral"
+                : "Por ambiente"
+              : "Por colaborador"}
           </DtoBadge>
         ) : (
           <DtoBadge>Configuração opcional</DtoBadge>
@@ -214,9 +252,52 @@ export default function DtoTrackingConfigurationPanel({
         </button>
       </div>
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-3">
-        <label className="text-xs font-semibold text-[var(--shell-muted)]">
-          Pergunta/campo do {subject}
+      {isEnvironment ? (
+        <fieldset className="mt-5 rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-4">
+          <legend className="px-1 text-sm font-semibold text-[var(--shell-text)]">
+            Como identificar o ambiente
+          </legend>
+          <div className="mt-2 grid gap-3 md:grid-cols-2" role="radiogroup" aria-label="Fonte do ambiente">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={environmentSource === "FIELD"}
+              onClick={() => changeEnvironmentSource("FIELD")}
+              className={`rounded-xl border p-3 text-left transition ${
+                environmentSource === "FIELD"
+                  ? "border-[color:var(--shell-accent)] bg-[var(--shell-accent-soft)]"
+                  : "border-[color:var(--shell-line)] hover:border-[color:var(--shell-line-strong)]"
+              }`}
+            >
+              <span className="block text-sm font-semibold text-[var(--shell-text)]">Campo de ambiente no formulário</span>
+              <span className="mt-1 block text-xs leading-5 text-[var(--shell-muted)]">
+                Use quando cada realização informa o local, como Oficina, Pátio ou Armazém.
+              </span>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={environmentSource === "FORM"}
+              onClick={() => changeEnvironmentSource("FORM")}
+              className={`rounded-xl border p-3 text-left transition ${
+                environmentSource === "FORM"
+                  ? "border-[color:var(--shell-accent)] bg-[var(--shell-accent-soft)]"
+                  : "border-[color:var(--shell-line)] hover:border-[color:var(--shell-line-strong)]"
+              }`}
+            >
+              <span className="block text-sm font-semibold text-[var(--shell-text)]">Ambiente geral do formulário</span>
+              <span className="mt-1 block text-xs leading-5 text-[var(--shell-muted)]">
+                Use quando todo registro vale para um único local e não existe uma coluna de ambiente.
+              </span>
+            </button>
+          </div>
+        </fieldset>
+      ) : null}
+
+      <div className={`mt-5 grid gap-4 ${isFormEnvironment ? "lg:grid-cols-2" : "lg:grid-cols-3"}`}>
+        {!isFormEnvironment ? (
+          <label className="text-xs font-semibold text-[var(--shell-muted)]">
+            Pergunta/campo do {subject}
           <select
             value={rosterFieldKey}
             onChange={(event) => {
@@ -234,7 +315,8 @@ export default function DtoTrackingConfigurationPanel({
                 </option>
               ))}
           </select>
-        </label>
+          </label>
+        ) : null}
 
         <label className="text-xs font-semibold text-[var(--shell-muted)]">
           Campo da data de realização
@@ -271,8 +353,9 @@ export default function DtoTrackingConfigurationPanel({
         </label>
       </div>
 
-      <div className="mt-5 grid gap-4 xl:grid-cols-2">
-        <div className="rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-4">
+      <div className={`mt-5 grid gap-4 ${isFormEnvironment ? "max-w-2xl" : "xl:grid-cols-2"}`}>
+        {!isFormEnvironment ? (
+          <div className="rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-4">
           <div className="flex items-start gap-3">
             <UserMinus aria-hidden="true" className="mt-0.5 h-4 w-4 text-[var(--shell-muted)]" />
             <div>
@@ -313,14 +396,17 @@ export default function DtoTrackingConfigurationPanel({
               </p>
             )}
           </div>
-        </div>
+          </div>
+        ) : null}
 
         <div className="rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-4">
           <p className="text-sm font-semibold text-[var(--shell-text)]">
-            Incluir {subject} sem registro
+            {isFormEnvironment ? "Definir ambiente geral" : `Incluir ${subject} sem registro`}
           </p>
           <p className="mt-1 text-xs leading-5 text-[var(--shell-muted)]">
-            Inclusões manuais aparecem como “Nunca realizado” até surgir uma aplicação.
+            {isFormEnvironment
+              ? "Informe um único rótulo. Todas as realizações deste formulário serão atribuídas a esse ambiente."
+              : "Inclusões manuais aparecem como “Nunca realizado” até surgir uma aplicação."}
           </p>
           <div className="mt-3 flex gap-2">
             <input
@@ -332,10 +418,10 @@ export default function DtoTrackingConfigurationPanel({
                   addManualSubject();
                 }
               }}
-              placeholder={isEnvironment ? "Nome do ambiente" : "Nome do colaborador"}
+              placeholder={isFormEnvironment ? "Ex.: Armazém" : isEnvironment ? "Nome do ambiente" : "Nome do colaborador"}
               className="min-w-0 flex-1 rounded-xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] px-3 py-2 text-sm text-[var(--shell-text)]"
             />
-            <DtoButton size="sm" onClick={addManualSubject}>
+            <DtoButton size="sm" disabled={isFormEnvironment && manual.length > 0} onClick={addManualSubject}>
               <Plus aria-hidden="true" /> Adicionar
             </DtoButton>
           </div>
@@ -346,7 +432,7 @@ export default function DtoTrackingConfigurationPanel({
                   key={normalizeSearchText(name)}
                   className="inline-flex items-center gap-1 rounded-full border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] px-3 py-1.5 text-xs font-semibold text-[var(--shell-text)]"
                 >
-                  {name}
+                    {name}
                   <button
                     type="button"
                     aria-label={`Remover ${name}`}
@@ -366,7 +452,7 @@ export default function DtoTrackingConfigurationPanel({
               ))
             ) : (
               <span className="text-xs text-[var(--shell-muted)]">
-                Nenhuma inclusão manual.
+                {isFormEnvironment ? "Defina o ambiente que este formulário representa." : "Nenhuma inclusão manual."}
               </span>
             )}
           </div>
@@ -381,6 +467,11 @@ export default function DtoTrackingConfigurationPanel({
       {!fieldsDistinct ? (
         <p role="alert" className="mt-4 text-sm text-[var(--shell-danger)]">
           O campo de {subject} e o campo de data devem ser diferentes.
+        </p>
+      ) : null}
+      {isFormEnvironment && manual.length !== 1 ? (
+        <p role="alert" className="mt-4 text-sm text-[var(--shell-danger)]">
+          Defina exatamente um ambiente geral para este formulário.
         </p>
       ) : null}
       {error ? (
@@ -400,18 +491,19 @@ export default function DtoTrackingConfigurationPanel({
           tone="accent"
           disabled={
             saving ||
-            !rosterFieldKey ||
+            !hasPopulationSource ||
             !dateFieldKey ||
             !intervalValid ||
-            !fieldsDistinct
+            (!isFormEnvironment && !fieldsDistinct)
           }
           onClick={() =>
             void save({
               mode: trackingMode,
-              roster_field_key: rosterFieldKey,
+              environment_source: isEnvironment ? environmentSource : "FIELD",
+              roster_field_key: isFormEnvironment ? null : rosterFieldKey,
               realization_date_field_key: dateFieldKey,
               interval_days: parsedInterval,
-              excluded_collaborators: excluded,
+              excluded_collaborators: isFormEnvironment ? [] : excluded,
               manual_collaborators: manual,
             })
           }

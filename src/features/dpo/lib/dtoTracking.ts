@@ -64,14 +64,19 @@ export function computeDtoTracking(
 ): DtoTrackingSummary {
   const tracking = detail.configuration.tracking;
   const mode: DtoTrackingMode = tracking?.mode || "COLLABORATOR";
+  const environmentSource = tracking?.environment_source || "FIELD";
+  const isFormEnvironment =
+    mode === "ENVIRONMENT" && environmentSource === "FORM";
   const configured = Boolean(
-    tracking?.roster_field_key &&
-      tracking.realization_date_field_key &&
+    tracking?.realization_date_field_key &&
       tracking.interval_days,
-  );
+  ) && (isFormEnvironment
+    ? tracking.manual_collaborators?.length === 1 && !tracking.roster_field_key
+    : Boolean(tracking?.roster_field_key));
   const empty: DtoTrackingSummary = {
     configured,
     mode,
+    environmentSource,
     subjects: [],
     excludedSubjects: tracking?.excluded_collaborators || [],
     total: 0,
@@ -84,14 +89,16 @@ export function computeDtoTracking(
   };
   if (!configured) return empty;
 
-  const rosterFieldKey = tracking.roster_field_key as string;
+  const rosterFieldKey = tracking.roster_field_key as string | null;
   const realizationDateFieldKey = tracking.realization_date_field_key as string;
   const intervalDays = tracking.interval_days as number;
-  const observed = uniqueNames(
-    detail.records.flatMap((record) =>
-      extractTrackingNames(record.values[rosterFieldKey]),
-    ),
-  );
+  const observed = isFormEnvironment
+    ? new Map<string, string>()
+    : uniqueNames(
+      detail.records.flatMap((record) =>
+        extractTrackingNames(record.values[rosterFieldKey as string]),
+      ),
+    );
   const observedKeys = new Set(observed.keys());
   const manual = uniqueNames(tracking.manual_collaborators);
   manual.forEach((name, key) => {
@@ -107,11 +114,13 @@ export function computeDtoTracking(
   const subjects: DtoTrackedSubject[] = [];
   observed.forEach((name, key) => {
     if (excluded.has(key)) return;
-    const matchingRecords = detail.records.filter((record) =>
-      extractTrackingNames(record.values[rosterFieldKey]).some(
-        (candidate) => normalizeSearchText(candidate) === key,
-      ),
-    );
+    const matchingRecords = isFormEnvironment
+      ? detail.records
+      : detail.records.filter((record) =>
+        extractTrackingNames(record.values[rosterFieldKey as string]).some(
+          (candidate) => normalizeSearchText(candidate) === key,
+        ),
+      );
     const dates = matchingRecords
       .map((record) => parseDtoDate(record.values[realizationDateFieldKey]))
       .filter((date): date is Date => date !== null)
@@ -133,7 +142,11 @@ export function computeDtoTracking(
     subjects.push({
       key,
       name,
-      source: !observedKeys.has(key) && manualKeys.has(key) ? "manual" : "observed",
+      source: isFormEnvironment
+        ? "form"
+        : !observedKeys.has(key) && manualKeys.has(key)
+          ? "manual"
+          : "observed",
       applications: matchingRecords.length,
       lastRealization,
       nextDueDate,
@@ -164,6 +177,7 @@ export function computeDtoTracking(
   return {
     configured,
     mode,
+    environmentSource,
     subjects,
     excludedSubjects: tracking.excluded_collaborators,
     total: subjects.length,
