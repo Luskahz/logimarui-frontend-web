@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Search, Settings2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { RefreshCw, Search, Settings2 } from "lucide-react";
 import type { EChartsOption } from "echarts";
 import DtoEChart from "@/features/dpo/components/dto/DtoEChart";
 import {
@@ -20,9 +20,11 @@ import {
 } from "@/features/dpo/lib/dtoFormatters";
 import type {
   DtoFormDetail,
+  DtoTrackingContext,
   DtoTrackedSubject,
   DtoTrackingStatus,
 } from "@/features/dpo/lib/dtoTypes";
+import { useFormManagerConfig } from "@/features/dpo/lib/formManagerConfig";
 import { Typography } from "@/shared/ui/typography";
 
 const STATUS_LABELS: Record<DtoTrackingStatus, string> = {
@@ -48,11 +50,12 @@ function statusTone(status: DtoTrackingStatus): "accent" | "danger" | "default" 
 function dueHint(subject: DtoTrackedSubject): string {
   if (subject.status === "never") return "Sem realização válida";
   if (subject.daysUntilDue === null) return "Prazo indisponível";
+  const prefix = subject.firstRealizationPending ? "1ª realização · " : "";
   if (subject.daysUntilDue < 0) {
-    return `${Math.abs(subject.daysUntilDue)} dia(s) em atraso`;
+    return `${prefix}${Math.abs(subject.daysUntilDue)} dia(s) em atraso`;
   }
-  if (subject.daysUntilDue === 0) return "Prazo vence hoje";
-  return `${subject.daysUntilDue} dia(s) até o prazo`;
+  if (subject.daysUntilDue === 0) return `${prefix}prazo vence hoje`;
+  return `${prefix}${subject.daysUntilDue} dia(s) até o prazo`;
 }
 
 function escapeHtml(value: string): string {
@@ -72,8 +75,63 @@ export default function DtoTrackingPanel({
   detail: DtoFormDetail;
   onConfigure: () => void;
 }) {
+  const { api } = useFormManagerConfig();
   const [search, setSearch] = useState("");
-  const tracking = useMemo(() => computeDtoTracking(detail), [detail]);
+  const [contextResult, setContextResult] = useState<{
+    key: string;
+    context: DtoTrackingContext | null;
+    error: string | null;
+  } | null>(null);
+  const [contextReload, setContextReload] = useState(0);
+  const needsWorkforceContext =
+    detail.configuration.tracking.mode === "COLLABORATOR" &&
+    Boolean(
+      detail.configuration.tracking.collaborator_source &&
+        detail.configuration.tracking.roster_field_key &&
+        detail.configuration.tracking.realization_date_field_key &&
+        detail.configuration.tracking.interval_days &&
+        detail.configuration.tracking.applicable_functions?.length,
+    );
+  const contextRequestKey = needsWorkforceContext
+    ? `${detail.form.id}:${detail.configuration.revision}:${contextReload}`
+    : null;
+  const currentContextResult = contextResult?.key === contextRequestKey
+    ? contextResult
+    : null;
+  const context = currentContextResult?.context || null;
+  const contextStatus = !needsWorkforceContext
+    ? "ready"
+    : currentContextResult
+      ? currentContextResult.error
+        ? "error"
+        : "ready"
+      : "loading";
+  const contextError = currentContextResult?.error || null;
+
+  useEffect(() => {
+    if (!contextRequestKey) return;
+    const controller = new AbortController();
+    void api.getTrackingContext(detail.form.id, controller.signal)
+      .then((payload) => {
+        setContextResult({ key: contextRequestKey, context: payload, error: null });
+      })
+      .catch((error: unknown) => {
+        if (error instanceof Error && error.name === "AbortError") return;
+        setContextResult({
+          key: contextRequestKey,
+          context: null,
+          error: error instanceof Error
+            ? error.message
+            : "Não foi possível consultar o cadastro de colaboradores.",
+        });
+      });
+    return () => controller.abort();
+  }, [api, contextRequestKey, detail.form.id]);
+
+  const tracking = useMemo(
+    () => computeDtoTracking(detail, context),
+    [context, detail],
+  );
   const isEnvironment = tracking.mode === "ENVIRONMENT";
   const isFormEnvironment = isEnvironment && tracking.environmentSource === "FORM";
   const subjectLabel = isEnvironment ? "ambiente" : "colaborador";
@@ -84,7 +142,7 @@ export default function DtoTrackingPanel({
     const query = normalizeSearchText(search);
     return query
       ? tracking.subjects.filter((item) =>
-          normalizeSearchText(item.name).includes(query),
+          normalizeSearchText(`${item.name} ${item.function || ""}`).includes(query),
         )
       : tracking.subjects;
   }, [search, tracking.subjects]);
@@ -103,11 +161,38 @@ export default function DtoTrackingPanel({
     );
   }
 
+  if (needsWorkforceContext && contextStatus === "loading") {
+    return (
+      <DtoStatePanel
+        title="Consultando o cadastro de colaboradores"
+        description="A população oficial e os vínculos das realizações estão sendo carregados do banco read-only."
+      />
+    );
+  }
+
+  if (needsWorkforceContext && contextStatus === "error") {
+    return (
+      <DtoStatePanel
+        title="Não foi possível montar o acompanhamento por colaborador"
+        description={contextError || "O cadastro oficial não respondeu."}
+        action={
+          <DtoButton tone="accent" onClick={() => setContextReload((value) => value + 1)}>
+            <RefreshCw aria-hidden="true" /> Tentar novamente
+          </DtoButton>
+        }
+      />
+    );
+  }
+
   if (tracking.total === 0) {
     return (
       <DtoStatePanel
         title={`Nenhum ${subjectLabel} na população acompanhada`}
-        description={`O campo selecionado ainda não possui ${subjectsLabel} válidos no snapshot, ou todos foram desconsiderados. Inclua itens manualmente ou revise a configuração.`}
+        description={isEnvironment
+          ? `O campo selecionado ainda não possui ${subjectsLabel} válidos no snapshot, ou todos foram desconsiderados. Revise a configuração.`
+          : context?.employees_without_cpf
+            ? `O cadastro possui ${formatDtoNumber(context.employees_without_cpf)} funcionário(s) sem CPF. Eles permanecerão fora do cálculo até o preenchimento da coluna.`
+            : "Nenhum funcionário com CPF válido pertence às funções selecionadas. Revise o filtro na configuração."}
         action={
           <DtoButton tone="accent" onClick={onConfigure}>
             <Settings2 aria-hidden="true" /> Revisar acompanhamento
@@ -199,15 +284,28 @@ export default function DtoTrackingPanel({
     <div className="space-y-4">
       <div className="flex justify-end">
         <DtoBadge tone="accent">
-          {isFormEnvironment ? "Acompanhamento do ambiente geral" : `Acompanhamento por ${subjectLabel}`}
+          {isFormEnvironment
+            ? "Acompanhamento do ambiente geral"
+            : isEnvironment
+              ? "Acompanhamento por ambiente"
+              : tracking.collaboratorSource === "MAP"
+                ? "Acompanhamento por mapa e equipe"
+                : "Acompanhamento por CPF"}
         </DtoBadge>
       </div>
       <section aria-labelledby="tracking-kpis-title">
         <h2 id="tracking-kpis-title" className="sr-only">
           Indicadores do acompanhamento
         </h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7">
           <DtoMetricCard label={populationLabel} value={formatDtoNumber(tracking.total)} />
+          {!isEnvironment ? (
+            <DtoMetricCard
+              label="Novos"
+              value={formatDtoNumber(tracking.newEmployees)}
+              hint="Conforme a janela após a admissão."
+            />
+          ) : null}
           <DtoMetricCard
             label="Aderência de realização"
             tone="accent"
@@ -271,10 +369,12 @@ export default function DtoTrackingPanel({
         </div>
 
         <div className="mt-5 overflow-x-auto">
-          <table className="w-full min-w-[760px] text-left text-sm">
+          <table className="w-full min-w-[1040px] text-left text-sm">
             <thead className="text-xs uppercase tracking-[0.12em] text-[var(--shell-muted)]">
               <tr className="border-b border-[color:var(--shell-line)]">
                 <th className="px-3 py-3 font-semibold">{subjectHeading}</th>
+                {!isEnvironment ? <th className="px-3 py-3 font-semibold">Função</th> : null}
+                {!isEnvironment ? <th className="px-3 py-3 font-semibold">Admissão</th> : null}
                 <th className="px-3 py-3 font-semibold">Situação</th>
                 <th className="px-3 py-3 font-semibold">Realizações</th>
                 <th className="px-3 py-3 font-semibold">Última realização</th>
@@ -286,15 +386,32 @@ export default function DtoTrackingPanel({
                 <tr key={subject.key} className="border-b border-[color:var(--shell-line)] last:border-0">
                   <td className="px-3 py-3 font-semibold text-[var(--shell-text)]">
                     {subject.name}
-                    {subject.source !== "observed" ? (
+                    {subject.isNew ? (
+                      <span className="ml-2"><DtoBadge tone="accent">Novo</DtoBadge></span>
+                    ) : null}
+                    {subject.source !== "observed" && subject.source !== "database" ? (
                       <span className="ml-2 text-xs font-normal text-[var(--shell-muted)]">
                         {subject.source === "form" ? "formulário" : "manual"}
                       </span>
                     ) : null}
                   </td>
+                  {!isEnvironment ? (
+                    <td className="px-3 py-3 text-[var(--shell-muted)]">
+                      {subject.function || "Não informada"}
+                    </td>
+                  ) : null}
+                  {!isEnvironment ? (
+                    <td className="px-3 py-3 text-[var(--shell-muted)]">
+                      {formatDtoDate(subject.admissionDate)}
+                    </td>
+                  ) : null}
                   <td className="px-3 py-3">
                     <DtoBadge tone={statusTone(subject.status)}>
-                      {STATUS_LABELS[subject.status]}
+                      {subject.firstRealizationPending && subject.status === "current"
+                        ? "Dentro do prazo inicial"
+                        : subject.firstRealizationPending && subject.status === "dueSoon"
+                          ? "Prazo inicial próximo"
+                          : STATUS_LABELS[subject.status]}
                     </DtoBadge>
                   </td>
                   <td className="px-3 py-3 text-[var(--shell-muted)]">{formatDtoNumber(subject.applications)}</td>
@@ -317,11 +434,16 @@ export default function DtoTrackingPanel({
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--shell-muted)]">
           <span>
             Intervalo configurado: <strong className="text-[var(--shell-text)]">{detail.configuration.tracking.interval_days} dias</strong>
+            {!isEnvironment && detail.configuration.tracking.new_employee_first_due_days
+              ? ` · primeira realização em ${detail.configuration.tracking.new_employee_first_due_days} dias após admissão`
+              : ""}
           </span>
           <span>
             {isFormEnvironment
               ? "Todas as realizações deste formulário contam para o ambiente geral."
-              : `${tracking.excludedSubjects.length} ${subjectLabel}(es) desconsiderado(s)`}
+              : isEnvironment
+                ? `${tracking.excludedSubjects.length} ${subjectLabel}(es) desconsiderado(s)`
+                : `${formatDtoNumber(context?.unmatched_records || 0)} realização(ões) sem vínculo cadastral`}
           </span>
         </div>
       </DtoPanel>

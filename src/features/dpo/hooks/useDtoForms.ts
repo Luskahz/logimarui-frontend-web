@@ -99,10 +99,18 @@ function validateFormDetail(payload: DtoFormDetail, singular: string): DtoFormDe
         mode: payload.configuration.tracking?.mode || "COLLABORATOR",
         environment_source:
           payload.configuration.tracking?.environment_source || "FIELD",
+        collaborator_source:
+          payload.configuration.tracking?.collaborator_source || null,
         roster_field_key: payload.configuration.tracking?.roster_field_key || null,
         realization_date_field_key:
           payload.configuration.tracking?.realization_date_field_key || null,
         interval_days: payload.configuration.tracking?.interval_days || null,
+        applicable_functions:
+          payload.configuration.tracking?.applicable_functions || [],
+        new_employee_window_days:
+          payload.configuration.tracking?.new_employee_window_days || null,
+        new_employee_first_due_days:
+          payload.configuration.tracking?.new_employee_first_due_days || null,
         excluded_collaborators:
           payload.configuration.tracking?.excluded_collaborators || [],
         manual_collaborators:

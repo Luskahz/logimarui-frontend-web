@@ -1,17 +1,20 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { MapPin, Plus, RotateCcw, Save, UserMinus, UsersRound, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { CalendarClock, Fingerprint, MapPin, Plus, RotateCcw, Route, Save, Search, Tag, UserMinus, UsersRound, X } from "lucide-react";
 import { DtoBadge, DtoButton } from "@/features/dpo/components/dto/DtoPrimitives";
 import { normalizeSearchText } from "@/features/dpo/lib/dtoFormatters";
 import { extractTrackingNames } from "@/features/dpo/lib/dtoTracking";
 import type {
   DtoConfigurationUpdate,
+  DtoCollaboratorSource,
   DtoEnvironmentSource,
   DtoFormConfiguration,
   DtoTrackingConfiguration,
   DtoTrackingMode,
+  DtoWorkforceFunction,
 } from "@/features/dpo/lib/dtoTypes";
+import { useFormManagerConfig } from "@/features/dpo/lib/formManagerConfig";
 import { Typography } from "@/shared/ui/typography";
 
 function inferredFieldKey(
@@ -22,6 +25,20 @@ function inferredFieldKey(
     (field) => field.role === role && field.observation_status === "OBSERVED",
   );
   return fields.length === 1 ? fields[0].key : "";
+}
+
+function inferredCollaboratorFieldKey(
+  configuration: DtoFormConfiguration,
+  source: DtoCollaboratorSource,
+): string {
+  const expected = source === "CPF" ? "cpf" : "mapa";
+  const candidates = configuration.fields.filter(
+    (field) =>
+      field.observation_status === "OBSERVED" &&
+      field.normalized_name.split(" ").includes(expected),
+  );
+  if (candidates.length === 1) return candidates[0].key;
+  return source === "CPF" ? inferredFieldKey(configuration, "COLLABORATOR") : "";
 }
 
 function uniqueNames(values: string[]): string[] {
@@ -42,6 +59,7 @@ export default function DtoTrackingConfigurationPanel({
   configuration: DtoFormConfiguration;
   onSave: (update: DtoConfigurationUpdate) => Promise<unknown>;
 }) {
+  const { api } = useFormManagerConfig();
   const current = configuration.tracking;
   const [trackingMode, setTrackingMode] = useState<DtoTrackingMode>(
     current.mode || "COLLABORATOR",
@@ -49,16 +67,19 @@ export default function DtoTrackingConfigurationPanel({
   const [environmentSource, setEnvironmentSource] = useState<DtoEnvironmentSource>(
     current.environment_source || "FIELD",
   );
+  const [collaboratorSource, setCollaboratorSource] = useState<DtoCollaboratorSource>(
+    current.collaborator_source || "CPF",
+  );
   const [rosterFieldKey, setRosterFieldKey] = useState(
     (current.mode === "ENVIRONMENT" && current.environment_source === "FORM")
       ? ""
       : current.roster_field_key ||
-        inferredFieldKey(
-          configuration,
-          (current.mode || "COLLABORATOR") === "ENVIRONMENT"
-            ? "CONTEXT"
-            : "COLLABORATOR",
-        ),
+        ((current.mode || "COLLABORATOR") === "ENVIRONMENT"
+          ? inferredFieldKey(configuration, "CONTEXT")
+          : inferredCollaboratorFieldKey(
+              configuration,
+              current.collaborator_source || "CPF",
+            )),
   );
   const [dateFieldKey, setDateFieldKey] = useState(
     current.realization_date_field_key || inferredFieldKey(configuration, "DATE"),
@@ -66,11 +87,55 @@ export default function DtoTrackingConfigurationPanel({
   const [intervalDays, setIntervalDays] = useState(
     current.interval_days ? String(current.interval_days) : "",
   );
+  const [applicableFunctions, setApplicableFunctions] = useState(
+    current.applicable_functions || [],
+  );
+  const [functionSearch, setFunctionSearch] = useState("");
+  const [functionCatalog, setFunctionCatalog] = useState<DtoWorkforceFunction[]>([]);
+  const [functionCatalogStatus, setFunctionCatalogStatus] = useState<
+    "loading" | "ready" | "error"
+  >("loading");
+  const [functionCatalogError, setFunctionCatalogError] = useState<string | null>(null);
+  const [newEmployeeRuleEnabled, setNewEmployeeRuleEnabled] = useState(
+    Boolean(
+      current.new_employee_window_days &&
+        current.new_employee_first_due_days,
+    ),
+  );
+  const [newEmployeeWindowDays, setNewEmployeeWindowDays] = useState(
+    current.new_employee_window_days
+      ? String(current.new_employee_window_days)
+      : "",
+  );
+  const [newEmployeeFirstDueDays, setNewEmployeeFirstDueDays] = useState(
+    current.new_employee_first_due_days
+      ? String(current.new_employee_first_due_days)
+      : "",
+  );
   const [excluded, setExcluded] = useState(current.excluded_collaborators);
   const [manual, setManual] = useState(current.manual_collaborators);
   const [manualName, setManualName] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void api.getTrackingContext(configuration.form_id, controller.signal)
+      .then((context) => {
+        setFunctionCatalog(context.available_functions || []);
+        setFunctionCatalogStatus("ready");
+      })
+      .catch((catalogError: unknown) => {
+        if (catalogError instanceof Error && catalogError.name === "AbortError") return;
+        setFunctionCatalogStatus("error");
+        setFunctionCatalogError(
+          catalogError instanceof Error
+            ? catalogError.message
+            : "Não foi possível consultar as funções do cadastro.",
+        );
+      });
+    return () => controller.abort();
+  }, [api, configuration.form_id]);
 
   const rosterField = configuration.fields.find(
     (field) => field.key === rosterFieldKey,
@@ -90,6 +155,16 @@ export default function DtoTrackingConfigurationPanel({
     Number.isInteger(parsedInterval) &&
     parsedInterval >= 1 &&
     parsedInterval <= 3660;
+  const parsedNewEmployeeWindow = Number(newEmployeeWindowDays);
+  const parsedNewEmployeeFirstDue = Number(newEmployeeFirstDueDays);
+  const newEmployeeRuleValid = !newEmployeeRuleEnabled || (
+    Number.isInteger(parsedNewEmployeeWindow) &&
+    parsedNewEmployeeWindow >= 1 &&
+    parsedNewEmployeeWindow <= 3660 &&
+    Number.isInteger(parsedNewEmployeeFirstDue) &&
+    parsedNewEmployeeFirstDue >= 1 &&
+    parsedNewEmployeeFirstDue <= 3660
+  );
   const fieldsDistinct = !rosterFieldKey || rosterFieldKey !== dateFieldKey;
   const isEnvironment = trackingMode === "ENVIRONMENT";
   const isFormEnvironment = isEnvironment && environmentSource === "FORM";
@@ -97,12 +172,38 @@ export default function DtoTrackingConfigurationPanel({
   const subjects = isEnvironment ? "ambientes" : "colaboradores";
   const hasPopulationSource = isFormEnvironment
     ? manual.length === 1
-    : Boolean(rosterFieldKey);
+    : isEnvironment
+      ? Boolean(rosterFieldKey)
+      : Boolean(rosterFieldKey && applicableFunctions.length);
+  const functionOptions = useMemo(() => {
+    const byKey = new Map<string, DtoWorkforceFunction>();
+    functionCatalog.forEach((item) => {
+      byKey.set(normalizeSearchText(item.name), item);
+    });
+    applicableFunctions.forEach((name) => {
+      const key = normalizeSearchText(name);
+      if (key && !byKey.has(key)) byKey.set(key, { name, employees: 0 });
+    });
+    const query = normalizeSearchText(functionSearch);
+    return [...byKey.values()]
+      .filter((item) => !query || normalizeSearchText(item.name).includes(query))
+      .sort((left, right) => left.name.localeCompare(right.name, "pt-BR"));
+  }, [applicableFunctions, functionCatalog, functionSearch]);
+  const selectedEmployees = useMemo(() => {
+    const selected = new Set(applicableFunctions.map(normalizeSearchText));
+    return functionCatalog.reduce(
+      (total, item) => total + (selected.has(normalizeSearchText(item.name)) ? item.employees : 0),
+      0,
+    );
+  }, [applicableFunctions, functionCatalog]);
   const currentIsFormEnvironment =
     current.mode === "ENVIRONMENT" && current.environment_source === "FORM";
   const currentConfigured = Boolean(
     current.realization_date_field_key &&
       current.interval_days &&
+      (current.mode !== "COLLABORATOR" || (
+        current.collaborator_source && current.applicable_functions?.length
+      )) &&
       (currentIsFormEnvironment
         ? current.manual_collaborators.length === 1 && !current.roster_field_key
         : current.roster_field_key),
@@ -113,14 +214,19 @@ export default function DtoTrackingConfigurationPanel({
     setTrackingMode(mode);
     setEnvironmentSource("FIELD");
     setRosterFieldKey(
-      inferredFieldKey(
-        configuration,
-        mode === "ENVIRONMENT" ? "CONTEXT" : "COLLABORATOR",
-      ),
+      mode === "ENVIRONMENT"
+        ? inferredFieldKey(configuration, "CONTEXT")
+        : inferredCollaboratorFieldKey(configuration, collaboratorSource),
     );
     setExcluded([]);
     setManual([]);
     setManualName("");
+  }
+
+  function changeCollaboratorSource(source: DtoCollaboratorSource) {
+    if (source === collaboratorSource) return;
+    setCollaboratorSource(source);
+    setRosterFieldKey(inferredCollaboratorFieldKey(configuration, source));
   }
 
   function changeEnvironmentSource(source: DtoEnvironmentSource) {
@@ -134,6 +240,15 @@ export default function DtoTrackingConfigurationPanel({
     setExcluded([]);
     setManual([]);
     setManualName("");
+  }
+
+  function toggleApplicableFunction(name: string) {
+    const key = normalizeSearchText(name);
+    setApplicableFunctions((values) =>
+      values.some((value) => normalizeSearchText(value) === key)
+        ? values.filter((value) => normalizeSearchText(value) !== key)
+        : [...values, name],
+    );
   }
 
   function toggleExcluded(name: string) {
@@ -204,7 +319,9 @@ export default function DtoTrackingConfigurationPanel({
               ? currentIsFormEnvironment
                 ? "Ambiente geral"
                 : "Por ambiente"
-              : "Por colaborador"}
+              : current.collaborator_source === "MAP"
+                ? "Por colaborador · mapa"
+                : "Por colaborador · CPF"}
           </DtoBadge>
         ) : (
           <DtoBadge>Configuração opcional</DtoBadge>
@@ -252,6 +369,182 @@ export default function DtoTrackingConfigurationPanel({
         </button>
       </div>
 
+      {!isEnvironment ? (
+        <fieldset className="mt-5 rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-4">
+          <legend className="px-1 text-sm font-semibold text-[var(--shell-text)]">
+            Como associar a realização aos colaboradores
+          </legend>
+          <div className="mt-2 grid gap-3 md:grid-cols-2" role="radiogroup" aria-label="Chave do colaborador">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={collaboratorSource === "CPF"}
+              onClick={() => changeCollaboratorSource("CPF")}
+              className={`flex items-start gap-3 rounded-xl border p-3 text-left transition ${
+                collaboratorSource === "CPF"
+                  ? "border-[color:var(--shell-accent)] bg-[var(--shell-accent-soft)]"
+                  : "border-[color:var(--shell-line)] hover:border-[color:var(--shell-line-strong)]"
+              }`}
+            >
+              <Fingerprint aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[var(--shell-accent)]" />
+              <span>
+                <span className="block text-sm font-semibold text-[var(--shell-text)]">CPF da realização</span>
+                <span className="mt-1 block text-xs leading-5 text-[var(--shell-muted)]">
+                  O CPF identifica uma única pessoa; use uma resposta textual que preserve os 11 dígitos.
+                  O acompanhamento exibe o nome do cadastro oficial.
+                </span>
+              </span>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={collaboratorSource === "MAP"}
+              onClick={() => changeCollaboratorSource("MAP")}
+              className={`flex items-start gap-3 rounded-xl border p-3 text-left transition ${
+                collaboratorSource === "MAP"
+                  ? "border-[color:var(--shell-accent)] bg-[var(--shell-accent-soft)]"
+                  : "border-[color:var(--shell-line)] hover:border-[color:var(--shell-line-strong)]"
+              }`}
+            >
+              <Route aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[var(--shell-accent)]" />
+              <span>
+                <span className="block text-sm font-semibold text-[var(--shell-text)]">Mapa e equipe escalada</span>
+                <span className="mt-1 block text-xs leading-5 text-[var(--shell-muted)]">
+                  Data e mapa localizam motorista e até dois ajudantes na view de equipe.
+                </span>
+              </span>
+            </button>
+          </div>
+        </fieldset>
+      ) : null}
+
+      {!isEnvironment ? (
+        <div className="mt-5 grid gap-4 xl:grid-cols-2">
+          <section className="rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-4">
+            <div className="flex items-start gap-3">
+              <Tag aria-hidden="true" className="mt-0.5 h-4 w-4 text-[var(--shell-accent)]" />
+              <div>
+                <p className="text-sm font-semibold text-[var(--shell-text)]">
+                  Funções aplicáveis
+                </p>
+                <p className="mt-1 text-xs leading-5 text-[var(--shell-muted)]">
+                  Somente funcionários com uma destas tags de <code>funcao</code> entram na população e na aderência.
+                </p>
+              </div>
+            </div>
+            <label className="relative mt-3 block">
+              <span className="sr-only">Buscar função</span>
+              <Search aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--shell-muted)]" />
+              <input
+                value={functionSearch}
+                onChange={(event) => setFunctionSearch(event.target.value)}
+                placeholder="Buscar função"
+                className="w-full rounded-xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] py-2.5 pl-10 pr-3 text-sm text-[var(--shell-text)]"
+              />
+            </label>
+            <div className="mt-3 max-h-64 space-y-2 overflow-y-auto pr-1">
+              {functionCatalogStatus === "loading" ? (
+                <p className="text-sm text-[var(--shell-muted)]">Consultando funções do cadastro...</p>
+              ) : functionCatalogStatus === "error" ? (
+                <p role="alert" className="text-sm text-[var(--shell-danger)]">
+                  {functionCatalogError}
+                </p>
+              ) : functionOptions.length ? (
+                functionOptions.map((item) => {
+                  const checked = applicableFunctions.some(
+                    (value) => normalizeSearchText(value) === normalizeSearchText(item.name),
+                  );
+                  return (
+                    <label
+                      key={normalizeSearchText(item.name)}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-[color:var(--shell-line)] px-3 py-2 text-sm text-[var(--shell-text)]"
+                    >
+                      <span className="flex min-w-0 items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleApplicableFunction(item.name)}
+                          className="h-4 w-4 shrink-0 accent-[var(--shell-accent)]"
+                        />
+                        <span className="min-w-0 break-words">{item.name}</span>
+                      </span>
+                      <span className="shrink-0 text-xs text-[var(--shell-muted)]">
+                        {item.employees} pessoa(s)
+                      </span>
+                    </label>
+                  );
+                })
+              ) : (
+                <p className="text-sm text-[var(--shell-muted)]">
+                  Nenhuma função corresponde à busca.
+                </p>
+              )}
+            </div>
+            <p className="mt-3 text-xs text-[var(--shell-muted)]">
+              {applicableFunctions.length} função(ões) selecionada(s) · {selectedEmployees} pessoa(s) na população.
+            </p>
+          </section>
+
+          <section className="rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-4">
+            <div className="flex items-start gap-3">
+              <CalendarClock aria-hidden="true" className="mt-0.5 h-4 w-4 text-[var(--shell-accent)]" />
+              <div className="min-w-0 flex-1">
+                <label className="flex items-center gap-3 text-sm font-semibold text-[var(--shell-text)]">
+                  <input
+                    type="checkbox"
+                    checked={newEmployeeRuleEnabled}
+                    onChange={(event) => setNewEmployeeRuleEnabled(event.target.checked)}
+                    className="h-4 w-4 accent-[var(--shell-accent)]"
+                  />
+                  Regra diferenciada para novos
+                </label>
+                <p className="mt-2 text-xs leading-5 text-[var(--shell-muted)]">
+                  Usa <code>admissao</code> para identificar recém-admitidos e calcular o prazo da primeira realização. Após a primeira aplicação, passa a valer o intervalo normal.
+                </p>
+              </div>
+            </div>
+            {newEmployeeRuleEnabled ? (
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <label className="text-xs font-semibold text-[var(--shell-muted)]">
+                  Considerar novo por
+                  <span className="mt-1 block font-normal">Dias após a admissão</span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={3660}
+                    step={1}
+                    value={newEmployeeWindowDays}
+                    onChange={(event) => setNewEmployeeWindowDays(event.target.value)}
+                    placeholder="Ex.: 30"
+                    className="mt-2 w-full rounded-xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] px-3 py-2.5 text-sm text-[var(--shell-text)]"
+                  />
+                </label>
+                <label className="text-xs font-semibold text-[var(--shell-muted)]">
+                  Prazo da primeira realização
+                  <span className="mt-1 block font-normal">Dias após a admissão</span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={3660}
+                    step={1}
+                    value={newEmployeeFirstDueDays}
+                    onChange={(event) => setNewEmployeeFirstDueDays(event.target.value)}
+                    placeholder="Ex.: 30"
+                    className="mt-2 w-full rounded-xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] px-3 py-2.5 text-sm text-[var(--shell-text)]"
+                  />
+                </label>
+              </div>
+            ) : (
+              <p className="mt-4 text-sm text-[var(--shell-muted)]">
+                Sem regra especial: quem nunca recebeu uma realização permanece em “Nunca realizado”.
+              </p>
+            )}
+          </section>
+        </div>
+      ) : null}
+
       {isEnvironment ? (
         <fieldset className="mt-5 rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-4">
           <legend className="px-1 text-sm font-semibold text-[var(--shell-text)]">
@@ -297,7 +590,11 @@ export default function DtoTrackingConfigurationPanel({
       <div className={`mt-5 grid gap-4 ${isFormEnvironment ? "lg:grid-cols-2" : "lg:grid-cols-3"}`}>
         {!isFormEnvironment ? (
           <label className="text-xs font-semibold text-[var(--shell-muted)]">
-            Pergunta/campo do {subject}
+            {isEnvironment
+              ? "Pergunta/campo do ambiente"
+              : collaboratorSource === "CPF"
+                ? "Pergunta/campo que contém o CPF"
+                : "Pergunta/campo que contém o mapa"}
           <select
             value={rosterFieldKey}
             onChange={(event) => {
@@ -353,6 +650,7 @@ export default function DtoTrackingConfigurationPanel({
         </label>
       </div>
 
+      {isEnvironment ? (
       <div className={`mt-5 grid gap-4 ${isFormEnvironment ? "max-w-2xl" : "xl:grid-cols-2"}`}>
         {!isFormEnvironment ? (
           <div className="rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-4">
@@ -363,9 +661,7 @@ export default function DtoTrackingConfigurationPanel({
                 Desconsiderar {subjects}
               </p>
               <p className="mt-1 text-xs leading-5 text-[var(--shell-muted)]">
-                {isEnvironment
-                  ? "Use para locais que não pertencem ao escopo desta rotina."
-                  : "Use para desligados ou pessoas que não pertencem mais à operação."}
+                Use para locais que não pertencem ao escopo desta rotina.
               </p>
             </div>
           </div>
@@ -401,7 +697,7 @@ export default function DtoTrackingConfigurationPanel({
 
         <div className="rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-4">
           <p className="text-sm font-semibold text-[var(--shell-text)]">
-            {isFormEnvironment ? "Definir ambiente geral" : `Incluir ${subject} sem registro`}
+            {isFormEnvironment ? "Definir ambiente geral" : "Incluir ambiente sem registro"}
           </p>
           <p className="mt-1 text-xs leading-5 text-[var(--shell-muted)]">
             {isFormEnvironment
@@ -418,7 +714,7 @@ export default function DtoTrackingConfigurationPanel({
                   addManualSubject();
                 }
               }}
-              placeholder={isFormEnvironment ? "Ex.: Armazém" : isEnvironment ? "Nome do ambiente" : "Nome do colaborador"}
+              placeholder={isFormEnvironment ? "Ex.: Armazém" : "Nome do ambiente"}
               className="min-w-0 flex-1 rounded-xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] px-3 py-2 text-sm text-[var(--shell-text)]"
             />
             <DtoButton size="sm" disabled={isFormEnvironment && manual.length > 0} onClick={addManualSubject}>
@@ -458,10 +754,31 @@ export default function DtoTrackingConfigurationPanel({
           </div>
         </div>
       </div>
+      ) : (
+        <div className="mt-5 rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-4">
+          <p className="text-sm font-semibold text-[var(--shell-text)]">
+            População do cadastro oficial
+          </p>
+          <p className="mt-1 text-xs leading-5 text-[var(--shell-muted)]">
+            Os nomes, funções e admissões serão lidos de <code>diretorio.funcionarios</code>.
+            O filtro acima define a população; não há inclusão ou associação manual por nome.
+          </p>
+        </div>
+      )}
 
       {intervalDays && !intervalValid ? (
         <p role="alert" className="mt-4 text-sm text-[var(--shell-danger)]">
           Informe um intervalo inteiro entre 1 e 3660 dias.
+        </p>
+      ) : null}
+      {newEmployeeRuleEnabled && !newEmployeeRuleValid ? (
+        <p role="alert" className="mt-4 text-sm text-[var(--shell-danger)]">
+          Informe valores inteiros entre 1 e 3660 dias para a regra de novos.
+        </p>
+      ) : null}
+      {!isEnvironment && applicableFunctions.length === 0 ? (
+        <p role="alert" className="mt-4 text-sm text-[var(--shell-danger)]">
+          Selecione ao menos uma função aplicável.
         </p>
       ) : null}
       {!fieldsDistinct ? (
@@ -494,17 +811,29 @@ export default function DtoTrackingConfigurationPanel({
             !hasPopulationSource ||
             !dateFieldKey ||
             !intervalValid ||
+            !newEmployeeRuleValid ||
             (!isFormEnvironment && !fieldsDistinct)
           }
           onClick={() =>
             void save({
               mode: trackingMode,
               environment_source: isEnvironment ? environmentSource : "FIELD",
+              collaborator_source: collaboratorSource,
               roster_field_key: isFormEnvironment ? null : rosterFieldKey,
               realization_date_field_key: dateFieldKey,
               interval_days: parsedInterval,
-              excluded_collaborators: isFormEnvironment ? [] : excluded,
-              manual_collaborators: manual,
+              applicable_functions: isEnvironment ? [] : applicableFunctions,
+              new_employee_window_days:
+                !isEnvironment && newEmployeeRuleEnabled
+                  ? parsedNewEmployeeWindow
+                  : null,
+              new_employee_first_due_days:
+                !isEnvironment && newEmployeeRuleEnabled
+                  ? parsedNewEmployeeFirstDue
+                  : null,
+              excluded_collaborators:
+                isEnvironment && !isFormEnvironment ? excluded : [],
+              manual_collaborators: isEnvironment ? manual : [],
             })
           }
         >

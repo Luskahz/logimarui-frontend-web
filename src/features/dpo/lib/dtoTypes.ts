@@ -91,15 +91,41 @@ export interface DtoFieldConfiguration {
 
 export type DtoTrackingMode = "COLLABORATOR" | "ENVIRONMENT";
 export type DtoEnvironmentSource = "FIELD" | "FORM";
+export type DtoCollaboratorSource = "CPF" | "MAP";
 
 export interface DtoTrackingConfiguration {
   mode: DtoTrackingMode;
   environment_source: DtoEnvironmentSource;
+  collaborator_source: DtoCollaboratorSource | null;
   roster_field_key: string | null;
   realization_date_field_key: string | null;
   interval_days: number | null;
+  applicable_functions: string[];
+  new_employee_window_days: number | null;
+  new_employee_first_due_days: number | null;
   excluded_collaborators: string[];
   manual_collaborators: string[];
+}
+
+export interface DtoTrackingEmployee {
+  key: string;
+  name: string;
+  function: string | null;
+  admission_date: string | null;
+}
+
+export interface DtoWorkforceFunction {
+  name: string;
+  employees: number;
+}
+
+export interface DtoTrackingContext {
+  collaborator_source: DtoCollaboratorSource;
+  available_functions: DtoWorkforceFunction[];
+  employees: DtoTrackingEmployee[];
+  record_employee_keys: Record<string, string[]>;
+  employees_without_cpf: number;
+  unmatched_records: number;
 }
 
 export interface DtoFormConfiguration {
@@ -257,7 +283,11 @@ export type DtoTrackingStatus = "current" | "dueSoon" | "overdue" | "never";
 export interface DtoTrackedSubject {
   key: string;
   name: string;
-  source: "observed" | "manual" | "form";
+  source: "database" | "observed" | "manual" | "form";
+  function: string | null;
+  admissionDate: Date | null;
+  isNew: boolean;
+  firstRealizationPending: boolean;
   applications: number;
   lastRealization: Date | null;
   nextDueDate: Date | null;
@@ -269,6 +299,7 @@ export interface DtoTrackingSummary {
   configured: boolean;
   mode: DtoTrackingMode;
   environmentSource: DtoEnvironmentSource;
+  collaboratorSource: DtoCollaboratorSource;
   subjects: DtoTrackedSubject[];
   excludedSubjects: string[];
   total: number;
@@ -276,6 +307,7 @@ export interface DtoTrackingSummary {
   dueSoon: number;
   overdue: number;
   never: number;
+  newEmployees: number;
   realizationAdherence: number | null;
   lastRealization: Date | null;
 }

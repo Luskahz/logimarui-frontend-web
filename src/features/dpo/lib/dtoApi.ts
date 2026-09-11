@@ -12,6 +12,7 @@ import type {
   DtoFormsResponse,
   DtoRefreshJob,
   DtoRefreshRequest,
+  DtoTrackingContext,
 } from "@/features/dpo/lib/dtoTypes";
 
 interface DtoRequestOptions {
@@ -172,6 +173,12 @@ export function createDtoApi(apiPrefix: string, resourceLabel: string) {
   getConfiguration(formId: string, signal?: AbortSignal) {
     return request<DtoFormConfiguration>(apiPrefix, resourceLabel,
       `/forms/${encodeURIComponent(formId)}/configuration`,
+      { signal },
+    );
+  },
+  getTrackingContext(formId: string, signal?: AbortSignal) {
+    return request<DtoTrackingContext>(apiPrefix, resourceLabel,
+      `/forms/${encodeURIComponent(formId)}/tracking-context`,
       { signal },
     );
   },

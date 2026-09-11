@@ -118,21 +118,45 @@ assert.equal(analytics.computeRecurringGaps(duplicateApplication).length, 0);
 const trackingDetail = {
   configuration: {
     tracking: {
+      mode: "COLLABORATOR",
+      collaborator_source: "CPF",
       roster_field_key: "person",
       realization_date_field_key: "realized-at",
       interval_days: 60,
-      excluded_collaborators: ["Diego"],
-      manual_collaborators: ["Carla"],
+      applicable_functions: ["MOTORISTA"],
+      new_employee_window_days: null,
+      new_employee_first_due_days: null,
+      excluded_collaborators: [],
+      manual_collaborators: [],
     },
   },
   records: [
-    { values: { person: "Ana", "realized-at": "11/08/2026 17:20" } },
-    { values: { person: "Bruno", "realized-at": "01/06/2026 08:00" } },
-    { values: { person: "Diego", "realized-at": "09/09/2026 08:00" } },
+    { id: "cpf-ana", values: { person: "11111111111", "realized-at": "11/08/2026 17:20" } },
+    { id: "cpf-bruno", values: { person: "22222222222", "realized-at": "01/06/2026 08:00" } },
+    { id: "cpf-unknown", values: { person: "99999999999", "realized-at": "09/09/2026 08:00" } },
   ],
+};
+const workforceContext = {
+  collaborator_source: "CPF",
+  available_functions: [
+    { name: "MOTORISTA", employees: 2 },
+    { name: "AJUDANTE", employees: 1 },
+  ],
+  employees: [
+    { key: "1", name: "Ana", function: "MOTORISTA", admission_date: "2024-01-10" },
+    { key: "2", name: "Bruno", function: "MOTORISTA", admission_date: "2023-01-10" },
+    { key: "3", name: "Carla", function: "AJUDANTE", admission_date: "2022-01-10" },
+  ],
+  record_employee_keys: {
+    "cpf-ana": ["1"],
+    "cpf-bruno": ["2"],
+  },
+  employees_without_cpf: 0,
+  unmatched_records: 1,
 };
 const trackingSummary = tracking.computeDtoTracking(
   trackingDetail,
+  workforceContext,
   new Date(2026, 8, 10, 12),
 );
 assert.equal(trackingSummary.mode, "COLLABORATOR");
@@ -155,6 +179,9 @@ const environmentTracking = tracking.computeDtoTracking(
         roster_field_key: "environment",
         realization_date_field_key: "realized-at",
         interval_days: 30,
+        applicable_functions: [],
+        new_employee_window_days: null,
+        new_employee_first_due_days: null,
         excluded_collaborators: ["Escritório"],
         manual_collaborators: ["Pátio"],
       },
@@ -166,6 +193,7 @@ const environmentTracking = tracking.computeDtoTracking(
       { values: { environment: "Escritório", "realized-at": "09/09/2026" } },
     ],
   },
+  null,
   new Date(2026, 8, 10, 12),
 );
 assert.equal(environmentTracking.mode, "ENVIRONMENT");
@@ -191,6 +219,9 @@ const formEnvironmentTracking = tracking.computeDtoTracking(
         roster_field_key: null,
         realization_date_field_key: "realized-at",
         interval_days: 30,
+        applicable_functions: [],
+        new_employee_window_days: null,
+        new_employee_first_due_days: null,
         excluded_collaborators: [],
         manual_collaborators: ["Armazém"],
       },
@@ -200,6 +231,7 @@ const formEnvironmentTracking = tracking.computeDtoTracking(
       { values: { "realized-at": "01/09/2026", evaluator: "Bruno" } },
     ],
   },
+  null,
   new Date(2026, 8, 10, 12),
 );
 assert.equal(formEnvironmentTracking.configured, true);
@@ -210,4 +242,127 @@ assert.equal(formEnvironmentTracking.subjects[0].name, "Armazém");
 assert.equal(formEnvironmentTracking.subjects[0].applications, 2);
 assert.equal(formEnvironmentTracking.subjects[0].source, "form");
 
-console.log("DTO analytics e acompanhamento: 7 cenários validados com sucesso.");
+const mapTracking = tracking.computeDtoTracking(
+  {
+    configuration: {
+      tracking: {
+        mode: "COLLABORATOR",
+        collaborator_source: "MAP",
+        roster_field_key: "map",
+        realization_date_field_key: "realized-at",
+        interval_days: 60,
+        applicable_functions: ["MOTORISTA", "AJUDANTE"],
+        new_employee_window_days: null,
+        new_employee_first_due_days: null,
+        excluded_collaborators: [],
+        manual_collaborators: [],
+      },
+    },
+    records: [
+      { id: "map-291128", values: { map: 291128, "realized-at": "10/09/2026" } },
+    ],
+  },
+  {
+    collaborator_source: "MAP",
+    available_functions: workforceContext.available_functions,
+    employees: workforceContext.employees,
+    record_employee_keys: {
+      "map-291128": ["1", "2", "3"],
+    },
+    employees_without_cpf: 0,
+    unmatched_records: 0,
+  },
+  new Date(2026, 8, 10, 12),
+);
+assert.equal(mapTracking.total, 3);
+assert.equal(mapTracking.current, 3);
+assert.ok(mapTracking.subjects.every((item) => item.applications === 1));
+
+const newEmployeeTracking = tracking.computeDtoTracking(
+  {
+    configuration: {
+      tracking: {
+        mode: "COLLABORATOR",
+        collaborator_source: "CPF",
+        roster_field_key: "cpf",
+        realization_date_field_key: "realized-at",
+        interval_days: 60,
+        applicable_functions: ["MOTORISTA"],
+        new_employee_window_days: 45,
+        new_employee_first_due_days: 30,
+        excluded_collaborators: [],
+        manual_collaborators: [],
+      },
+    },
+    records: [],
+  },
+  {
+    collaborator_source: "CPF",
+    available_functions: [{ name: "MOTORISTA", employees: 1 }],
+    employees: [
+      {
+        key: "raymundo",
+        name: "Raymundo",
+        function: "MOTORISTA",
+        admission_date: "2026-09-10",
+      },
+    ],
+    record_employee_keys: {},
+    employees_without_cpf: 0,
+    unmatched_records: 0,
+  },
+  new Date(2026, 8, 10, 12),
+);
+assert.equal(newEmployeeTracking.newEmployees, 1);
+assert.equal(newEmployeeTracking.subjects[0].isNew, true);
+assert.equal(newEmployeeTracking.subjects[0].firstRealizationPending, true);
+assert.equal(newEmployeeTracking.subjects[0].status, "current");
+assert.equal(
+  newEmployeeTracking.subjects[0].nextDueDate.toISOString().slice(0, 10),
+  "2026-10-10",
+);
+
+const newEmployeeAfterFirstRealization = tracking.computeDtoTracking(
+  {
+    configuration: {
+      tracking: {
+        mode: "COLLABORATOR",
+        collaborator_source: "CPF",
+        roster_field_key: "cpf",
+        realization_date_field_key: "realized-at",
+        interval_days: 60,
+        applicable_functions: ["MOTORISTA"],
+        new_employee_window_days: 45,
+        new_employee_first_due_days: 30,
+        excluded_collaborators: [],
+        manual_collaborators: [],
+      },
+    },
+    records: [
+      { id: "raymundo-first", values: { "realized-at": "2026-09-10" } },
+    ],
+  },
+  {
+    collaborator_source: "CPF",
+    available_functions: [{ name: "MOTORISTA", employees: 1 }],
+    employees: [
+      {
+        key: "raymundo",
+        name: "Raymundo",
+        function: "MOTORISTA",
+        admission_date: "2026-09-10",
+      },
+    ],
+    record_employee_keys: { "raymundo-first": ["raymundo"] },
+    employees_without_cpf: 0,
+    unmatched_records: 0,
+  },
+  new Date(2026, 8, 10, 12),
+);
+assert.equal(newEmployeeAfterFirstRealization.subjects[0].firstRealizationPending, false);
+assert.equal(
+  newEmployeeAfterFirstRealization.subjects[0].nextDueDate.toISOString().slice(0, 10),
+  "2026-11-09",
+);
+
+console.log("DTO analytics e acompanhamento: 9 cenários validados com sucesso.");
