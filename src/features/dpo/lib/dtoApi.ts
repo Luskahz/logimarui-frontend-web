@@ -13,10 +13,13 @@ import type {
   DtoRefreshJob,
   DtoRefreshRequest,
   DtoTrackingContext,
+  WorkforceFilterCatalog,
+  WorkforceTrackingFilter,
+  WorkforceTrackingFilterPayload,
 } from "@/features/dpo/lib/dtoTypes";
 
 interface DtoRequestOptions {
-  method?: "GET" | "POST" | "PUT";
+  method?: "GET" | "POST" | "PUT" | "DELETE";
   body?: unknown;
   retryOnAuthFailure?: boolean;
   signal?: AbortSignal;
@@ -176,10 +179,49 @@ export function createDtoApi(apiPrefix: string, resourceLabel: string) {
       { signal },
     );
   },
-  getTrackingContext(formId: string, signal?: AbortSignal) {
+  getTrackingContext(
+    formId: string,
+    filters?: { workforceFilterId?: string; workforceLocation?: string },
+    signal?: AbortSignal,
+  ) {
+    const query = new URLSearchParams();
+    if (filters?.workforceFilterId) query.set("workforce_filter_id", filters.workforceFilterId);
+    if (filters?.workforceLocation) query.set("workforce_location", filters.workforceLocation);
+    const suffix = query.size ? `?${query.toString()}` : "";
     return request<DtoTrackingContext>(apiPrefix, resourceLabel,
-      `/forms/${encodeURIComponent(formId)}/tracking-context`,
+      `/forms/${encodeURIComponent(formId)}/tracking-context${suffix}`,
       { signal },
+    );
+  },
+  getWorkforceFilterCatalog(signal?: AbortSignal) {
+    return request<WorkforceFilterCatalog>(
+      "/api/savi/api/v1/tracking-filters", "filtros de acompanhamento", "/catalog", { signal },
+    );
+  },
+  listWorkforceFilters(signal?: AbortSignal) {
+    return request<WorkforceTrackingFilter[]>(
+      "/api/savi/api/v1/tracking-filters", "filtros de acompanhamento", "", { signal },
+    );
+  },
+  createWorkforceFilter(payload: WorkforceTrackingFilterPayload, signal?: AbortSignal) {
+    return request<WorkforceTrackingFilter>(
+      "/api/savi/api/v1/tracking-filters", "filtros de acompanhamento", "", { method: "POST", body: payload, signal },
+    );
+  },
+  updateWorkforceFilter(
+    filterId: string,
+    payload: WorkforceTrackingFilterPayload,
+    signal?: AbortSignal,
+  ) {
+    return request<WorkforceTrackingFilter>(
+      "/api/savi/api/v1/tracking-filters", "filtros de acompanhamento", `/${encodeURIComponent(filterId)}`,
+      { method: "PUT", body: payload, signal },
+    );
+  },
+  deleteWorkforceFilter(filterId: string, creationPassword: string, signal?: AbortSignal) {
+    return request<WorkforceTrackingFilter>(
+      "/api/savi/api/v1/tracking-filters", "filtros de acompanhamento", `/${encodeURIComponent(filterId)}`,
+      { method: "DELETE", body: { creation_password: creationPassword }, signal },
     );
   },
   updateConfiguration(

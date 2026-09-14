@@ -111,6 +111,7 @@ export interface DtoTrackingEmployee {
   key: string;
   name: string;
   function: string | null;
+  location: string | null;
   admission_date: string | null;
 }
 
@@ -126,6 +127,45 @@ export interface DtoTrackingContext {
   record_employee_keys: Record<string, string[]>;
   employees_without_cpf: number;
   unmatched_records: number;
+  active_workforce_filter_name: string | null;
+  active_workforce_location: string | null;
+}
+
+export interface WorkforceFilterOption {
+  name: string;
+  employees: number;
+}
+
+export interface WorkforceFilterEmployee {
+  key: string;
+  name: string;
+  function: string | null;
+  location: string | null;
+}
+
+export interface WorkforceFilterCatalog {
+  locations: WorkforceFilterOption[];
+  functions: WorkforceFilterOption[];
+  employees: WorkforceFilterEmployee[];
+}
+
+export interface WorkforceTrackingFilter {
+  id: string;
+  name: string;
+  locations: string[];
+  functions: string[];
+  employee_keys: string[];
+  creation_password: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkforceTrackingFilterPayload {
+  name: string;
+  locations: string[];
+  functions: string[];
+  employee_keys: string[];
+  creation_password: string;
 }
 
 export interface DtoFormConfiguration {

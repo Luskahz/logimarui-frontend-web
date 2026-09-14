@@ -23,6 +23,8 @@ import type {
   DtoTrackingContext,
   DtoTrackedSubject,
   DtoTrackingStatus,
+  WorkforceFilterCatalog,
+  WorkforceTrackingFilter,
 } from "@/features/dpo/lib/dtoTypes";
 import { useFormManagerConfig } from "@/features/dpo/lib/formManagerConfig";
 import { Typography } from "@/shared/ui/typography";
@@ -83,6 +85,10 @@ export default function DtoTrackingPanel({
     error: string | null;
   } | null>(null);
   const [contextReload, setContextReload] = useState(0);
+  const [workforceLocation, setWorkforceLocation] = useState("");
+  const [workforceFilterId, setWorkforceFilterId] = useState("");
+  const [filterCatalog, setFilterCatalog] = useState<WorkforceFilterCatalog | null>(null);
+  const [sharedFilters, setSharedFilters] = useState<WorkforceTrackingFilter[]>([]);
   const needsWorkforceContext =
     detail.configuration.tracking.mode === "COLLABORATOR" &&
     Boolean(
@@ -93,7 +99,7 @@ export default function DtoTrackingPanel({
         detail.configuration.tracking.applicable_functions?.length,
     );
   const contextRequestKey = needsWorkforceContext
-    ? `${detail.form.id}:${detail.configuration.revision}:${contextReload}`
+    ? `${detail.form.id}:${detail.configuration.revision}:${workforceLocation}:${workforceFilterId}:${contextReload}`
     : null;
   const currentContextResult = contextResult?.key === contextRequestKey
     ? contextResult
@@ -111,7 +117,11 @@ export default function DtoTrackingPanel({
   useEffect(() => {
     if (!contextRequestKey) return;
     const controller = new AbortController();
-    void api.getTrackingContext(detail.form.id, controller.signal)
+    void api.getTrackingContext(
+      detail.form.id,
+      { workforceFilterId: workforceFilterId || undefined, workforceLocation: workforceLocation || undefined },
+      controller.signal,
+    )
       .then((payload) => {
         setContextResult({ key: contextRequestKey, context: payload, error: null });
       })
@@ -126,7 +136,25 @@ export default function DtoTrackingPanel({
         });
       });
     return () => controller.abort();
-  }, [api, contextRequestKey, detail.form.id]);
+  }, [api, contextRequestKey, detail.form.id, workforceFilterId, workforceLocation]);
+
+  useEffect(() => {
+    if (!needsWorkforceContext) return;
+    const controller = new AbortController();
+    void Promise.all([
+      api.getWorkforceFilterCatalog(controller.signal),
+      api.listWorkforceFilters(controller.signal),
+    ]).then(([catalog, filters]) => {
+      setFilterCatalog(catalog);
+      setSharedFilters(filters);
+    }).catch((error: unknown) => {
+      if (error instanceof Error && error.name === "AbortError") return;
+      // O acompanhamento permanece utilizavel mesmo se a lista auxiliar falhar.
+      setFilterCatalog(null);
+      setSharedFilters([]);
+    });
+    return () => controller.abort();
+  }, [api, needsWorkforceContext]);
 
   const tracking = useMemo(
     () => computeDtoTracking(detail, context),
@@ -146,6 +174,8 @@ export default function DtoTrackingPanel({
         )
       : tracking.subjects;
   }, [search, tracking.subjects]);
+
+  const hasWorkforceFilters = Boolean(filterCatalog?.locations.length || sharedFilters.length);
 
   if (!tracking.configured) {
     return (
@@ -282,6 +312,53 @@ export default function DtoTrackingPanel({
 
   return (
     <div className="space-y-4">
+      {!isEnvironment && hasWorkforceFilters ? (
+        <DtoPanel className="p-4 sm:p-5">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="min-w-52 flex-1">
+              <Typography variant="overline">Recorte de visualização</Typography>
+              <label className="mt-2 block text-xs font-semibold text-[var(--shell-muted)]">
+                Local da operação
+                <select
+                  value={workforceLocation}
+                  onChange={(event) => setWorkforceLocation(event.target.value)}
+                  className="mt-1.5 w-full rounded-xl border border-[color:var(--shell-line)] bg-[var(--shell-surface)] px-3 py-2.5 text-sm text-[var(--shell-text)]"
+                >
+                  <option value="">Todos os locais aplicáveis</option>
+                  {(filterCatalog?.locations || []).map((location) => (
+                    <option key={location.name} value={location.name}>
+                      {location.name} · {formatDtoNumber(location.employees)} pessoa(s)
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="min-w-52 flex-1">
+              <label className="block text-xs font-semibold text-[var(--shell-muted)]">
+                Filtro público
+                <select
+                  value={workforceFilterId}
+                  onChange={(event) => setWorkforceFilterId(event.target.value)}
+                  className="mt-6 w-full rounded-xl border border-[color:var(--shell-line)] bg-[var(--shell-surface)] px-3 py-2.5 text-sm text-[var(--shell-text)]"
+                >
+                  <option value="">Nenhum filtro público</option>
+                  {sharedFilters.map((filter) => (
+                    <option key={filter.id} value={filter.id}>{filter.name}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            {(workforceLocation || workforceFilterId) ? (
+              <DtoButton size="sm" onClick={() => { setWorkforceLocation(""); setWorkforceFilterId(""); }}>
+                Limpar recorte
+              </DtoButton>
+            ) : null}
+          </div>
+          <Typography variant="caption" className="mt-3">
+            O local vem de <code>diretorio.funcionarios.local</code>. Filtros públicos podem combinar locais, funções e pessoas específicas e são compartilhados entre DTO, Blitz e Gabaritos.
+          </Typography>
+        </DtoPanel>
+      ) : null}
       <div className="flex justify-end">
         <DtoBadge tone="accent">
           {isFormEnvironment

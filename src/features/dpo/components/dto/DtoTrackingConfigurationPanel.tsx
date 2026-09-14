@@ -120,7 +120,7 @@ export default function DtoTrackingConfigurationPanel({
 
   useEffect(() => {
     const controller = new AbortController();
-    void api.getTrackingContext(configuration.form_id, controller.signal)
+    void api.getTrackingContext(configuration.form_id, undefined, controller.signal)
       .then((context) => {
         setFunctionCatalog(context.available_functions || []);
         setFunctionCatalogStatus("ready");

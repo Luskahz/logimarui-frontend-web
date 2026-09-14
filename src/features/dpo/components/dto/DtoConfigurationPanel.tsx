@@ -13,6 +13,7 @@ import { formatDtoNumber, formatDtoPercentage, normalizeSearchText } from "@/fea
 import { DtoBadge, DtoButton, DtoPanel } from "@/features/dpo/components/dto/DtoPrimitives";
 import { Typography } from "@/shared/ui/typography";
 import DtoTrackingConfigurationPanel from "@/features/dpo/components/dto/DtoTrackingConfigurationPanel";
+import DtoWorkforceFilterManager from "@/features/dpo/components/dto/DtoWorkforceFilterManager";
 
 const ROLE_LABELS: Record<DtoFieldRole, string> = {
   EVALUATION: "Pergunta avaliativa",
@@ -171,6 +172,7 @@ export default function DtoConfigurationPanel({
         configuration={configuration}
         onSave={onSave}
       />
+      <DtoWorkforceFilterManager />
       <DtoPanel className="p-5 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
