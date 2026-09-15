@@ -101,6 +101,7 @@ export interface DtoTrackingConfiguration {
   realization_date_field_key: string | null;
   interval_days: number | null;
   applicable_functions: string[];
+  applicant_employee_keys: string[];
   new_employee_window_days: number | null;
   new_employee_first_due_days: number | null;
   excluded_collaborators: string[];
@@ -112,6 +113,7 @@ export interface DtoTrackingEmployee {
   name: string;
   function: string | null;
   location: string | null;
+  area: string | null;
   admission_date: string | null;
 }
 
@@ -125,10 +127,44 @@ export interface DtoTrackingContext {
   available_functions: DtoWorkforceFunction[];
   employees: DtoTrackingEmployee[];
   record_employee_keys: Record<string, string[]>;
+  record_applicant_keys: Record<string, string[]>;
   employees_without_cpf: number;
   unmatched_records: number;
   active_workforce_filter_name: string | null;
   active_workforce_location: string | null;
+}
+
+export type DtoPlanningRecurrence = "ONCE" | "WEEKLY" | "MONTHLY";
+
+export interface DtoPlanningItem {
+  id: string;
+  form_id: string;
+  title: string;
+  assignee_employee_key: string;
+  target_employee_keys: string[];
+  start_date: string;
+  end_date: string;
+  recurrence: DtoPlanningRecurrence;
+  target_count: number;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DtoPlanningPayload {
+  title: string;
+  assignee_employee_key: string;
+  target_employee_keys: string[];
+  start_date: string;
+  end_date?: string | null;
+  recurrence: DtoPlanningRecurrence;
+  target_count: number;
+  notes?: string | null;
+}
+
+export interface DtoPlanningResponse {
+  form_id: string;
+  items: DtoPlanningItem[];
 }
 
 export interface WorkforceFilterOption {
@@ -141,10 +177,12 @@ export interface WorkforceFilterEmployee {
   name: string;
   function: string | null;
   location: string | null;
+  area: string | null;
 }
 
 export interface WorkforceFilterCatalog {
   locations: WorkforceFilterOption[];
+  areas: WorkforceFilterOption[];
   functions: WorkforceFilterOption[];
   employees: WorkforceFilterEmployee[];
 }

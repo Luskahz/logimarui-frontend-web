@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { Activity, ArrowLeft, RefreshCw, Settings2, TriangleAlert } from "lucide-react";
+import { Activity, ArrowLeft, CalendarDays, RefreshCw, Settings2, TriangleAlert } from "lucide-react";
 import { useDtoForm } from "@/features/dpo/hooks/useDtoForm";
 import {
   formatDtoDate,
@@ -23,6 +23,7 @@ import DtoCriticalQuestions from "@/features/dpo/components/dto/DtoCriticalQuest
 import DtoFilters from "@/features/dpo/components/dto/DtoFilters";
 import DtoTrendChart from "@/features/dpo/components/dto/DtoTrendChart";
 import DtoTrackingPanel from "@/features/dpo/components/dto/DtoTrackingPanel";
+import DtoPlanningPanel from "@/features/dpo/components/dto/DtoPlanningPanel";
 import DtoRefreshDialog from "@/features/dpo/components/dto/DtoRefreshDialog";
 import {
   DtoBadge,
@@ -34,7 +35,7 @@ import {
 import { Typography } from "@/shared/ui/typography";
 import { useFormManagerConfig } from "@/features/dpo/lib/formManagerConfig";
 
-type ActiveTab = "analysis" | "tracking" | "configuration";
+type ActiveTab = "analysis" | "tracking" | "planning" | "configuration";
 
 function DtoQualityIssues({
   detail,
@@ -215,6 +216,15 @@ export default function DtoFormAnalysis({
           </DtoButton>
           <DtoButton
             role="tab"
+            aria-selected={activeTab === "planning"}
+            tone={activeTab === "planning" ? "accent" : "default"}
+            onClick={() => setActiveTab("planning")}
+          >
+            <CalendarDays aria-hidden="true" />
+            Planejamento
+          </DtoButton>
+          <DtoButton
+            role="tab"
             aria-selected={activeTab === "configuration"}
             tone={activeTab === "configuration" ? "accent" : "default"}
             onClick={() => openConfiguration(false)}
@@ -257,6 +267,8 @@ export default function DtoFormAnalysis({
           detail={detail}
           onConfigure={() => openConfiguration(false)}
         />
+      ) : activeTab === "planning" ? (
+        <DtoPlanningPanel detail={detail} />
       ) : (
         <>
           <DtoQualityIssues detail={detail} onConfigure={() => openConfiguration(true)} />

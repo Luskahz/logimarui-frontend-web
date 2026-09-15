@@ -44,6 +44,10 @@ const tracking = evaluate(
   transpile("src/features/dpo/lib/dtoTracking.ts"),
   { "@/features/dpo/lib/dtoFormatters": formatters },
 );
+const planning = evaluate(
+  transpile("src/features/dpo/lib/dtoPlanning.ts"),
+  { "@/features/dpo/lib/dtoFormatters": formatters },
+);
 
 const saviDate = formatters.parseDtoDate("11/08/2026 17:20");
 assert.ok(saviDate);
@@ -365,4 +369,86 @@ assert.equal(
   "2026-11-09",
 );
 
-console.log("DTO analytics e acompanhamento: 9 cenários validados com sucesso.");
+const planningOccurrences = planning.computePlanningOccurrences({
+  detail: {
+    configuration: { tracking: { realization_date_field_key: "realized-at" } },
+    records: [
+      { id: "done", manager: "Ana Aplicadora", date: null, values: { "realized-at": "02/09/2026" } },
+      { id: "other", manager: "Outro Aplicador", date: null, values: { "realized-at": "09/09/2026" } },
+    ],
+  },
+  context: {
+    record_employee_keys: { done: ["target"], other: ["target"] },
+    record_applicant_keys: { done: ["applicant"], other: ["other-applicant"] },
+  },
+  items: [{
+    id: "weekly",
+    form_id: "form",
+    title: "Agenda semanal",
+    assignee_employee_key: "applicant",
+    target_employee_keys: ["target"],
+    start_date: "2026-09-01",
+    end_date: "2026-09-15",
+    recurrence: "WEEKLY",
+    target_count: 1,
+    notes: null,
+    created_at: "2026-09-01T00:00:00Z",
+    updated_at: "2026-09-01T00:00:00Z",
+  }],
+  now: new Date(2026, 8, 10, 12),
+});
+assert.equal(planningOccurrences.length, 3);
+assert.equal(planningOccurrences[0].status, "completed");
+assert.equal(planningOccurrences[0].actualCount, 1);
+assert.equal(planningOccurrences[1].status, "pending");
+assert.equal(planningOccurrences[2].status, "upcoming");
+
+const collaboratorCalendarEntries = planning.computePlanningCalendarEntries({
+  collaboratorMode: true,
+  context: {
+    record_employee_keys: { done: ["target"], other: ["target"] },
+  },
+  employeeNamesByKey: { target: "Colaborador Planejado" },
+  occurrences: planningOccurrences,
+  now: new Date(2026, 8, 10, 12),
+});
+assert.equal(collaboratorCalendarEntries.length, 3);
+assert.equal(collaboratorCalendarEntries[0].targetName, "Colaborador Planejado");
+assert.equal(collaboratorCalendarEntries[0].targetKind, "collaborator");
+assert.equal(collaboratorCalendarEntries[0].status, "completed");
+
+const environmentCalendarEntries = planning.computePlanningCalendarEntries({
+  collaboratorMode: false,
+  context: null,
+  employeeNamesByKey: { applicant: "Aplicadora do Armazém" },
+  occurrences: planningOccurrences,
+  now: new Date(2026, 8, 10, 12),
+});
+assert.equal(environmentCalendarEntries[0].targetName, "Aplicadora do Armazém");
+assert.equal(environmentCalendarEntries[0].targetKind, "applicant");
+
+const monthlyOccurrences = planning.computePlanningOccurrences({
+  detail: { configuration: { tracking: {} }, records: [] },
+  context: null,
+  items: [{
+    id: "monthly",
+    form_id: "form",
+    title: "Agenda mensal",
+    assignee_employee_key: "applicant",
+    target_employee_keys: [],
+    start_date: "2026-01-31",
+    end_date: "2026-03-31",
+    recurrence: "MONTHLY",
+    target_count: 1,
+    notes: null,
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+  }],
+  now: new Date(2026, 0, 1, 12),
+});
+assert.deepEqual(
+  monthlyOccurrences.map((item) => item.date.getDate()),
+  [31, 28, 31],
+);
+
+console.log("DTO analytics, acompanhamento e planejamento: 13 cenários validados com sucesso.");

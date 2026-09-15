@@ -13,6 +13,7 @@ import type {
   DtoTrackingConfiguration,
   DtoTrackingMode,
   DtoWorkforceFunction,
+  WorkforceFilterCatalog,
 } from "@/features/dpo/lib/dtoTypes";
 import { useFormManagerConfig } from "@/features/dpo/lib/formManagerConfig";
 import { Typography } from "@/shared/ui/typography";
@@ -96,6 +97,13 @@ export default function DtoTrackingConfigurationPanel({
     "loading" | "ready" | "error"
   >("loading");
   const [functionCatalogError, setFunctionCatalogError] = useState<string | null>(null);
+  const [workforceCatalog, setWorkforceCatalog] = useState<WorkforceFilterCatalog | null>(null);
+  const [applicantEmployeeKeys, setApplicantEmployeeKeys] = useState(
+    current.applicant_employee_keys || [],
+  );
+  const [applicantArea, setApplicantArea] = useState("");
+  const [applicantFunction, setApplicantFunction] = useState("");
+  const [applicantSearch, setApplicantSearch] = useState("");
   const [newEmployeeRuleEnabled, setNewEmployeeRuleEnabled] = useState(
     Boolean(
       current.new_employee_window_days &&
@@ -120,9 +128,12 @@ export default function DtoTrackingConfigurationPanel({
 
   useEffect(() => {
     const controller = new AbortController();
-    void api.getTrackingContext(configuration.form_id, undefined, controller.signal)
-      .then((context) => {
+    void Promise.all([
+      api.getTrackingContext(configuration.form_id, undefined, controller.signal),
+      api.getWorkforceFilterCatalog(controller.signal),
+    ]).then(([context, catalog]) => {
         setFunctionCatalog(context.available_functions || []);
+        setWorkforceCatalog(catalog);
         setFunctionCatalogStatus("ready");
       })
       .catch((catalogError: unknown) => {
@@ -196,6 +207,16 @@ export default function DtoTrackingConfigurationPanel({
       0,
     );
   }, [applicableFunctions, functionCatalog]);
+  const applicantAreas = workforceCatalog?.areas || [];
+  const applicantFunctions = workforceCatalog?.functions || [];
+  const visibleApplicants = useMemo(() => {
+    const query = normalizeSearchText(applicantSearch);
+    return (workforceCatalog?.employees || []).filter((employee) =>
+      (!applicantArea || employee.area === applicantArea)
+      && (!applicantFunction || employee.function === applicantFunction)
+      && (!query || normalizeSearchText(`${employee.name} ${employee.function || ""} ${employee.area || ""}`).includes(query)),
+    );
+  }, [applicantArea, applicantFunction, applicantSearch, workforceCatalog?.employees]);
   const currentIsFormEnvironment =
     current.mode === "ENVIRONMENT" && current.environment_source === "FORM";
   const currentConfigured = Boolean(
@@ -249,6 +270,12 @@ export default function DtoTrackingConfigurationPanel({
         ? values.filter((value) => normalizeSearchText(value) !== key)
         : [...values, name],
     );
+  }
+
+  function toggleApplicant(key: string) {
+    setApplicantEmployeeKeys((keys) => keys.includes(key)
+      ? keys.filter((item) => item !== key)
+      : [...keys, key]);
   }
 
   function toggleExcluded(name: string) {
@@ -766,6 +793,32 @@ export default function DtoTrackingConfigurationPanel({
         </div>
       )}
 
+      <section className="mt-5 rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-4">
+        <div className="flex items-start gap-3">
+          <UsersRound aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[var(--shell-accent)]" />
+          <div>
+            <p className="text-sm font-semibold text-[var(--shell-text)]">Aplicadores deste formulário</p>
+            <p className="mt-1 text-xs leading-5 text-[var(--shell-muted)]">Somente as pessoas selecionadas aqui aparecem como responsáveis pelos lançamentos no Planejamento. Filtre a base por área e função para montar a equipe aplicadora.</p>
+          </div>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <label className="text-xs font-semibold text-[var(--shell-muted)]">Área
+            <select value={applicantArea} onChange={(event) => setApplicantArea(event.target.value)} className="mt-1.5 w-full rounded-xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] px-3 py-2.5 text-sm text-[var(--shell-text)]"><option value="">Todas as áreas</option>{applicantAreas.map((option) => <option key={option.name} value={option.name}>{option.name} ({option.employees})</option>)}</select>
+          </label>
+          <label className="text-xs font-semibold text-[var(--shell-muted)]">Função
+            <select value={applicantFunction} onChange={(event) => setApplicantFunction(event.target.value)} className="mt-1.5 w-full rounded-xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] px-3 py-2.5 text-sm text-[var(--shell-text)]"><option value="">Todas as funções</option>{applicantFunctions.map((option) => <option key={option.name} value={option.name}>{option.name} ({option.employees})</option>)}</select>
+          </label>
+          <label className="relative text-xs font-semibold text-[var(--shell-muted)]">Buscar pessoa
+            <Search aria-hidden="true" className="pointer-events-none absolute bottom-3 left-3 h-4 w-4 text-[var(--shell-muted)]" />
+            <input value={applicantSearch} onChange={(event) => setApplicantSearch(event.target.value)} placeholder="Nome, área ou função" className="mt-1.5 w-full rounded-xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] py-2.5 pl-9 pr-3 text-sm text-[var(--shell-text)]" />
+          </label>
+        </div>
+        <div className="mt-3 max-h-64 space-y-1 overflow-y-auto rounded-xl border border-[color:var(--shell-line)] p-2">
+          {workforceCatalog === null ? <p className="px-2 py-4 text-sm text-[var(--shell-muted)]">Consultando cadastro de funcionários...</p> : visibleApplicants.length ? visibleApplicants.map((employee) => <label key={employee.key} className="flex cursor-pointer items-start gap-3 rounded-xl px-3 py-2.5 hover:bg-[var(--shell-surface-muted)]"><input type="checkbox" checked={applicantEmployeeKeys.includes(employee.key)} onChange={() => toggleApplicant(employee.key)} className="mt-0.5 accent-[var(--shell-accent)]" /><span className="min-w-0"><span className="block text-sm font-semibold text-[var(--shell-text)]">{employee.name}</span><span className="block text-xs text-[var(--shell-muted)]">{[employee.area, employee.function].filter(Boolean).join(" · ") || "Sem área ou função"}</span></span></label>) : <p className="px-2 py-4 text-sm text-[var(--shell-muted)]">Nenhum funcionário encontrado com estes filtros.</p>}
+        </div>
+        <p className="mt-3 text-xs text-[var(--shell-muted)]">{applicantEmployeeKeys.length} aplicador(es) selecionado(s).</p>
+      </section>
+
       {intervalDays && !intervalValid ? (
         <p role="alert" className="mt-4 text-sm text-[var(--shell-danger)]">
           Informe um intervalo inteiro entre 1 e 3660 dias.
@@ -779,6 +832,11 @@ export default function DtoTrackingConfigurationPanel({
       {!isEnvironment && applicableFunctions.length === 0 ? (
         <p role="alert" className="mt-4 text-sm text-[var(--shell-danger)]">
           Selecione ao menos uma função aplicável.
+        </p>
+      ) : null}
+      {applicantEmployeeKeys.length === 0 ? (
+        <p role="alert" className="mt-4 text-sm text-[var(--shell-danger)]">
+          Selecione ao menos um aplicador para este formulário.
         </p>
       ) : null}
       {!fieldsDistinct ? (
@@ -812,6 +870,7 @@ export default function DtoTrackingConfigurationPanel({
             !dateFieldKey ||
             !intervalValid ||
             !newEmployeeRuleValid ||
+            applicantEmployeeKeys.length === 0 ||
             (!isFormEnvironment && !fieldsDistinct)
           }
           onClick={() =>
@@ -823,6 +882,7 @@ export default function DtoTrackingConfigurationPanel({
               realization_date_field_key: dateFieldKey,
               interval_days: parsedInterval,
               applicable_functions: isEnvironment ? [] : applicableFunctions,
+              applicant_employee_keys: applicantEmployeeKeys,
               new_employee_window_days:
                 !isEnvironment && newEmployeeRuleEnabled
                   ? parsedNewEmployeeWindow

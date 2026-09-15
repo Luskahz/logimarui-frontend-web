@@ -12,6 +12,9 @@ import type {
   DtoFormsResponse,
   DtoRefreshJob,
   DtoRefreshRequest,
+  DtoPlanningItem,
+  DtoPlanningPayload,
+  DtoPlanningResponse,
   DtoTrackingContext,
   WorkforceFilterCatalog,
   WorkforceTrackingFilter,
@@ -191,6 +194,38 @@ export function createDtoApi(apiPrefix: string, resourceLabel: string) {
     return request<DtoTrackingContext>(apiPrefix, resourceLabel,
       `/forms/${encodeURIComponent(formId)}/tracking-context${suffix}`,
       { signal },
+    );
+  },
+  getPlanning(formId: string, signal?: AbortSignal) {
+    return request<DtoPlanningResponse>(apiPrefix, resourceLabel,
+      `/forms/${encodeURIComponent(formId)}/planning`, { signal },
+    );
+  },
+  createPlanning(
+    formId: string,
+    payload: DtoPlanningPayload,
+    signal?: AbortSignal,
+  ) {
+    return request<DtoPlanningItem>(apiPrefix, resourceLabel,
+      `/forms/${encodeURIComponent(formId)}/planning`,
+      { method: "POST", body: payload, signal },
+    );
+  },
+  updatePlanning(
+    formId: string,
+    itemId: string,
+    payload: DtoPlanningPayload,
+    signal?: AbortSignal,
+  ) {
+    return request<DtoPlanningItem>(apiPrefix, resourceLabel,
+      `/forms/${encodeURIComponent(formId)}/planning/${encodeURIComponent(itemId)}`,
+      { method: "PUT", body: payload, signal },
+    );
+  },
+  deletePlanning(formId: string, itemId: string, signal?: AbortSignal) {
+    return request<DtoPlanningItem>(apiPrefix, resourceLabel,
+      `/forms/${encodeURIComponent(formId)}/planning/${encodeURIComponent(itemId)}`,
+      { method: "DELETE", signal },
     );
   },
   getWorkforceFilterCatalog(signal?: AbortSignal) {
