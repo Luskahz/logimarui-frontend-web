@@ -5,10 +5,10 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  Download,
   Pencil,
   Plus,
   RefreshCw,
-  Search,
   Sparkles,
   Trash2,
   Users,
@@ -42,6 +42,8 @@ import {
   DtoStatePanel,
 } from "@/features/dpo/components/dto/DtoPrimitives";
 import { Typography } from "@/shared/ui/typography";
+import DtoEmployeeSelectionDialog, { type DtoEmployeeSelectionOption } from "@/features/dpo/components/dto/DtoEmployeeSelectionDialog";
+import { exportPlanningWeekPng, startOfPlanningWeek } from "@/features/dpo/lib/dtoPlanningExport";
 
 const STATUS_LABELS: Record<DtoPlanningOccurrenceStatus, string> = {
   completed: "Realizado",
@@ -166,11 +168,10 @@ export default function DtoPlanningPanel({ detail }: { detail: DtoFormDetail }) 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<PlanningDraft>(initialDraft);
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
-  const [targetSearch, setTargetSearch] = useState("");
-  const [targetFunction, setTargetFunction] = useState("");
   const [targetPickerOpen, setTargetPickerOpen] = useState(false);
   const [applicantPickerOpen, setApplicantPickerOpen] = useState(false);
-  const [applicantSearch, setApplicantSearch] = useState("");
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportDate, setExportDate] = useState(() => localIsoDate(new Date()));
   const [activeDay, setActiveDay] = useState<Date | null>(null);
   const launchFormRef = useRef<HTMLDivElement>(null);
 
@@ -207,12 +208,6 @@ export default function DtoPlanningPanel({ detail }: { detail: DtoFormDetail }) 
     () => new Map(applicants.map((employee) => [employee.key, employee])),
     [applicants],
   );
-  const visibleApplicants = useMemo(() => {
-    const query = applicantSearch.toLocaleLowerCase("pt-BR");
-    return applicants.filter((employee) =>
-      `${employee.name} ${employee.function || ""}`.toLocaleLowerCase("pt-BR").includes(query),
-    );
-  }, [applicantSearch, applicants]);
   const occurrences = useMemo(() => computePlanningOccurrences({
     context,
     detail,
@@ -245,12 +240,19 @@ export default function DtoPlanningPanel({ detail }: { detail: DtoFormDetail }) 
   const applicableTargets = tracking.subjects.filter((subject) =>
     subject.status === "never" || subject.status === "overdue" || subject.status === "dueSoon",
   );
-  const functions = [...new Set(applicableTargets.map((subject) => subject.function).filter(Boolean))].sort((left, right) => left!.localeCompare(right!, "pt-BR"));
-  const visibleTargets = applicableTargets.filter((subject) =>
-    `${subject.name} ${subject.function || ""}`.toLocaleLowerCase("pt-BR")
-      .includes(targetSearch.toLocaleLowerCase("pt-BR"))
-      && (!targetFunction || subject.function === targetFunction),
-  );
+  const catalogEmployeeByKey = useMemo(() => new Map((catalog?.employees || []).map((employee) => [employee.key, employee])), [catalog?.employees]);
+  const targetOptions = useMemo<DtoEmployeeSelectionOption[]>(() => applicableTargets.map((subject) => {
+    const employee = catalogEmployeeByKey.get(subject.key);
+    return {
+      key: subject.key,
+      name: subject.name,
+      function: subject.function,
+      location: employee?.location || null,
+      area: employee?.area || employee?.location || null,
+      badgeLabel: dueLabel(subject),
+      badgeTone: subject.status === "dueSoon" ? "default" : "danger",
+    };
+  }), [applicableTargets, catalogEmployeeByKey]);
   const completed = monthOccurrences.filter((item) => item.status === "completed").length;
   const missed = monthOccurrences.filter((item) => item.status === "missed").length;
   const pending = monthOccurrences.filter((item) =>
@@ -264,8 +266,6 @@ export default function DtoPlanningPanel({ detail }: { detail: DtoFormDetail }) 
   function resetDraft() {
     setEditingId(null);
     setDraft(initialDraft());
-    setTargetSearch("");
-    setTargetFunction("");
   }
 
   function editItem(item: DtoPlanningItem) {
@@ -296,15 +296,6 @@ export default function DtoPlanningPanel({ detail }: { detail: DtoFormDetail }) 
     }));
     setTargetPickerOpen(true);
     requestAnimationFrame(() => launchFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
-  }
-
-  function toggleTarget(key: string) {
-    setDraft((current) => ({
-      ...current,
-      targetKeys: current.targetKeys.includes(key)
-        ? current.targetKeys.filter((item) => item !== key)
-        : [...current.targetKeys, key],
-    }));
   }
 
   async function submit(event: FormEvent) {
@@ -432,6 +423,7 @@ export default function DtoPlanningPanel({ detail }: { detail: DtoFormDetail }) 
               </Typography>
             </div>
             <div className="flex gap-2">
+              <DtoButton size="sm" onClick={() => { setExportDate(localIsoDate(month)); setExportDialogOpen(true); }}><Download aria-hidden="true" /> Exportar</DtoButton>
               <DtoButton size="sm" aria-label="Mês anterior" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}><ChevronLeft aria-hidden="true" /></DtoButton>
               <DtoButton size="sm" onClick={() => setMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}>Hoje</DtoButton>
               <DtoButton size="sm" aria-label="Próximo mês" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}><ChevronRight aria-hidden="true" /></DtoButton>
@@ -556,29 +548,11 @@ export default function DtoPlanningPanel({ detail }: { detail: DtoFormDetail }) 
         </DtoPanel>
       ) : null}
 
-      {applicantPickerOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4" role="dialog" aria-modal="true" aria-label="Selecionar aplicador">
-          <DtoPanel className="max-h-[85vh] w-full max-w-xl overflow-y-auto p-5 sm:p-6">
-            <div className="flex items-start justify-between gap-3"><div><Typography variant="overline">Aplicadores configurados</Typography><Typography as="h2" variant="cardTitle" className="mt-2">Selecionar responsável</Typography><Typography variant="caption" className="mt-1">A lista contém somente os aplicadores definidos para este formulário na Configuração.</Typography></div><DtoButton size="sm" aria-label="Fechar seleção de aplicador" onClick={() => setApplicantPickerOpen(false)}><X aria-hidden="true" /></DtoButton></div>
-            <label className="relative mt-5 block"><Search aria-hidden="true" className="pointer-events-none absolute left-3 top-4 h-4 w-4 text-[var(--shell-muted)]" /><input className={`${fieldClass} pl-9`} autoFocus value={applicantSearch} onChange={(event) => setApplicantSearch(event.target.value)} placeholder="Buscar nome ou função" /></label>
-            <div className="mt-4 max-h-[45vh] space-y-1 overflow-y-auto rounded-xl border border-[color:var(--shell-line)] p-2">{visibleApplicants.map((employee) => <button key={employee.key} type="button" onClick={() => { setDraft((current) => ({ ...current, assigneeKey: employee.key })); setApplicantPickerOpen(false); setApplicantSearch(""); }} className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-left hover:bg-[var(--shell-surface-muted)] ${draft.assigneeKey === employee.key ? "bg-[var(--shell-accent-soft)]" : ""}`}><span className="min-w-0"><span className="block truncate text-sm font-semibold text-[var(--shell-text)]">{employee.name}</span><span className="block truncate text-xs text-[var(--shell-muted)]">{employee.function || "Função não informada"}</span></span>{draft.assigneeKey === employee.key ? <DtoBadge tone="accent">Selecionado</DtoBadge> : null}</button>)}{visibleApplicants.length === 0 ? <p className="px-3 py-7 text-center text-sm text-[var(--shell-muted)]">Nenhum aplicador corresponde à busca.</p> : null}</div>
-          </DtoPanel>
-        </div>
-      ) : null}
+      <DtoEmployeeSelectionDialog open={applicantPickerOpen} mode="single" eyebrow="Aplicadores configurados" title="Selecionar responsável" description="A lista contém somente os aplicadores definidos para este formulário." employees={applicants} selectedKeys={draft.assigneeKey ? [draft.assigneeKey] : []} onChange={(keys) => setDraft((current) => ({ ...current, assigneeKey: keys[0] || "" }))} onClose={() => setApplicantPickerOpen(false)} emptyLabel="Nenhum aplicador corresponde aos filtros." />
 
-      {targetPickerOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4" role="dialog" aria-modal="true" aria-label="Selecionar colaboradores pendentes">
-          <DtoPanel className="max-h-[85vh] w-full max-w-2xl overflow-y-auto p-5 sm:p-6">
-            <div className="flex items-start justify-between gap-3"><div><Typography variant="overline">Alvos pendentes</Typography><Typography as="h2" variant="cardTitle" className="mt-2">Selecionar colaboradores</Typography><Typography variant="caption" className="mt-1">Apenas pessoas sem realização, em atraso ou próximas do prazo.</Typography></div><DtoButton size="sm" aria-label="Fechar seleção" onClick={() => setTargetPickerOpen(false)}><X aria-hidden="true" /></DtoButton></div>
-            <div className="mt-5 grid gap-3 sm:grid-cols-[minmax(0,1fr)_220px]"><label className="relative block"><Search aria-hidden="true" className="pointer-events-none absolute left-3 top-4 h-4 w-4 text-[var(--shell-muted)]" /><input className={`${fieldClass} pl-9`} autoFocus value={targetSearch} onChange={(event) => setTargetSearch(event.target.value)} placeholder="Buscar nome ou função" /></label><select className={fieldClass} value={targetFunction} onChange={(event) => setTargetFunction(event.target.value)}><option value="">Todas as funções</option>{functions.map((functionName) => <option key={functionName} value={functionName!}>{functionName}</option>)}</select></div>
-            <div className="mt-4 max-h-[45vh] space-y-1 overflow-y-auto rounded-xl border border-[color:var(--shell-line)] p-2">
-              {visibleTargets.map((subject) => <label key={subject.key} className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-[var(--shell-surface-muted)]"><input type="checkbox" checked={draft.targetKeys.includes(subject.key)} onChange={() => toggleTarget(subject.key)} /><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-[var(--shell-text)]">{subject.name}</span><span className="block truncate text-xs text-[var(--shell-muted)]">{subject.function || "Função não informada"}</span></span><DtoBadge tone={subject.status === "dueSoon" ? "default" : "danger"}>{dueLabel(subject)}</DtoBadge></label>)}
-              {visibleTargets.length === 0 ? <p className="px-3 py-7 text-center text-sm text-[var(--shell-muted)]">Nenhum colaborador pendente atende aos filtros.</p> : null}
-            </div>
-            <div className="mt-4 flex justify-end"><DtoButton tone="accent" onClick={() => setTargetPickerOpen(false)}>Concluir seleção</DtoButton></div>
-          </DtoPanel>
-        </div>
-      ) : null}
+      <DtoEmployeeSelectionDialog open={targetPickerOpen} eyebrow="Alvos pendentes" title="Selecionar colaboradores" description="Apenas pessoas sem realização, em atraso ou próximas do prazo." employees={targetOptions} selectedKeys={draft.targetKeys} onChange={(targetKeys) => setDraft((current) => ({ ...current, targetKeys }))} onClose={() => setTargetPickerOpen(false)} emptyLabel="Nenhum colaborador pendente atende aos filtros." />
+
+      {exportDialogOpen ? <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4" role="dialog" aria-modal="true" aria-label="Exportar calendário"><DtoPanel className="w-full max-w-md p-5 sm:p-6"><div className="flex items-start justify-between gap-3"><div><Typography variant="overline">Exportar planejamento</Typography><Typography as="h2" variant="cardTitle" className="mt-2">Escolher semana</Typography><Typography variant="caption" className="mt-1">A imagem PNG horizontal mostra o calendário na metade superior e o planejamento detalhado abaixo.</Typography></div><DtoButton size="sm" aria-label="Fechar exportação" onClick={() => setExportDialogOpen(false)}><X /></DtoButton></div><label className="mt-5 block text-xs font-semibold text-[var(--shell-muted)]">Data dentro da semana<input type="date" value={exportDate} onChange={(event) => setExportDate(event.target.value)} className={fieldClass} /></label><p className="mt-3 text-xs text-[var(--shell-muted)]">Período: {formatDtoDate(startOfPlanningWeek(parseDtoDate(exportDate) || new Date()))} a {formatDtoDate(addDays(localIsoDate(startOfPlanningWeek(parseDtoDate(exportDate) || new Date())), 6))}</p><DtoButton className="mt-5 w-full" tone="accent" onClick={() => { const selectedDate = parseDtoDate(exportDate) || new Date(); exportPlanningWeekPng({ entries: calendarEntries, formName: detail.form.name, weekStart: startOfPlanningWeek(selectedDate) }); setExportDialogOpen(false); }}><Download /> Baixar PNG</DtoButton></DtoPanel></div> : null}
 
       {activeDay ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4" role="dialog" aria-modal="true" aria-label={`Planejamento de ${formatDtoDate(activeDay)}`}>

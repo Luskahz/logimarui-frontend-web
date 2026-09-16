@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CalendarClock, Fingerprint, MapPin, Plus, RotateCcw, Route, Save, Search, Tag, UserMinus, UsersRound, X } from "lucide-react";
 import { DtoBadge, DtoButton } from "@/features/dpo/components/dto/DtoPrimitives";
+import DtoEmployeeSelectionDialog from "@/features/dpo/components/dto/DtoEmployeeSelectionDialog";
 import { normalizeSearchText } from "@/features/dpo/lib/dtoFormatters";
 import { extractTrackingNames } from "@/features/dpo/lib/dtoTracking";
 import type {
@@ -101,9 +102,7 @@ export default function DtoTrackingConfigurationPanel({
   const [applicantEmployeeKeys, setApplicantEmployeeKeys] = useState(
     current.applicant_employee_keys || [],
   );
-  const [applicantArea, setApplicantArea] = useState("");
-  const [applicantFunction, setApplicantFunction] = useState("");
-  const [applicantSearch, setApplicantSearch] = useState("");
+  const [applicantPickerOpen, setApplicantPickerOpen] = useState(false);
   const [newEmployeeRuleEnabled, setNewEmployeeRuleEnabled] = useState(
     Boolean(
       current.new_employee_window_days &&
@@ -207,16 +206,10 @@ export default function DtoTrackingConfigurationPanel({
       0,
     );
   }, [applicableFunctions, functionCatalog]);
-  const applicantAreas = workforceCatalog?.areas || [];
-  const applicantFunctions = workforceCatalog?.functions || [];
-  const visibleApplicants = useMemo(() => {
-    const query = normalizeSearchText(applicantSearch);
-    return (workforceCatalog?.employees || []).filter((employee) =>
-      (!applicantArea || employee.area === applicantArea)
-      && (!applicantFunction || employee.function === applicantFunction)
-      && (!query || normalizeSearchText(`${employee.name} ${employee.function || ""} ${employee.area || ""}`).includes(query)),
-    );
-  }, [applicantArea, applicantFunction, applicantSearch, workforceCatalog?.employees]);
+  const selectedApplicants = useMemo(() => {
+    const selected = new Set(applicantEmployeeKeys);
+    return (workforceCatalog?.employees || []).filter((employee) => selected.has(employee.key));
+  }, [applicantEmployeeKeys, workforceCatalog?.employees]);
   const currentIsFormEnvironment =
     current.mode === "ENVIRONMENT" && current.environment_source === "FORM";
   const currentConfigured = Boolean(
@@ -794,30 +787,31 @@ export default function DtoTrackingConfigurationPanel({
       )}
 
       <section className="mt-5 rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-4">
-        <div className="flex items-start gap-3">
-          <UsersRound aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[var(--shell-accent)]" />
-          <div>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <UsersRound aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[var(--shell-accent)]" />
+            <div>
             <p className="text-sm font-semibold text-[var(--shell-text)]">Aplicadores deste formulário</p>
-            <p className="mt-1 text-xs leading-5 text-[var(--shell-muted)]">Somente as pessoas selecionadas aqui aparecem como responsáveis pelos lançamentos no Planejamento. Filtre a base por área e função para montar a equipe aplicadora.</p>
+              <p className="mt-1 text-xs leading-5 text-[var(--shell-muted)]">Somente estas pessoas aparecem como responsáveis no Planejamento.</p>
+            </div>
           </div>
+          <DtoButton size="sm" onClick={() => setApplicantPickerOpen(true)}><Plus aria-hidden="true" /> Adicionar</DtoButton>
         </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          <label className="text-xs font-semibold text-[var(--shell-muted)]">Área
-            <select value={applicantArea} onChange={(event) => setApplicantArea(event.target.value)} className="mt-1.5 w-full rounded-xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] px-3 py-2.5 text-sm text-[var(--shell-text)]"><option value="">Todas as áreas</option>{applicantAreas.map((option) => <option key={option.name} value={option.name}>{option.name} ({option.employees})</option>)}</select>
-          </label>
-          <label className="text-xs font-semibold text-[var(--shell-muted)]">Função
-            <select value={applicantFunction} onChange={(event) => setApplicantFunction(event.target.value)} className="mt-1.5 w-full rounded-xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] px-3 py-2.5 text-sm text-[var(--shell-text)]"><option value="">Todas as funções</option>{applicantFunctions.map((option) => <option key={option.name} value={option.name}>{option.name} ({option.employees})</option>)}</select>
-          </label>
-          <label className="relative text-xs font-semibold text-[var(--shell-muted)]">Buscar pessoa
-            <Search aria-hidden="true" className="pointer-events-none absolute bottom-3 left-3 h-4 w-4 text-[var(--shell-muted)]" />
-            <input value={applicantSearch} onChange={(event) => setApplicantSearch(event.target.value)} placeholder="Nome, área ou função" className="mt-1.5 w-full rounded-xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] py-2.5 pl-9 pr-3 text-sm text-[var(--shell-text)]" />
-          </label>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {selectedApplicants.length ? selectedApplicants.map((employee) => <span key={employee.key} className="inline-flex items-center gap-2 rounded-full border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] px-3 py-1.5 text-xs font-semibold text-[var(--shell-text)]">{employee.name}<button type="button" aria-label={`Remover ${employee.name}`} onClick={() => toggleApplicant(employee.key)} className="text-[var(--shell-muted)] hover:text-[var(--shell-danger)]"><X aria-hidden="true" className="h-3.5 w-3.5" /></button></span>) : <span className="text-xs text-[var(--shell-muted)]">Nenhum aplicador selecionado.</span>}
         </div>
-        <div className="mt-3 max-h-64 space-y-1 overflow-y-auto rounded-xl border border-[color:var(--shell-line)] p-2">
-          {workforceCatalog === null ? <p className="px-2 py-4 text-sm text-[var(--shell-muted)]">Consultando cadastro de funcionários...</p> : visibleApplicants.length ? visibleApplicants.map((employee) => <label key={employee.key} className="flex cursor-pointer items-start gap-3 rounded-xl px-3 py-2.5 hover:bg-[var(--shell-surface-muted)]"><input type="checkbox" checked={applicantEmployeeKeys.includes(employee.key)} onChange={() => toggleApplicant(employee.key)} className="mt-0.5 accent-[var(--shell-accent)]" /><span className="min-w-0"><span className="block text-sm font-semibold text-[var(--shell-text)]">{employee.name}</span><span className="block text-xs text-[var(--shell-muted)]">{[employee.area, employee.function].filter(Boolean).join(" · ") || "Sem área ou função"}</span></span></label>) : <p className="px-2 py-4 text-sm text-[var(--shell-muted)]">Nenhum funcionário encontrado com estes filtros.</p>}
-        </div>
-        <p className="mt-3 text-xs text-[var(--shell-muted)]">{applicantEmployeeKeys.length} aplicador(es) selecionado(s).</p>
       </section>
+
+      <DtoEmployeeSelectionDialog
+        open={applicantPickerOpen}
+        eyebrow="Equipe aplicadora"
+        title="Selecionar aplicadores"
+        description="Use área, função e busca para montar a equipe responsável por este formulário."
+        employees={workforceCatalog?.employees || []}
+        selectedKeys={applicantEmployeeKeys}
+        onChange={setApplicantEmployeeKeys}
+        onClose={() => setApplicantPickerOpen(false)}
+      />
 
       {intervalDays && !intervalValid ? (
         <p role="alert" className="mt-4 text-sm text-[var(--shell-danger)]">

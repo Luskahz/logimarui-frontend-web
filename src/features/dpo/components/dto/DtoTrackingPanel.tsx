@@ -312,53 +312,6 @@ export default function DtoTrackingPanel({
 
   return (
     <div className="space-y-4">
-      {!isEnvironment && hasWorkforceFilters ? (
-        <DtoPanel className="p-4 sm:p-5">
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="min-w-52 flex-1">
-              <Typography variant="overline">Recorte de visualização</Typography>
-              <label className="mt-2 block text-xs font-semibold text-[var(--shell-muted)]">
-                Local da operação
-                <select
-                  value={workforceLocation}
-                  onChange={(event) => setWorkforceLocation(event.target.value)}
-                  className="mt-1.5 w-full rounded-xl border border-[color:var(--shell-line)] bg-[var(--shell-surface)] px-3 py-2.5 text-sm text-[var(--shell-text)]"
-                >
-                  <option value="">Todos os locais aplicáveis</option>
-                  {(filterCatalog?.locations || []).map((location) => (
-                    <option key={location.name} value={location.name}>
-                      {location.name} · {formatDtoNumber(location.employees)} pessoa(s)
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <div className="min-w-52 flex-1">
-              <label className="block text-xs font-semibold text-[var(--shell-muted)]">
-                Filtro público
-                <select
-                  value={workforceFilterId}
-                  onChange={(event) => setWorkforceFilterId(event.target.value)}
-                  className="mt-6 w-full rounded-xl border border-[color:var(--shell-line)] bg-[var(--shell-surface)] px-3 py-2.5 text-sm text-[var(--shell-text)]"
-                >
-                  <option value="">Nenhum filtro público</option>
-                  {sharedFilters.map((filter) => (
-                    <option key={filter.id} value={filter.id}>{filter.name}</option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            {(workforceLocation || workforceFilterId) ? (
-              <DtoButton size="sm" onClick={() => { setWorkforceLocation(""); setWorkforceFilterId(""); }}>
-                Limpar recorte
-              </DtoButton>
-            ) : null}
-          </div>
-          <Typography variant="caption" className="mt-3">
-            O local vem de <code>diretorio.funcionarios.local</code>. Filtros públicos podem combinar locais, funções e pessoas específicas e são compartilhados entre DTO, Blitz e Gabaritos.
-          </Typography>
-        </DtoPanel>
-      ) : null}
       <div className="flex justify-end">
         <DtoBadge tone="accent">
           {isFormEnvironment
@@ -444,6 +397,34 @@ export default function DtoTrackingPanel({
             />
           </label>
         </div>
+
+        {!isEnvironment && hasWorkforceFilters ? (
+          <div className="mt-4 rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] p-3">
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="min-w-52 flex-1">
+                <Typography variant="overline">Recorte aplicado à população</Typography>
+                <label className="mt-2 block text-xs font-semibold text-[var(--shell-muted)]">
+                  Local da operação
+                  <select value={workforceLocation} onChange={(event) => setWorkforceLocation(event.target.value)} className="mt-1.5 w-full rounded-xl border border-[color:var(--shell-line)] bg-[var(--shell-surface)] px-3 py-2.5 text-sm text-[var(--shell-text)]">
+                    <option value="">Todos os locais aplicáveis</option>
+                    {(filterCatalog?.locations || []).map((location) => <option key={location.name} value={location.name}>{location.name} · {formatDtoNumber(location.employees)} pessoa(s)</option>)}
+                  </select>
+                </label>
+              </div>
+              <div className="min-w-52 flex-1">
+                <label className="block text-xs font-semibold text-[var(--shell-muted)]">
+                  Filtro público
+                  <select value={workforceFilterId} onChange={(event) => setWorkforceFilterId(event.target.value)} className="mt-6 w-full rounded-xl border border-[color:var(--shell-line)] bg-[var(--shell-surface)] px-3 py-2.5 text-sm text-[var(--shell-text)]">
+                    <option value="">Nenhum filtro público</option>
+                    {sharedFilters.map((filter) => <option key={filter.id} value={filter.id}>{filter.name}</option>)}
+                  </select>
+                </label>
+              </div>
+              {(workforceLocation || workforceFilterId) ? <DtoButton size="sm" onClick={() => { setWorkforceLocation(""); setWorkforceFilterId(""); }}>Limpar recorte</DtoButton> : null}
+            </div>
+            <Typography variant="caption" className="mt-3">O recorte acima é aplicado diretamente à população acompanhada e aos indicadores. O local vem de <code>diretorio.funcionarios.local</code>; filtros públicos podem combinar locais, funções e pessoas específicas.</Typography>
+          </div>
+        ) : null}
 
         <div className="mt-5 overflow-x-auto">
           <table className="w-full min-w-[1040px] text-left text-sm">
