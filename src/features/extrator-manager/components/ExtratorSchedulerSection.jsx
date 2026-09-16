@@ -180,7 +180,6 @@ export default function ExtratorSchedulerSection({
   schedulerPagination,
   schedulerScheduleFilterOptions,
   schedulerScheduleLabel,
-  schedulerScheduleKindLabel,
   schedulerTargetOptions,
   filterAllValue,
   setIsSchedulerModalOpen,

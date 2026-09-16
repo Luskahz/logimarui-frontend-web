@@ -1,4 +1,4 @@
-import ExtratorManagerView from "@/views/extrator-manager/ui/ExtratorManagerView";
+import ExtratorManagerView from "@/features/extrator-manager/views/ExtratorManagerView";
 
 export const metadata = {
   title: "Extrator | Logimarui",

@@ -25,6 +25,7 @@ export default function ExtratorRequestsSection({
   requestsPayload,
   requestSourceOptions,
   requestUpdateOptions,
+  selectedRequest,
   setIsRequestCreateModalOpen,
   setRequestForm,
   setRequestsPage,
@@ -271,6 +272,40 @@ export default function ExtratorRequestsSection({
                 />
               </div>
             </SectionCard>
+
+            {selectedRequest ? (
+              <ModalFrame
+                title={selectedRequest.rotina_nome || "Solicitacao"}
+                subtitle={`${selectedRequest.tipo_solicitacao_label || selectedRequest.tipo_solicitacao || "Solicitacao"} por ${selectedRequest.solicitante || "-"} em ${selectedRequest.created_at || "-"}`}
+                onClose={() => setSelectedRequestId("")}
+                maxWidth="max-w-3xl"
+              >
+                <div className="flex flex-wrap gap-2 text-xs text-[var(--shell-muted)]">
+                  <span className="rounded-full border border-[color:var(--shell-line)] px-3 py-1">
+                    {selectedRequest.status_label || selectedRequest.status}
+                  </span>
+                  <span className="rounded-full border border-[color:var(--shell-line)] px-3 py-1">
+                    {selectedRequest.origem_label}
+                    {selectedRequest.origem_detalhe
+                      ? ` (${selectedRequest.origem_detalhe})`
+                      : ""}
+                  </span>
+                  <span className="rounded-full border border-[color:var(--shell-line)] px-3 py-1">
+                    {selectedRequest.atualizacao_label}
+                    {selectedRequest.atualizacao_detalhe
+                      ? ` (${selectedRequest.atualizacao_detalhe})`
+                      : ""}
+                  </span>
+                  <span className="rounded-full border border-[color:var(--shell-line)] px-3 py-1">
+                    Atualizada em {selectedRequest.updated_at || "-"}
+                  </span>
+                </div>
+                <div className="mt-5 rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] p-4 text-sm leading-7 text-[var(--shell-text)]">
+                  {selectedRequest.descricao_atualizacao ||
+                    "Sem descricao registrada."}
+                </div>
+              </ModalFrame>
+            ) : null}
           </div>
   );
 }
