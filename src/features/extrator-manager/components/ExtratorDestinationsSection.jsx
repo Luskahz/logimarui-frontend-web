@@ -12,6 +12,7 @@ import {
   TextInput,
 } from "@/features/extrator-manager/components/ExtratorManagerControls";
 import { ExtratorPagination } from "@/features/extrator-manager/components/ExtratorPagination";
+import ExtratorDestinationPreview from "@/features/extrator-manager/components/ExtratorDestinationPreview";
 import {
   ExtratorActionButton as ActionButton,
   ExtratorSectionCard as SectionCard,
@@ -478,7 +479,6 @@ function DestinationOwnerGroup({
 }
 
 export default function ExtratorDestinationsSection({
-  DestinationPreview,
   destinationBaseFilterOptions,
   destinationForm,
   destinationGroups,
@@ -493,6 +493,7 @@ export default function ExtratorDestinationsSection({
   formatDateTime,
   handleDeleteDestinationRule,
   handleSaveDestinationRule,
+  isDestinationHelpOpen,
   isDestinationModalOpen,
   loadingAction,
   openDestinationCreateModal,
@@ -823,7 +824,7 @@ export default function ExtratorDestinationsSection({
                 </div>
 
                 <div className="md:col-span-2">
-                  <DestinationPreview
+                  <ExtratorDestinationPreview
                     form={destinationForm}
                     templateKinds={visibleTemplateKinds}
                   />
@@ -990,6 +991,36 @@ export default function ExtratorDestinationsSection({
                 />
               </div>
             </SectionCard>
+
+            {isDestinationHelpOpen ? (
+              <ModalFrame
+                title="Tokens disponiveis"
+                subtitle="Use os tokens nos templates de arquivo e pasta. A pre-visualizacao do destino atualiza conforme os campos mudam."
+                onClose={() => setIsDestinationHelpOpen(false)}
+                maxWidth="max-w-4xl"
+              >
+                <div className="grid gap-3 md:grid-cols-2">
+                  {(destinationsPayload?.destination_meta?.template_token_options || []).map(
+                    (token) => (
+                      <div
+                        key={token.id}
+                        className="rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] p-4"
+                      >
+                        <p className="font-mono text-sm font-semibold text-[var(--shell-text)]">
+                          {`{${token.id}}`}
+                        </p>
+                        <p className="mt-2 text-sm leading-6 text-[var(--shell-muted)]">
+                          {token.label}
+                        </p>
+                        <p className="mt-2 text-xs text-[var(--shell-muted)]">
+                          Exemplo: {token.example || "-"}
+                        </p>
+                      </div>
+                    ),
+                  )}
+                </div>
+              </ModalFrame>
+            ) : null}
           </div>
   );
 }
