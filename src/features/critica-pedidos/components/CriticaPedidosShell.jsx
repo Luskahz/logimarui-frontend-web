@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, CalendarDays, ClipboardList, MapPinned } from "lucide-react";
-import AuthenticatedShell from "@/shared/app-shell/components/AuthenticatedShell";
 import { dashboardMetadata } from "@/features/critica-pedidos/services/generatedDashboardRepository";
 
 const tabs = [
@@ -18,12 +17,8 @@ export default function CriticaPedidosShell({ activeView, children }) {
     : dashboardMetadata.status;
 
   return (
-    <AuthenticatedShell
-      contentClassName="mx-auto max-w-none"
-      mainClassName="min-h-screen px-2 pb-4 pt-24 sm:px-4 sm:pb-6 sm:pt-28"
-    >
-      <section className="critica-pedidos-shell overflow-hidden rounded-[18px] border border-[var(--line-soft)] bg-[var(--background)] text-[var(--foreground)] shadow-[0_24px_80px_rgba(2,6,23,0.22)]">
-        <header className="sticky top-0 z-30 flex min-h-[3.15rem] items-center justify-between gap-3 border-b border-[var(--line-soft)] bg-[#061018]/95 px-3 shadow-[0_14px_35px_rgba(0,0,0,0.2)] backdrop-blur md:px-4">
+    <section className="critica-pedidos-shell overflow-hidden rounded-[18px] border border-[var(--line-soft)] bg-[var(--background)] text-[var(--foreground)] shadow-[0_24px_80px_rgba(2,6,23,0.22)]">
+      <header className="sticky top-0 z-30 flex min-h-[3.15rem] items-center justify-between gap-3 border-b border-[var(--line-soft)] bg-[#061018]/95 px-3 shadow-[0_14px_35px_rgba(0,0,0,0.2)] backdrop-blur md:px-4">
           <div className="flex min-w-0 items-center gap-4">
             <div className="min-w-0">
               <div className="flex items-center gap-3">
@@ -71,12 +66,11 @@ export default function CriticaPedidosShell({ activeView, children }) {
               {badgeLabel}
             </span>
           </div>
-        </header>
+      </header>
 
-        <div className="dashboard-scroll min-h-[calc(100vh-10.4rem)] overflow-auto">
-          {children}
-        </div>
-      </section>
-    </AuthenticatedShell>
+      <div className="dashboard-scroll min-h-[calc(100vh-10.4rem)] overflow-auto">
+        {children}
+      </div>
+    </section>
   );
 }

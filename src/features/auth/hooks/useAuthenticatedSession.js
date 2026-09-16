@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { resolveSessionRoles } from "@/features/auth/lib/sessionView";
 import { useSessionStore } from "@/features/auth/store/useSessionStore";
 
-export function useHomeSession() {
+export function useAuthenticatedSession() {
   const router = useRouter();
   const error = useSessionStore((state) => state.error);
   const isLoggingOut = useSessionStore((state) => state.isLoggingOut);
@@ -26,7 +26,7 @@ export function useHomeSession() {
   }, [router, syncSession]);
 
   useEffect(() => {
-    function syncHiddenSession() {
+    function syncVisibleSession() {
       if (document.visibilityState === "visible") {
         void syncSession(router);
       }
@@ -36,18 +36,16 @@ export function useHomeSession() {
       void syncSession(router);
     }
 
-    document.addEventListener("visibilitychange", syncHiddenSession);
+    document.addEventListener("visibilitychange", syncVisibleSession);
     window.addEventListener("focus", handleWindowFocus);
 
     return () => {
-      document.removeEventListener("visibilitychange", syncHiddenSession);
+      document.removeEventListener("visibilitychange", syncVisibleSession);
       window.removeEventListener("focus", handleWindowFocus);
     };
   }, [router, syncSession]);
 
-  const roles = useMemo(() => {
-    return resolveSessionRoles(profile);
-  }, [profile]);
+  const roles = useMemo(() => resolveSessionRoles(profile), [profile]);
 
   return {
     error,

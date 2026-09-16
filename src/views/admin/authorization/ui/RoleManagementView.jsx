@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import AuthenticatedShell from "@/shared/app-shell/components/AuthenticatedShell";
 import { authorizationApi } from "@/features/authorization/lib/authorizationApi";
 import RolePermissionManager from "@/features/authorization/components/RolePermissionManager";
 import { useAuthorizationStore } from "@/features/authorization/store/useAuthorizationStore";
@@ -571,9 +570,5 @@ function RoleManagementContent() {
 }
 
 export default function RoleManagementView() {
-  return (
-    <AuthenticatedShell>
-      <RoleManagementContent />
-    </AuthenticatedShell>
-  );
+  return <RoleManagementContent />;
 }

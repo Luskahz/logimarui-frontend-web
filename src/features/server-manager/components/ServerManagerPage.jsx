@@ -1,6 +1,5 @@
 "use client";
 
-import AuthenticatedShell from "@/shared/app-shell/components/AuthenticatedShell";
 import { buildGatewayUrl } from "@/shared/network/gatewayUrl";
 import { APP_ROUTES } from "@/app/_config/routes";
 import { useManagedServices } from "@/features/server-manager/hooks/useManagedServices";
@@ -522,9 +521,5 @@ function ServerManagerDashboard() {
 }
 
 export default function ServerManagerPage() {
-  return (
-    <AuthenticatedShell>
-      <ServerManagerDashboard />
-    </AuthenticatedShell>
-  );
+  return <ServerManagerDashboard />;
 }
