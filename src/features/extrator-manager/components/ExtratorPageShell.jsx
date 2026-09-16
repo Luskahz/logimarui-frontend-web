@@ -1,6 +1,5 @@
 "use client";
 
-import AuthenticatedShell from "@/shared/app-shell/components/AuthenticatedShell";
 import ExtratorSectionNav from "@/features/extrator-manager/components/ExtratorSectionNav";
 
 export function ExtratorActionButton({
@@ -157,20 +156,18 @@ export default function ExtratorPageShell({
   title,
 }) {
   return (
-    <AuthenticatedShell>
-      <div className="space-y-4">
-        <ExtratorPageHeader
-          actions={actions}
-          activeTab={activeTab}
-          description={description}
-          error={error}
-          eyebrow={eyebrow}
-          onTabChange={onTabChange}
-          title={title}
-        />
-        {headerAfter}
-        {children}
-      </div>
-    </AuthenticatedShell>
+    <div className="space-y-4">
+      <ExtratorPageHeader
+        actions={actions}
+        activeTab={activeTab}
+        description={description}
+        error={error}
+        eyebrow={eyebrow}
+        onTabChange={onTabChange}
+        title={title}
+      />
+      {headerAfter}
+      {children}
+    </div>
   );
 }
