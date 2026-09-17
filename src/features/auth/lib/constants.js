@@ -1,5 +1,5 @@
 import { AUTH_FORM_MODES } from "@/features/auth/types";
-import { APP_ROUTES } from "@/app/_config/routes";
+import { APP_ROUTES } from "@/shared/config/routes";
 
 export const AUTH_PAGE_CONTENT = {
   login: {

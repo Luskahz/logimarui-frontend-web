@@ -1,5 +1,9 @@
-import { clearAuthSession, getOrCreateDeviceId, readAuthSession } from "@/features/auth/lib/authSession";
-import { authApi } from "@/features/auth/lib/authApi";
+import {
+  authApi,
+  clearAuthSession,
+  getOrCreateDeviceId,
+  readAuthSession,
+} from "@/features/auth";
 
 const DEFAULT_LOCAL_API_ORIGIN = "http://127.0.0.1";
 const LOCAL_DEV_HOSTNAMES = new Set(["localhost", "127.0.0.1"]);

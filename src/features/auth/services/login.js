@@ -12,7 +12,7 @@ import {
   isTestPasswordValue,
 } from "@/features/auth/lib/testAuth";
 import { normalizeCpf, persistSession } from "@/features/auth/services/shared";
-import { APP_ROUTES } from "@/app/_config/routes";
+import { APP_ROUTES } from "@/shared/config/routes";
 
 function buildRequiredPasswordChangeRoute(passwordChangeToken) {
   const query = new URLSearchParams({

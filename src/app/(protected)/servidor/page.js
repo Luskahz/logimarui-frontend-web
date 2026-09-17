@@ -1,9 +1,9 @@
-import ServerManagerPage from "@/features/server-manager/components/ServerManagerPage";
+import ServerManagerView from "@/views/server-manager/ui/ServerManagerView";
 
 export const metadata = {
   title: "Servidor",
 };
 
 export default function ServerRoute() {
-  return <ServerManagerPage />;
+  return <ServerManagerView />;
 }

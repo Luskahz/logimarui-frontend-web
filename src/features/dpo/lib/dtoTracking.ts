@@ -6,7 +6,7 @@ import type {
   DtoTrackingMode,
   DtoTrackingStatus,
   DtoTrackingSummary,
-} from "@/features/dpo/lib/dtoTypes";
+} from "@/features/dpo/model/dtoTypes";
 
 const DAY_IN_MS = 86_400_000;
 

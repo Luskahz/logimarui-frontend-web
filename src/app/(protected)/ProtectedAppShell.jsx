@@ -8,7 +8,7 @@ import {
   buildAppBreadcrumbs,
   resolveAppShellLayout,
 } from "@/app/_config/navigation";
-import { APP_ROUTES } from "@/app/_config/routes";
+import { APP_ROUTES } from "@/shared/config/routes";
 import { useAuthenticatedSession } from "@/features/auth/hooks/useAuthenticatedSession";
 import { formatRoles } from "@/features/auth/lib/authFormatters";
 import {
@@ -17,7 +17,7 @@ import {
   resolveAvatarUrl,
   resolveProfileName,
 } from "@/features/auth/lib/sessionView";
-import AuthenticatedShell from "@/shared/app-shell/components/AuthenticatedShell";
+import AuthenticatedShell from "@/widgets/app-shell/ui/AuthenticatedShell";
 
 export default function ProtectedAppShell({ children }) {
   const pathname = usePathname();

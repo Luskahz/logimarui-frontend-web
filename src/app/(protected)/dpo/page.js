@@ -1,9 +1,9 @@
-import DpoOverviewPage from "@/features/dpo/components/DpoOverviewPage";
+import DpoOverviewView from "@/views/dpo/ui/DpoOverviewView";
 
 export const metadata = {
   title: "DPO",
 };
 
 export default function DpoRoute() {
-  return <DpoOverviewPage />;
+  return <DpoOverviewView />;
 }

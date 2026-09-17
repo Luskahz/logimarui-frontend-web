@@ -1,4 +1,4 @@
-import { APP_ROUTES, getRouteSegment, matchesRoute } from "@/app/_config/routes";
+import { APP_ROUTES, getRouteSegment, matchesRoute } from "@/shared/config/routes";
 import { DPO_PILLARS } from "@/features/dpo/lib/dpoConfig";
 
 const DPO_PILLAR_LABELS = Object.fromEntries(

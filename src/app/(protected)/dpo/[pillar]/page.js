@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import DpoPillarPage from "@/features/dpo/components/DpoPillarPage";
+import DpoPillarView from "@/views/dpo/ui/DpoPillarView";
 import { getDpoPillarBySlug } from "@/features/dpo/lib/dpoConfig";
 
 export default async function DpoPillarRoute({ params }) {
@@ -15,5 +15,5 @@ export default async function DpoPillarRoute({ params }) {
     notFound();
   }
 
-  return <DpoPillarPage pillar={pillar} />;
+  return <DpoPillarView pillar={pillar} />;
 }
