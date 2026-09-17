@@ -1,13 +1,13 @@
 import Link from "next/link";
-import AppBreadcrumbs from "@/shared/app-shell/components/AppBreadcrumbs";
+import AppBreadcrumbs from "@/widgets/app-shell/ui/AppBreadcrumbs";
 import ProfileMenu, {
   ProfileAvatar,
-} from "@/shared/app-shell/components/ProfileMenu";
-import ShellIconButton from "@/shared/app-shell/components/ShellIconButton";
+} from "@/widgets/app-shell/ui/ProfileMenu";
+import ShellIconButton from "@/widgets/app-shell/ui/ShellIconButton";
 import {
   MenuIcon,
   SearchIcon,
-} from "@/shared/app-shell/components/ShellIcons";
+} from "@/widgets/app-shell/ui/ShellIcons";
 
 export default function AppHeader({
   avatarLabel,

@@ -2,7 +2,7 @@ import {
   ChevronRightIcon,
   LogoutIcon,
   MoonIcon,
-} from "@/shared/app-shell/components/ShellIcons";
+} from "@/widgets/app-shell/ui/ShellIcons";
 
 function Avatar({
   imageUrl,

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRightIcon } from "@/shared/app-shell/components/ShellIcons";
+import { ChevronRightIcon } from "@/widgets/app-shell/ui/ShellIcons";
 
 export default function AppBreadcrumbs({ items, mobile = false, onNavigate }) {
   return (

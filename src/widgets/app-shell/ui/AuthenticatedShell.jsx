@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import { usePathname } from "next/navigation";
-import AppHeader from "@/shared/app-shell/components/AppHeader";
-import AppSidebar from "@/shared/app-shell/components/AppSidebar";
-import ShellLoadingState from "@/shared/app-shell/components/ShellLoadingState";
-import { useShellStore } from "@/shared/app-shell/store/useShellStore";
+import AppHeader from "@/widgets/app-shell/ui/AppHeader";
+import AppSidebar from "@/widgets/app-shell/ui/AppSidebar";
+import ShellLoadingState from "@/widgets/app-shell/ui/ShellLoadingState";
+import { useShellStore } from "@/widgets/app-shell/model/useShellStore";
 import { useUiTheme } from "@/shared/ui/theme/hooks/useUiTheme";
 
 function canAccessNavigationItem(item, authorities) {

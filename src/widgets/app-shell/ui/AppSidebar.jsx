@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { buildGatewayUrl } from "@/shared/network/gatewayUrl";
-import ShellIconButton from "@/shared/app-shell/components/ShellIconButton";
+import ShellIconButton from "@/widgets/app-shell/ui/ShellIconButton";
 import {
   CalendarIcon,
   ChartIcon,
@@ -9,7 +9,7 @@ import {
   HouseIcon,
   ServiceIcon,
   StarIcon,
-} from "@/shared/app-shell/components/ShellIcons";
+} from "@/widgets/app-shell/ui/ShellIcons";
 
 function renderSidebarItemIcon(icon) {
   switch (icon) {

@@ -17,7 +17,7 @@ import {
   resolveAvatarUrl,
   resolveProfileName,
 } from "@/features/auth/lib/sessionView";
-import AuthenticatedShell from "@/shared/app-shell/components/AuthenticatedShell";
+import AuthenticatedShell from "@/widgets/app-shell/ui/AuthenticatedShell";
 
 export default function ProtectedAppShell({ children }) {
   const pathname = usePathname();
