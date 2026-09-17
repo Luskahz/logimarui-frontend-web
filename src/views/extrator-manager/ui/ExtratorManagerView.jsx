@@ -4,25 +4,25 @@ import { useState } from "react";
 import {
   BeesVerificationModal,
   PasswordActionModal,
-} from "@/features/extrator-manager/components/ExtratorManagerControls";
-import ExtratorDestinationsSection from "@/features/extrator-manager/components/ExtratorDestinationsSection";
-import ExtratorExtractionSection from "@/features/extrator-manager/components/ExtratorExtractionSection";
-import ExtratorGlobalQueueSection from "@/features/extrator-manager/components/ExtratorGlobalQueueSection";
-import ExtratorRequestsSection from "@/features/extrator-manager/components/ExtratorRequestsSection";
-import ExtratorSchedulerSection from "@/features/extrator-manager/components/ExtratorSchedulerSection";
+} from "@/features/extrator-manager/ui/ExtratorManagerControls";
+import ExtratorDestinationsSection from "@/features/extrator-manager/ui/ExtratorDestinationsSection";
+import ExtratorExtractionSection from "@/features/extrator-manager/ui/ExtratorExtractionSection";
+import ExtratorGlobalQueueSection from "@/features/extrator-manager/ui/ExtratorGlobalQueueSection";
+import ExtratorRequestsSection from "@/features/extrator-manager/ui/ExtratorRequestsSection";
+import ExtratorSchedulerSection from "@/features/extrator-manager/ui/ExtratorSchedulerSection";
 import ExtratorPageShell, {
   ExtratorActionButton as ActionButton,
-} from "@/features/extrator-manager/components/ExtratorPageShell";
-import { normalizeExtratorTabId } from "@/features/extrator-manager/components/ExtratorSectionNav";
-import ExtratorStatusOverview from "@/features/extrator-manager/components/ExtratorStatusOverview";
-import { useBeesVerificationFlow } from "@/features/extrator-manager/hooks/useBeesVerificationFlow";
-import { useExtratorDestinationsController } from "@/features/extrator-manager/hooks/useExtratorDestinationsController";
-import { useExtratorGlobalQueueController } from "@/features/extrator-manager/hooks/useExtratorGlobalQueueController";
-import { useExtratorManager } from "@/features/extrator-manager/hooks/useExtratorManager";
-import { useExtratorOperationsController } from "@/features/extrator-manager/hooks/useExtratorOperationsController";
-import { useExtratorRequestsController } from "@/features/extrator-manager/hooks/useExtratorRequestsController";
-import { useExtratorSchedulerController } from "@/features/extrator-manager/hooks/useExtratorSchedulerController";
-import { usePasswordAction } from "@/features/extrator-manager/hooks/usePasswordAction";
+} from "@/features/extrator-manager/ui/ExtratorPageShell";
+import { normalizeExtratorTabId } from "@/features/extrator-manager/ui/ExtratorSectionNav";
+import ExtratorStatusOverview from "@/features/extrator-manager/ui/ExtratorStatusOverview";
+import { useBeesVerificationFlow } from "@/features/extrator-manager/model/useBeesVerificationFlow";
+import { useExtratorDestinationsController } from "@/features/extrator-manager/model/useExtratorDestinationsController";
+import { useExtratorGlobalQueueController } from "@/features/extrator-manager/model/useExtratorGlobalQueueController";
+import { useExtratorManager } from "@/features/extrator-manager/model/useExtratorManager";
+import { useExtratorOperationsController } from "@/features/extrator-manager/model/useExtratorOperationsController";
+import { useExtratorRequestsController } from "@/features/extrator-manager/model/useExtratorRequestsController";
+import { useExtratorSchedulerController } from "@/features/extrator-manager/model/useExtratorSchedulerController";
+import { usePasswordAction } from "@/features/extrator-manager/model/usePasswordAction";
 
 function getInitialActiveTabFromUrl() {
   if (typeof window === "undefined") {

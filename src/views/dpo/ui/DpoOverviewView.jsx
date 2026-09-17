@@ -1,5 +1,5 @@
 import Link from "next/link";
-import DpoHouse from "@/features/dpo/components/DpoHouse";
+import DpoHouse from "@/features/dpo/ui/DpoHouse";
 import { DPO_INTRO_SUMMARY } from "@/features/dpo/lib/dpoConfig";
 
 export default function DpoOverviewView() {

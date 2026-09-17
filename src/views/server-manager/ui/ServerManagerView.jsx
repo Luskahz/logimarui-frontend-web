@@ -2,7 +2,7 @@
 
 import { buildGatewayUrl } from "@/shared/network/gatewayUrl";
 import { APP_ROUTES } from "@/shared/config/routes";
-import { useManagedServices } from "@/features/server-manager/hooks/useManagedServices";
+import { useManagedServices } from "@/features/server-manager/model/useManagedServices";
 
 const SERVICE_METADATA = {
   "gerenciador-extracao": {

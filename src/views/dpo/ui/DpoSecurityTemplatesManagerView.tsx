@@ -1,10 +1,10 @@
 "use client";
 
-import DtoManagerDashboard from "@/features/dpo/components/dto/DtoManagerDashboard";
+import DtoManagerDashboard from "@/features/dpo/ui/dto/DtoManagerDashboard";
 import {
   FormManagerProvider,
   SECURITY_TEMPLATES_MANAGER_CONFIG,
-} from "@/features/dpo/lib/formManagerConfig";
+} from "@/features/dpo/model/formManagerConfig";
 
 export default function DpoSecurityTemplatesManagerView() {
   return (

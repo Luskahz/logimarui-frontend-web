@@ -1,7 +1,7 @@
-﻿"use client";
+"use client";
 
-import DpoHouse from "@/features/dpo/components/DpoHouse";
-import DpoToolCatalog from "@/features/dpo/components/DpoToolCatalog";
+import DpoHouse from "@/features/dpo/ui/DpoHouse";
+import DpoToolCatalog from "@/features/dpo/ui/DpoToolCatalog";
 
 export default function DpoPillarView({
   pillar,

@@ -3,7 +3,7 @@ import type {
   DtoFormDetail,
   DtoPlanningItem,
   DtoTrackingContext,
-} from "@/features/dpo/lib/dtoTypes";
+} from "@/features/dpo/model/dtoTypes";
 
 export type DtoPlanningOccurrenceStatus =
   | "completed"

@@ -1,10 +1,10 @@
 "use client";
 
-import DtoManagerDashboard from "@/features/dpo/components/dto/DtoManagerDashboard";
+import DtoManagerDashboard from "@/features/dpo/ui/dto/DtoManagerDashboard";
 import {
   BLITZ_MANAGER_CONFIG,
   FormManagerProvider,
-} from "@/features/dpo/lib/formManagerConfig";
+} from "@/features/dpo/model/formManagerConfig";
 
 export default function DpoBlitzManagerView() {
   return (
