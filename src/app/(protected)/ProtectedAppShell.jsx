@@ -8,7 +8,7 @@ import {
   buildAppBreadcrumbs,
   resolveAppShellLayout,
 } from "@/app/_config/navigation";
-import { APP_ROUTES } from "@/app/_config/routes";
+import { APP_ROUTES } from "@/shared/config/routes";
 import { useAuthenticatedSession } from "@/features/auth/hooks/useAuthenticatedSession";
 import { formatRoles } from "@/features/auth/lib/authFormatters";
 import {

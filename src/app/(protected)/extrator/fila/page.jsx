@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { APP_ROUTES } from "@/app/_config/routes";
+import { APP_ROUTES } from "@/shared/config/routes";
 
 export const metadata = {
   title: "Fila do Extrator | Logimarui",

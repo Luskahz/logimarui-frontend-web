@@ -1,6 +1,6 @@
 "use client";
 
-import { APP_ROUTES } from "@/app/_config/routes";
+import { APP_ROUTES } from "@/shared/config/routes";
 import { SectionTabs } from "@/shared/ui/section-tabs";
 
 export const EXTRATOR_TAB_ITEMS = [

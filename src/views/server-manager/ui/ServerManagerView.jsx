@@ -1,7 +1,7 @@
 "use client";
 
 import { buildGatewayUrl } from "@/shared/network/gatewayUrl";
-import { APP_ROUTES } from "@/app/_config/routes";
+import { APP_ROUTES } from "@/shared/config/routes";
 import { useManagedServices } from "@/features/server-manager/hooks/useManagedServices";
 
 const SERVICE_METADATA = {
