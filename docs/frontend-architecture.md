@@ -61,11 +61,15 @@ api/    clientes HTTP, gateways, repositories e adapters de integração
 lib/    regras puras, cálculos, transformações, formatadores e helpers
 ```
 
-Não criar segmentos vazios. Features irmãs não importam módulos internos umas das
-outras. Quando um contrato transversal for legítimo, a feature provedora pode
-expor uma API pública seletiva no seu `index.ts`; o consumidor importa apenas a
-raiz da slice. Atualmente Auth expõe o contrato mínimo de sessão/API usado por DPO
-e Authorization.
+Não criar segmentos vazios. Features irmãs não dependem umas das outras, nem por
+módulos internos nem pela raiz da slice. Uma API pública seletiva no `index.ts`
+controla o contrato da própria feature, mas não torna uma dependência cross-feature
+automaticamente permitida.
+
+A única dívida transitória conhecida é `DPO/Authorization -> Auth`: DPO e
+Authorization podem importar exclusivamente `@/features/auth`, que mantém o
+contrato mínimo de sessão/API. Essa exceção não permite módulos internos de Auth e
+permanece somente até a futura reorganização IAM/Hexagonal.
 
 ### `entities`
 
@@ -95,8 +99,9 @@ entities -> shared
 shared   -> shared
 ```
 
-Imports internos da própria slice são permitidos. Imports de módulos internos de
-outra feature são proibidos; uma API pública explícita é a única exceção normal.
+Imports internos da própria slice são permitidos. Imports de qualquer outra feature
+são proibidos, inclusive pela API pública. A única exceção é a dívida transitória
+`DPO/Authorization -> @/features/auth`, limitada à raiz controlada de Auth.
 
 ## FSD macro e Hexagonal micro
 
@@ -137,9 +142,12 @@ domínio Hexagonal e mantém `PdvLeaflet` disponível para decomposição futura
 ## Guardrails
 
 O ESLint aplica `no-restricted-imports` por camada para impedir dependências
-ascendentes e, por slice existente, impedir acesso aos internals de features irmãs.
-Ao criar uma nova slice em `features`, inclua seu nome em `featureSlices` no
-`eslint.config.mjs` para ativar também o isolamento lateral específico.
+ascendentes e, por slice existente, bloquear qualquer import de feature irmã, pela
+raiz ou por módulos internos. A configuração abre somente a exceção temporária e
+exata de DPO e Authorization para `@/features/auth`; `@/features/auth/...`
+continua proibido. Ao criar uma nova slice em `features`, inclua seu nome em
+`featureSlices` no `eslint.config.mjs` para ativar também o isolamento lateral
+específico.
 
 Os guardrails automatizam fronteiras de import. Decisões semânticas — por exemplo,
 se um componente é View, widget ou UI de feature — continuam exigindo revisão.

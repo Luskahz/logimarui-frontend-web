@@ -8,9 +8,10 @@ const featureSlices = [
   "critica-pedidos",
   "dpo",
   "extrator-manager",
-  "home",
   "server-manager",
 ];
+
+const temporaryAuthConsumers = new Set(["authorization", "dpo"]);
 
 function restrictImports(regex, message) {
   return [
@@ -21,27 +22,35 @@ function restrictImports(regex, message) {
   ];
 }
 
-const featureIsolationConfigs = featureSlices.map((slice) => ({
-  files: [`src/features/${slice}/${sourceExtensions}`],
-  rules: {
-    "no-restricted-imports": [
-      "error",
-      {
-        patterns: [
-          {
-            regex: "^@/(?:widgets|views|app)(?:/|$)",
-            message: "Features nao podem depender de widgets, views ou app.",
-          },
-          {
-            regex: `^@/features/(?!${slice}(?:/|$))[^/]+/`,
-            message:
-              "Features devem consumir apenas a API publica de outra slice, nunca seus modulos internos.",
-          },
-        ],
-      },
-    ],
-  },
-}));
+const featureIsolationConfigs = featureSlices.map((slice) => {
+  const allowsAuthRoot = temporaryAuthConsumers.has(slice);
+  const externalFeaturePattern = allowsAuthRoot
+    ? `^@/features/(?!${slice}(?:/|$)|auth$)[^/]+(?:/|$)`
+    : `^@/features/(?!${slice}(?:/|$))[^/]+(?:/|$)`;
+
+  return {
+    files: [`src/features/${slice}/${sourceExtensions}`],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              regex: "^@/(?:widgets|views|app)(?:/|$)",
+              message: "Features nao podem depender de widgets, views ou app.",
+            },
+            {
+              regex: externalFeaturePattern,
+              message: allowsAuthRoot
+                ? "Esta feature so pode importar outra feature pela excecao temporaria @/features/auth, sem modulos internos."
+                : "Features irmas nao podem depender umas das outras, inclusive pela API publica.",
+            },
+          ],
+        },
+      ],
+    },
+  };
+});
 
 const eslintConfig = defineConfig([
   ...nextVitals,
