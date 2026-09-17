@@ -5,7 +5,7 @@ import type {
 } from "@/features/dpo/lib/dtoTypes";
 import { formatDtoValue } from "@/features/dpo/lib/dtoFormatters";
 import { DtoBadge } from "@/features/dpo/components/dto/DtoPrimitives";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/lib/utils";
 
 const STATUS_LABELS: Record<DtoAnswerSemantic, string> = {
   POSITIVE: "Positiva",

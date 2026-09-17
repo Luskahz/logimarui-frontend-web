@@ -2,7 +2,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { Button } from "@/shared/ui/button";
 import { Card } from "@/shared/ui/card";
 import { Typography } from "@/shared/ui/typography";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/lib/utils";
 import { useFormManagerConfig } from "@/features/dpo/lib/formManagerConfig";
 
 export function DtoPanel({ className, ...props }: ComponentProps<typeof Card>) {
