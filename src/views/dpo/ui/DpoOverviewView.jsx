@@ -2,7 +2,7 @@ import Link from "next/link";
 import DpoHouse from "@/features/dpo/components/DpoHouse";
 import { DPO_INTRO_SUMMARY } from "@/features/dpo/lib/dpoConfig";
 
-export default function DpoOverviewPage() {
+export default function DpoOverviewView() {
   return (
     <div className="grid gap-4 xl:grid-cols-[1.55fr_0.95fr]">
       <section className="rounded-[28px] border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-5 sm:p-6">

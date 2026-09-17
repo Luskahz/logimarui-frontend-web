@@ -1,9 +1,10 @@
-import ExtratorGlobalQueuePage from "@/features/extrator-manager/components/ExtratorGlobalQueuePage";
+import { redirect } from "next/navigation";
+import { APP_ROUTES } from "@/app/_config/routes";
 
 export const metadata = {
   title: "Fila do Extrator | Logimarui",
 };
 
 export default function ExtratorGlobalQueueRoutePage() {
-  return <ExtratorGlobalQueuePage />;
+  redirect(`${APP_ROUTES.EXTRATOR_MANAGER}?aba=globalQueue`);
 }

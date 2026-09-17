@@ -1,9 +1,9 @@
-import CmeRouteTrackingPage from "@/features/dpo/components/cme/CmeRouteTrackingPage";
+import CmeRouteTrackingView from "@/views/dpo/ui/CmeRouteTrackingView";
 
 export const metadata = {
   title: "Acompanhamento de rota CME | DPO",
 };
 
 export default function CmeRouteTrackingRoute() {
-  return <CmeRouteTrackingPage />;
+  return <CmeRouteTrackingView />;
 }

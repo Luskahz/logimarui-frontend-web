@@ -3,7 +3,7 @@
 import DpoHouse from "@/features/dpo/components/DpoHouse";
 import DpoToolCatalog from "@/features/dpo/components/DpoToolCatalog";
 
-export default function DpoPillarPage({
+export default function DpoPillarView({
   pillar,
 }) {
   return (

@@ -1,5 +1,5 @@
 import DtoManagerDashboard from "@/features/dpo/components/dto/DtoManagerDashboard";
 
-export default function DpoDtoManagerPage() {
+export default function DpoDtoManagerView() {
   return <DtoManagerDashboard />;
 }

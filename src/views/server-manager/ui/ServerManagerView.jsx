@@ -520,6 +520,6 @@ function ServerManagerDashboard() {
   );
 }
 
-export default function ServerManagerPage() {
+export default function ServerManagerView() {
   return <ServerManagerDashboard />;
 }

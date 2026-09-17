@@ -1,9 +1,9 @@
-import DpoDtoManagerPage from "@/features/dpo/components/DpoDtoManagerPage";
+import DpoDtoManagerView from "@/views/dpo/ui/DpoDtoManagerView";
 
 export const metadata = {
   title: "Gerenciador de DTOs | DPO",
 };
 
 export default function DpoDtoManagerRoute() {
-  return <DpoDtoManagerPage />;
+  return <DpoDtoManagerView />;
 }
