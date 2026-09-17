@@ -1,9 +1,9 @@
 import {
+  authApi,
   clearAuthSession,
   getOrCreateDeviceId,
   readAuthSession,
-} from "@/features/auth/lib/authSession";
-import { authApi } from "@/features/auth/lib/authApi";
+} from "@/features/auth";
 import { buildGatewayUrl } from "@/shared/network/gatewayUrl";
 import type {
   InvoiceItem,

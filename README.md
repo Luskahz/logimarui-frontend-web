@@ -24,3 +24,8 @@ Para producao local do frontend standalone:
 npm run build
 npm run start
 ```
+
+## Arquitetura
+
+O contrato FSD, as responsabilidades das camadas e as regras de dependência estão
+documentados em [`docs/frontend-architecture.md`](docs/frontend-architecture.md).
