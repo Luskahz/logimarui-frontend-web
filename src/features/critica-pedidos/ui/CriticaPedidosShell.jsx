@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, CalendarDays, ClipboardList, MapPinned } from "lucide-react";
-import { dashboardMetadata } from "@/features/critica-pedidos/services/generatedDashboardRepository";
+import { dashboardMetadata } from "@/features/critica-pedidos/api/generatedDashboardRepository";
 
 const tabs = [
   { href: "/critica-pedidos", label: "Critica", icon: ClipboardList, view: "critica" },

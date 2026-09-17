@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { divIcon, latLngBounds, point } from "leaflet";
 import { BarChart3, BoxSelect, Brush, Info, MapPinned, MousePointer2, Pentagon, RotateCcw, Spline, X, } from "lucide-react";
 import { CircleMarker, GeoJSON, MapContainer, Marker, Polygon, Polyline, Rectangle, Popup, ScaleControl, TileLayer, Tooltip, useMap, useMapEvents, ZoomControl, } from "react-leaflet";
-import { formatCurrency, formatNumber, formatVolume, formatWeight } from "@/features/critica-pedidos/utils/formatters";
+import { formatCurrency, formatNumber, formatVolume, formatWeight } from "@/features/critica-pedidos/lib/formatters";
 const GEOJSON_BASE_PATH = "/geo";
 const INITIAL_MAP_SCALE_METERS = 10_000;
 const MUNICIPIO_SCALE_METERS = 4_000;

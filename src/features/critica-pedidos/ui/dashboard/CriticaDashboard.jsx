@@ -1,15 +1,15 @@
 "use client";
 import { useMemo, useState } from "react";
 import { Boxes, CircleDollarSign, Clock3, PackageCheck, Percent, Scale, Truck, Users, Warehouse, } from "lucide-react";
-import { FilterPanel } from "@/features/critica-pedidos/components/filters/FilterPanel";
-import { KpiCard } from "@/features/critica-pedidos/components/kpi/KpiCard";
-import { DataTable } from "@/features/critica-pedidos/components/tables/DataTable";
-import { emptyDashboardFilters } from "@/features/critica-pedidos/domain/filtros";
-import { aggregateProdutos, buildCitySummary } from "@/features/critica-pedidos/utils/aggregations";
-import { applyDashboardFilters } from "@/features/critica-pedidos/utils/filtering";
-import { formatCurrency, formatDecimal, formatNumber, formatPercent, formatVolume, formatWeight, } from "@/features/critica-pedidos/utils/formatters";
-import { calculateDashboardKpis } from "@/features/critica-pedidos/utils/kpis";
-import { generatedDashboardRepository } from "@/features/critica-pedidos/services/generatedDashboardRepository";
+import { FilterPanel } from "@/features/critica-pedidos/ui/filters/FilterPanel";
+import { KpiCard } from "@/features/critica-pedidos/ui/kpi/KpiCard";
+import { DataTable } from "@/features/critica-pedidos/ui/tables/DataTable";
+import { emptyDashboardFilters } from "@/features/critica-pedidos/lib/dashboardFilters";
+import { aggregateProdutos, buildCitySummary } from "@/features/critica-pedidos/lib/aggregations";
+import { applyDashboardFilters } from "@/features/critica-pedidos/lib/filtering";
+import { formatCurrency, formatDecimal, formatNumber, formatPercent, formatVolume, formatWeight, } from "@/features/critica-pedidos/lib/formatters";
+import { calculateDashboardKpis } from "@/features/critica-pedidos/lib/kpis";
+import { generatedDashboardRepository } from "@/features/critica-pedidos/api/generatedDashboardRepository";
 const baseData = {
     clientes: generatedDashboardRepository.getClientes(),
     pedidos: generatedDashboardRepository.getPedidos(),

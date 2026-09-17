@@ -13,8 +13,8 @@ import {
   parsePtDate,
   parsePtNumber,
   type ParsedCsvFile,
-} from "../src/data/adapters/referenceCsvAdapter";
-import { referenceFieldMap } from "../src/data/adapters/referenceFieldMap";
+} from "../src/features/critica-pedidos/api/referenceCsvAdapter";
+import { referenceFieldMap } from "../src/features/critica-pedidos/api/referenceFieldMap";
 
 interface SourceFile extends ParsedCsvFile {
   fileName: string;

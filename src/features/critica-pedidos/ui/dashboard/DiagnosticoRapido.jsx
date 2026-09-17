@@ -1,6 +1,6 @@
 "use client";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { formatCurrency, formatNumber, formatWeight } from "@/features/critica-pedidos/utils/formatters";
+import { formatCurrency, formatNumber, formatWeight } from "@/features/critica-pedidos/lib/formatters";
 export function DiagnosticoRapido({ data }) {
     const chartData = data.map((item) => ({
         nome: item.label.length > 16 ? `${item.label.slice(0, 15)}...` : item.label,

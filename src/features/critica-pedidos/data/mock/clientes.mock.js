@@ -1,4 +1,4 @@
-import { adaptClienteReportRow } from "@/features/critica-pedidos/services/reportAdapters";
+import { adaptClienteReportRow } from "@/features/critica-pedidos/lib/reportAdapters";
 const cityCatalog = [
     { cidade: "Itajai", bairros: ["Cordeiros", "Centro", "Sao Vicente"], lat: -26.9101, lng: -48.6705 },
     { cidade: "Blumenau", bairros: ["Itoupava", "Velha", "Garcia"], lat: -26.9188, lng: -49.0661 },
