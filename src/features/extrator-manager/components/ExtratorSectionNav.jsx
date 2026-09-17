@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { APP_ROUTES } from "@/app/_config/routes";
+import { SectionTabs } from "@/shared/ui/section-tabs";
 
 export const EXTRATOR_TAB_ITEMS = [
   { id: "operacoes", label: "Extracao" },
@@ -27,14 +27,6 @@ function buildTabHref(tabId) {
   return `${APP_ROUTES.EXTRATOR_MANAGER}?aba=${tabId}`;
 }
 
-function getItemClassName(active) {
-  return `inline-flex rounded-full px-4 py-2 text-sm font-semibold transition ${
-    active
-      ? "bg-[var(--shell-accent)] text-white"
-      : "border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] text-[var(--shell-text)] hover:border-[color:var(--shell-line-strong)]"
-  }`;
-}
-
 export default function ExtratorSectionNav({
   activeTab = EXTRATOR_TAB_ITEMS[0].id,
   onTabChange,
@@ -45,46 +37,13 @@ export default function ExtratorSectionNav({
   const normalizedActiveTab = normalizeExtratorTabId(activeTab, items);
 
   return (
-    <nav aria-label={ariaLabel} className={className}>
-      {items.map((tabItem) => {
-        const active = normalizedActiveTab === tabItem.id;
-
-        if (typeof onTabChange === "function") {
-          return (
-            <button
-              key={tabItem.id}
-              type="button"
-              onClick={() => onTabChange(tabItem.id)}
-              className={getItemClassName(active)}
-            >
-              {tabItem.label}
-            </button>
-          );
-        }
-
-        if (items !== EXTRATOR_TAB_ITEMS) {
-          return (
-            <button
-              key={tabItem.id}
-              type="button"
-              onClick={() => onTabChange?.(tabItem.id)}
-              className={getItemClassName(active)}
-            >
-              {tabItem.label}
-            </button>
-          );
-        }
-
-        return (
-          <Link
-            key={tabItem.id}
-            href={buildTabHref(tabItem.id)}
-            className={getItemClassName(active)}
-          >
-            {tabItem.label}
-          </Link>
-        );
-      })}
-    </nav>
+    <SectionTabs
+      activeValue={normalizedActiveTab}
+      ariaLabel={ariaLabel}
+      className={className}
+      getHref={typeof onTabChange === "function" ? undefined : buildTabHref}
+      items={items}
+      onValueChange={onTabChange}
+    />
   );
 }

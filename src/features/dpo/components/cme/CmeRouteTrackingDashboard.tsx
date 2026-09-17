@@ -22,7 +22,7 @@ import type {
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Typography } from "@/shared/ui/typography";
-import ExtratorSectionNav from "@/features/extrator-manager/components/ExtratorSectionNav";
+import { SectionTabs } from "@/shared/ui/section-tabs";
 
 type DashboardTab = "operation" | "occurrences";
 
@@ -562,10 +562,10 @@ export default function CmeRouteTrackingDashboard() {
   return (
     <div className="space-y-3">
       <Panel className="overflow-hidden p-2">
-        <ExtratorSectionNav
-          activeTab={activeTab}
+        <SectionTabs
+          activeValue={activeTab}
           items={CME_TAB_ITEMS}
-          onTabChange={(tab) => handleTabChange(tab as DashboardTab)}
+          onValueChange={(tab) => handleTabChange(tab as DashboardTab)}
           ariaLabel="Seções do acompanhamento CME"
           className="flex flex-wrap gap-2"
         />
