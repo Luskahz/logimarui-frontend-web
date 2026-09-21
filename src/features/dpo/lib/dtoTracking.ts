@@ -4,9 +4,14 @@ import type {
   DtoTrackingContext,
   DtoTrackedSubject,
   DtoTrackingMode,
+  DtoTrackingMonthCell,
+  DtoTrackingMonthStatus,
+  DtoTrackingMonthSummary,
   DtoTrackingStatus,
   DtoTrackingSummary,
-} from "@/features/dpo/lib/dtoTypes";
+  DtoTrackingYearRow,
+  DtoTrackingYearSummary,
+} from "@/features/dpo/model/dtoTypes";
 
 const DAY_IN_MS = 86_400_000;
 
@@ -259,5 +264,282 @@ export function computeDtoTracking(
         ? ((current + dueSoon) / subjects.length) * 100
         : null,
     lastRealization,
+  };
+}
+
+function endOfMonth(year: number, month: number): Date {
+  return new Date(year, month + 1, 0);
+}
+
+function monthStart(year: number, month: number): Date {
+  return new Date(year, month, 1);
+}
+
+function isInMonth(value: Date, year: number, month: number): boolean {
+  return value.getFullYear() === year && value.getMonth() === month;
+}
+
+function uniqueSortedDates(values: Date[]): Date[] {
+  return [...new Map(values.map((value) => [startOfDay(value).getTime(), startOfDay(value)])).values()]
+    .sort((left, right) => left.getTime() - right.getTime());
+}
+
+export interface DtoTrackingSnapshotPeriod {
+  start: Date | null;
+  end: Date | null;
+}
+
+function trackingRealizationDates(detail: DtoFormDetail): Date[] {
+  const dateKey = detail.configuration.tracking.realization_date_field_key;
+  return uniqueSortedDates(
+    dateKey
+      ? detail.records
+          .map((record) => parseDtoDate(record.values[dateKey]))
+          .filter((date): date is Date => date !== null)
+      : [],
+  );
+}
+
+/** Resolves the loaded snapshot boundaries without inventing a period from today. */
+export function resolveTrackingSnapshotPeriod(detail: DtoFormDetail): DtoTrackingSnapshotPeriod {
+  const realizations = trackingRealizationDates(detail);
+  const start = parseDtoDate(detail.source_period_start) || realizations[0] || null;
+  const end = parseDtoDate(detail.source_period_end) || realizations.at(-1) || null;
+  return start && end && start > end ? { start: null, end: null } : { start, end };
+}
+
+/** Years are bounded by the snapshot whenever it declares a period. */
+export function getDtoTrackingYears(detail: DtoFormDetail): number[] {
+  const { start, end } = resolveTrackingSnapshotPeriod(detail);
+  if (start && end && start <= end) {
+    return Array.from(
+      { length: end.getFullYear() - start.getFullYear() + 1 },
+      (_, index) => start.getFullYear() + index,
+    );
+  }
+  const years = new Set(trackingRealizationDates(detail).map((date) => date.getFullYear()));
+  if (start) years.add(start.getFullYear());
+  if (end) years.add(end.getFullYear());
+  return [...years].sort((left, right) => left - right);
+}
+
+function collectRealizationsBySubject(
+  detail: DtoFormDetail,
+  context: DtoTrackingContext | null,
+  subjects: DtoTrackedSubject[],
+): Map<string, Date[]> {
+  const tracking = detail.configuration.tracking;
+  const dateKey = tracking.realization_date_field_key;
+  const result = new Map(subjects.map((subject) => [subject.key, [] as Date[]]));
+  if (!dateKey) return result;
+  const subjectKeys = new Set(result.keys());
+  const collaboratorMode = tracking.mode === "COLLABORATOR";
+  const formEnvironment = tracking.mode === "ENVIRONMENT" && tracking.environment_source === "FORM";
+
+  detail.records.forEach((record) => {
+    const realization = parseDtoDate(record.values[dateKey]);
+    if (!realization) return;
+    if (collaboratorMode) {
+      (context?.record_employee_keys[record.id] || []).forEach((key) => {
+        if (subjectKeys.has(key)) result.get(key)?.push(realization);
+      });
+      return;
+    }
+    if (formEnvironment) {
+      subjects.forEach((subject) => result.get(subject.key)?.push(realization));
+      return;
+    }
+    extractTrackingNames(record.values[tracking.roster_field_key || ""]).forEach((name) => {
+      const key = normalizeSearchText(name);
+      if (subjectKeys.has(key)) result.get(key)?.push(realization);
+    });
+  });
+  result.forEach((dates, key) => result.set(key, uniqueSortedDates(dates)));
+  return result;
+}
+
+function classifyMonth({
+  admissionDate,
+  firstDueDays,
+  intervalDays,
+  month,
+  realizations,
+  snapshotStart,
+  snapshotEnd,
+  year,
+}: {
+  admissionDate: Date | null;
+  firstDueDays: number | null;
+  intervalDays: number;
+  month: number;
+  realizations: Date[];
+  snapshotStart: Date | null;
+  snapshotEnd: Date | null;
+  year: number;
+}): DtoTrackingMonthCell {
+  const start = monthStart(year, month);
+  const end = endOfMonth(year, month);
+  const firstDue = admissionDate && firstDueDays !== null
+    ? addDays(admissionDate, firstDueDays)
+    : null;
+  const cell: DtoTrackingMonthCell = {
+    year,
+    month,
+    status: "unknown",
+    realizations: realizations.filter((date) => isInMonth(date, year, month)),
+    coverageRealization: null,
+    coverageStartDate: null,
+    coverageEndDate: null,
+    dueDate: null,
+    overdueDays: null,
+  };
+  if (!snapshotStart || !snapshotEnd) return cell;
+  if (end < snapshotStart) return { ...cell, status: "outOfSnapshot" };
+  if (start > snapshotEnd) return { ...cell, status: "future" };
+  if (admissionDate && end < admissionDate) return { ...cell, status: "notApplicable" };
+
+  // Records before the snapshot were not loaded. They must not be used to
+  // invent coverage or an overdue cycle at the left boundary.
+  const knownRealizations = realizations.filter(
+    (date) => date >= snapshotStart && date <= snapshotEnd,
+  );
+  const previous = knownRealizations.filter((date) => date < start).at(-1) || null;
+  const inMonth = cell.realizations;
+  const dueDate = previous
+    ? addDays(previous, intervalDays)
+    : firstDue && firstDue >= snapshotStart
+      ? firstDue
+      : null;
+  const lateDue = dueDate && inMonth[0] && dueDate < inMonth[0]
+    ? dueDate
+    : null;
+
+  if (inMonth.length) {
+    const coverageRealization = inMonth.at(-1) || null;
+    return {
+      ...cell,
+      status: lateDue ? "realizedLate" : "realized",
+      dueDate: lateDue,
+      overdueDays: lateDue ? Math.floor((inMonth[0].getTime() - lateDue.getTime()) / DAY_IN_MS) : null,
+      coverageRealization,
+      coverageStartDate: coverageRealization,
+      coverageEndDate: coverageRealization ? addDays(coverageRealization, intervalDays) : null,
+    };
+  }
+
+  if (!dueDate) {
+    if (firstDue && firstDue > end) return { ...cell, status: "future" };
+    return { ...cell, status: "unknown" };
+  }
+  if (dueDate > end) {
+    return {
+      ...cell,
+      status: previous ? "covered" : "future",
+      coverageRealization: previous,
+      coverageStartDate: previous,
+      coverageEndDate: previous ? dueDate : null,
+    };
+  }
+
+  const isPast = dueDate <= snapshotEnd;
+  return {
+    ...cell,
+    status: isPast ? "missed" : "due",
+    dueDate,
+    overdueDays: isPast
+      ? Math.max(0, Math.floor((snapshotEnd.getTime() - dueDate.getTime()) / DAY_IN_MS))
+      : null,
+    coverageRealization: previous,
+    coverageStartDate: previous,
+    coverageEndDate: previous ? dueDate : null,
+  };
+}
+
+export function computeDtoTrackingYear(
+  detail: DtoFormDetail,
+  context: DtoTrackingContext | null,
+  year: number,
+): DtoTrackingYearSummary {
+  const snapshotPeriod = resolveTrackingSnapshotPeriod(detail);
+  const current = computeDtoTracking(detail, context, snapshotPeriod.end || new Date());
+  const intervalDays = detail.configuration.tracking.interval_days || 0;
+  const firstDueDays = detail.configuration.tracking.new_employee_first_due_days;
+  const datesBySubject = collectRealizationsBySubject(detail, context, current.subjects);
+  const employeeByKey = new Map((context?.employees || []).map((employee) => [employee.key, employee]));
+  const { start: snapshotStart, end: snapshotEnd } = snapshotPeriod;
+  const rows: DtoTrackingYearRow[] = current.subjects.map((subject) => {
+    const employee = employeeByKey.get(subject.key);
+    const dates = datesBySubject.get(subject.key) || [];
+    const months = Array.from({ length: 12 }, (_, month) => classifyMonth({
+      admissionDate: subject.admissionDate,
+      firstDueDays,
+      intervalDays,
+      month,
+      realizations: dates,
+      snapshotStart,
+      snapshotEnd,
+      year,
+    }));
+    return {
+      subject,
+      location: employee?.location || null,
+      area: employee?.area || null,
+      months,
+      realizations: dates.filter((date) => date.getFullYear() === year).length,
+      realizedMonths: months.filter((cell) => cell.status === "realized" || cell.status === "realizedLate").length,
+      coveredMonths: months.filter((cell) => cell.status === "covered").length,
+      pendingMonths: months.filter((cell) => cell.status === "due" || cell.status === "missed").length,
+    };
+  });
+  return { year, mode: current.mode, rows, availableYears: getDtoTrackingYears(detail) };
+}
+
+/** Returns annual-only dates for the matrix row hover, never snapshot-wide values. */
+export function getDtoTrackingYearDates(
+  row: DtoTrackingYearRow,
+  referenceDate: Date,
+): { lastRealization: Date | null; nextDueDate: Date | null; lastDueDate: Date | null } {
+  const realizations = uniqueSortedDates(row.months.flatMap((cell) => cell.realizations));
+  const dueDates = uniqueSortedDates(
+    row.months
+      .map((cell) => cell.dueDate)
+      .filter((date): date is Date => date !== null),
+  );
+  return {
+    lastRealization: realizations.at(-1) || null,
+    nextDueDate: dueDates.find((date) => date >= referenceDate) || null,
+    lastDueDate: dueDates.at(-1) || null,
+  };
+}
+
+/** Matrix category values are subject keys, so duplicate display names stay distinct. */
+export function getDtoTrackingRowBySubjectKey(
+  rows: DtoTrackingYearRow[],
+  subjectKey: string,
+): DtoTrackingYearRow | null {
+  return rows.find((row) => row.subject.key === subjectKey) || null;
+}
+
+export function computeDtoTrackingMonthSummary(
+  rows: DtoTrackingYearRow[],
+  year: number,
+  month: number,
+): DtoTrackingMonthSummary {
+  const cells = rows.map((row) => row.months[month]).filter(Boolean);
+  const count = (status: DtoTrackingMonthStatus) => cells.filter((cell) => cell.status === status).length;
+  const applicable = cells.filter(
+    (cell) => !["notApplicable", "future", "outOfSnapshot", "unknown"].includes(cell.status),
+  ).length;
+  const covered = count("covered");
+  const realized = count("realized");
+  const realizedLate = count("realizedLate");
+  return {
+    year, month, applicable, realized, covered, realizedLate,
+    due: count("due"),
+    missed: count("missed"),
+    future: count("future"),
+    outOfSnapshot: count("outOfSnapshot"),
+    unknown: count("unknown"),
+    coveragePercentage: applicable ? ((realized + realizedLate + covered) / applicable) * 100 : null,
   };
 }

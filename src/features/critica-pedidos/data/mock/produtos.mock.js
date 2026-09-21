@@ -1,5 +1,5 @@
 import { pedidosMock } from "./pedidos.mock";
-import { adaptProdutoReportRow } from "@/features/critica-pedidos/services/reportAdapters";
+import { adaptProdutoReportRow } from "@/features/critica-pedidos/lib/reportAdapters";
 const productCatalog = [
     "Skol 350ml",
     "Brahma 350ml",

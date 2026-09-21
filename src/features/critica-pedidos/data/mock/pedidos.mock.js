@@ -1,5 +1,5 @@
 import { clientesMock } from "./clientes.mock";
-import { adaptPedidoReportRow } from "@/features/critica-pedidos/services/reportAdapters";
+import { adaptPedidoReportRow } from "@/features/critica-pedidos/lib/reportAdapters";
 const motivos = [
     null,
     "Janela de entrega",

@@ -1,0 +1,840 @@
+"use client";
+import { useEffect, useMemo, useState } from "react";
+import { ListFilter, RefreshCw, Search, Settings2, X } from "lucide-react";
+import type { EChartsOption } from "echarts";
+import DtoEChart from "@/features/dpo/ui/dto/DtoEChart";
+import {
+  DtoBadge,
+  DtoButton,
+  DtoMetricCard,
+  DtoPanel,
+  DtoStatePanel,
+} from "@/features/dpo/ui/dto/DtoPrimitives";
+import {
+  computeDtoTracking,
+  computeDtoTrackingMonthSummary,
+  computeDtoTrackingYear,
+  getDtoTrackingRowBySubjectKey,
+  getDtoTrackingYearDates,
+  getDtoTrackingYears,
+  resolveTrackingSnapshotPeriod,
+} from "@/features/dpo/lib/dtoTracking";
+import {
+  formatDtoDate,
+  formatDtoNumber,
+  formatDtoPercentage,
+  normalizeSearchText,
+} from "@/features/dpo/lib/dtoFormatters";
+import type {
+  DtoFormDetail,
+  DtoTrackingContext,
+  DtoTrackingMonthCell,
+  DtoTrackingMonthStatus,
+  DtoTrackingYearRow,
+  WorkforceFilterCatalog,
+  WorkforceTrackingFilter,
+} from "@/features/dpo/model/dtoTypes";
+import { useFormManagerConfig } from "@/features/dpo/model/formManagerConfig";
+import { Typography } from "@/shared/ui/typography";
+const MONTHS = [
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
+];
+const STATUS_LABELS: Record<DtoTrackingMonthStatus, string> = {
+  realized: "Realizado",
+  realizedLate: "Realizado fora do prazo",
+  covered: "Coberto",
+  due: "Vencendo",
+  missed: "Pendente",
+  notApplicable: "Não aplicável",
+  future: "Sem obrigação no período",
+  outOfSnapshot: "Fora do snapshot",
+  unknown: "Histórico insuficiente",
+};
+const STATUS_COLORS: Record<DtoTrackingMonthStatus, string> = {
+  realized: "#0f9b8e",
+  realizedLate: "#e67932",
+  covered: "#70c9c0",
+  due: "#d99a18",
+  missed: "#dc4f4f",
+  notApplicable: "#64748b",
+  future: "#94a3b8",
+  outOfSnapshot: "#475569",
+  unknown: "#8b5cf6",
+};
+const STATUS_ORDER: DtoTrackingMonthStatus[] = [
+  "realized",
+  "realizedLate",
+  "covered",
+  "due",
+  "missed",
+  "notApplicable",
+  "future",
+  "outOfSnapshot",
+  "unknown",
+];
+type TrackingFilters = {
+  location: string;
+  employeeKey: string;
+  area: string;
+  status: "" | DtoTrackingMonthStatus;
+  workforceFilterId: string;
+};
+type ContextResult = {
+  key: string;
+  context: DtoTrackingContext | null;
+  error: string | null;
+};
+type MatrixEvent = {
+  componentType?: string;
+  data?: [number, number, number];
+  seriesType?: string;
+  value?: string;
+};
+const EMPTY_FILTERS: TrackingFilters = {
+  location: "",
+  employeeKey: "",
+  area: "",
+  status: "",
+  workforceFilterId: "",
+};
+function escapeHtml(value: string): string {
+  return value.replace(
+    /[&<>'"]/g,
+    (character) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[
+        character
+      ] || character,
+  );
+}
+function formatDates(dates: Date[]): string {
+  return dates.length
+    ? dates.map((date) => formatDtoDate(date)).join(", ")
+    : "Nenhuma";
+}
+function cellDescription(cell: DtoTrackingMonthCell): string {
+  if (cell.status === "outOfSnapshot")
+    return "Período fora da janela carregada.";
+  if (cell.status === "unknown")
+    return "Sem histórico suficiente antes do início do snapshot.";
+  if (
+    cell.status === "covered" &&
+    cell.coverageRealization &&
+    cell.coverageEndDate
+  )
+    return `Coberto pela realização de ${formatDtoDate(cell.coverageRealization)} até ${formatDtoDate(cell.coverageEndDate)}.`;
+  if (cell.status === "due" && cell.dueDate)
+    return `Prazo vence em ${formatDtoDate(cell.dueDate)}.`;
+  if (cell.status === "missed" && cell.dueDate)
+    return `Prazo venceu em ${formatDtoDate(cell.dueDate)} sem realização.`;
+  if (cell.status === "realizedLate" && cell.dueDate)
+    return "A realização ocorreu após o vencimento conhecido.";
+  return STATUS_LABELS[cell.status];
+}
+function FilterDialog({
+  catalog,
+  filters,
+  onChange,
+  onClose,
+  rows,
+  sharedFilters,
+}: {
+  catalog: WorkforceFilterCatalog | null;
+  filters: TrackingFilters;
+  onChange: (filters: TrackingFilters) => void;
+  onClose: () => void;
+  rows: DtoTrackingYearRow[];
+  sharedFilters: WorkforceTrackingFilter[];
+}) {
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) =>
+      event.key === "Escape" && onClose();
+    window.addEventListener("keydown", listener);
+    return () => window.removeEventListener("keydown", listener);
+  }, [onClose]);
+  const selectClass =
+    "mt-2 h-11 w-full rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface)] px-3 text-sm";
+  return (
+    <div
+      role="presentation"
+      onMouseDown={(event) => event.currentTarget === event.target && onClose()}
+      className="fixed inset-0 z-[90] flex items-end justify-center bg-[var(--shell-overlay)] p-0 backdrop-blur-sm sm:items-center sm:p-5"
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tracking-filters-title"
+        className="w-full rounded-t-[30px] border border-[color:var(--shell-line)] bg-[var(--shell-surface-strong)] p-5 shadow-2xl sm:max-w-2xl sm:rounded-[30px] sm:p-6"
+      >
+        <header className="flex items-start justify-between gap-4">
+          <div>
+            <Typography variant="overline">Acompanhamento</Typography>
+            <Typography
+              id="tracking-filters-title"
+              as="h2"
+              variant="sectionTitle"
+              className="mt-2"
+            >
+              Filtros
+            </Typography>
+          </div>
+          <DtoButton
+            size="icon-sm"
+            aria-label="Fechar filtros"
+            onClick={onClose}
+          >
+            <X aria-hidden="true" />
+          </DtoButton>
+        </header>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <label className="text-sm font-semibold text-[var(--shell-text)]">
+            Local
+            <select
+              value={filters.location}
+              onChange={(event) =>
+                onChange({ ...filters, location: event.target.value })
+              }
+              className={selectClass}
+            >
+              <option value="">Todos os locais</option>
+              {(catalog?.locations || []).map((item) => (
+                <option key={item.name} value={item.name}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm font-semibold text-[var(--shell-text)]">
+            Colaborador
+            <select
+              value={filters.employeeKey}
+              onChange={(event) =>
+                onChange({ ...filters, employeeKey: event.target.value })
+              }
+              className={selectClass}
+            >
+              <option value="">Todos os colaboradores</option>
+              {rows.map((row) => (
+                <option key={row.subject.key} value={row.subject.key}>
+                  {row.subject.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm font-semibold text-[var(--shell-text)]">
+            Setor
+            <select
+              value={filters.area}
+              onChange={(event) =>
+                onChange({ ...filters, area: event.target.value })
+              }
+              className={selectClass}
+            >
+              <option value="">Todos os setores</option>
+              {(catalog?.areas || []).map((item) => (
+                <option key={item.name} value={item.name}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm font-semibold text-[var(--shell-text)]">
+            Status mensal
+            <select
+              value={filters.status}
+              onChange={(event) =>
+                onChange({
+                  ...filters,
+                  status: event.target.value as TrackingFilters["status"],
+                })
+              }
+              className={selectClass}
+            >
+              <option value="">Todos</option>
+              {STATUS_ORDER.filter(
+                (status) =>
+                  ![
+                    "future",
+                    "notApplicable",
+                    "outOfSnapshot",
+                    "unknown",
+                  ].includes(status),
+              ).map((status) => (
+                <option key={status} value={status}>
+                  {STATUS_LABELS[status]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm font-semibold text-[var(--shell-text)] sm:col-span-2">
+            Filtro público
+            <select
+              value={filters.workforceFilterId}
+              onChange={(event) =>
+                onChange({ ...filters, workforceFilterId: event.target.value })
+              }
+              className={selectClass}
+            >
+              <option value="">Nenhum filtro público</option>
+              {sharedFilters.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <footer className="mt-6 flex justify-end gap-2">
+          <DtoButton onClick={() => onChange(EMPTY_FILTERS)}>
+            Limpar filtros
+          </DtoButton>
+          <DtoButton tone="accent" onClick={onClose}>
+            Aplicar filtros
+          </DtoButton>
+        </footer>
+      </section>
+    </div>
+  );
+}
+function FilterChips({
+  filters,
+  rows,
+  sharedFilters,
+  onChange,
+}: {
+  filters: TrackingFilters;
+  rows: DtoTrackingYearRow[];
+  sharedFilters: WorkforceTrackingFilter[];
+  onChange: (filters: TrackingFilters) => void;
+}) {
+  const labels: Array<[keyof TrackingFilters, string, string]> = [
+    ["location", "Local", filters.location],
+    [
+      "employeeKey",
+      "Colaborador",
+      rows.find((row) => row.subject.key === filters.employeeKey)?.subject
+        .name || "",
+    ],
+    ["area", "Setor", filters.area],
+    ["status", "Status", filters.status ? STATUS_LABELS[filters.status] : ""],
+    [
+      "workforceFilterId",
+      "Filtro público",
+      sharedFilters.find((item) => item.id === filters.workforceFilterId)
+        ?.name || "",
+    ],
+  ];
+  const active = labels.filter(([, , value]) => Boolean(value));
+  if (!active.length) return null;
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-2">
+      {active.map(([key, label, value]) => (
+        <button
+          key={key}
+          type="button"
+          onClick={() => onChange({ ...filters, [key]: "" })}
+          className="rounded-full border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] px-3 py-1 text-xs font-semibold text-[var(--shell-text)]"
+        >
+          {label}: {value} ×
+        </button>
+      ))}
+      <button
+        type="button"
+        className="text-xs font-semibold text-[var(--shell-accent)]"
+        onClick={() => onChange(EMPTY_FILTERS)}
+      >
+        Limpar filtros
+      </button>
+    </div>
+  );
+}
+function CurrentStatusTable({ rows }: { rows: DtoTrackingYearRow[] }) {
+  return (
+    <DtoPanel className="overflow-hidden p-5 sm:p-6">
+      <Typography variant="overline">Situação atual detalhada</Typography>
+      <Typography as="h2" variant="cardTitle" className="mt-2">
+        População atual do acompanhamento
+      </Typography>
+      <div className="mt-5 overflow-x-auto">
+        <table className="w-full min-w-[760px] text-left text-sm">
+          <thead className="border-b border-[color:var(--shell-line)] text-xs uppercase tracking-wide text-[var(--shell-muted)]">
+            <tr>
+              <th className="pb-3 pr-4">Colaborador</th>
+              <th className="pb-3 pr-4">Função</th>
+              <th className="pb-3 pr-4">Admissão</th>
+              <th className="pb-3 pr-4">Situação atual</th>
+              <th className="pb-3 pr-4">Realizações</th>
+              <th className="pb-3 pr-4">Última realização</th>
+              <th className="pb-3">Próximo prazo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr
+                key={row.subject.key}
+                className="border-b border-[color:var(--shell-line)] last:border-0"
+              >
+                <td className="py-3 pr-4 font-semibold text-[var(--shell-text)]">
+                  {row.subject.name}
+                </td>
+                <td className="py-3 pr-4">{row.subject.function || "—"}</td>
+                <td className="py-3 pr-4">
+                  {formatDtoDate(row.subject.admissionDate)}
+                </td>
+                <td className="py-3 pr-4">
+                  {row.subject.status === "current"
+                    ? "Em dia"
+                    : row.subject.status === "dueSoon"
+                      ? "Vencendo"
+                      : row.subject.status === "overdue"
+                        ? "Pendente"
+                        : "Sem realização"}
+                </td>
+                <td className="py-3 pr-4">
+                  {formatDtoNumber(row.subject.applications)}
+                </td>
+                <td className="py-3 pr-4">
+                  {formatDtoDate(row.subject.lastRealization)}
+                </td>
+                <td className="py-3">
+                  {formatDtoDate(row.subject.nextDueDate)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </DtoPanel>
+  );
+}
+export default function DtoTrackingPanel({
+  detail,
+  onConfigure,
+}: {
+  detail: DtoFormDetail;
+  onConfigure: () => void;
+}) {
+  const { api } = useFormManagerConfig();
+  const years = useMemo(() => getDtoTrackingYears(detail), [detail]);
+  const snapshotPeriod = useMemo(() => resolveTrackingSnapshotPeriod(detail), [detail]);
+  const sourceEnd = useMemo(
+    () => snapshotPeriod.end || new Date(),
+    [snapshotPeriod.end],
+  );
+  const [year, setYear] = useState(
+    () => years.at(-1) || new Date().getFullYear(),
+  );
+  const [month, setMonth] = useState(() => sourceEnd.getMonth());
+  const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState<TrackingFilters>(EMPTY_FILTERS);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [hoverInfo, setHoverInfo] = useState(
+    "Passe o cursor sobre um mês ou colaborador para ver o resumo contextual.",
+  );
+  const [contextReload, setContextReload] = useState(0);
+  const [contextResult, setContextResult] = useState<ContextResult | null>(
+    null,
+  );
+  const [catalog, setCatalog] = useState<WorkforceFilterCatalog | null>(null);
+  const [sharedFilters, setSharedFilters] = useState<WorkforceTrackingFilter[]>(
+    [],
+  );
+  const needsContext = detail.configuration.tracking.mode === "COLLABORATOR";
+  const contextKey = needsContext
+    ? `${detail.form.id}:${detail.configuration.revision}:${filters.workforceFilterId}:${contextReload}`
+    : null;
+  useEffect(() => {
+    if (years.includes(year)) return;
+    const latest = years.at(-1) || sourceEnd.getFullYear();
+    const timer = window.setTimeout(() => {
+      setYear(latest);
+      setMonth(latest === sourceEnd.getFullYear() ? sourceEnd.getMonth() : 11);
+    });
+    return () => window.clearTimeout(timer);
+  }, [sourceEnd, year, years]);
+  useEffect(() => {
+    if (!contextKey) return;
+    const controller = new AbortController();
+    void api
+      .getTrackingContext(
+        detail.form.id,
+        { workforceFilterId: filters.workforceFilterId || undefined },
+        controller.signal,
+      )
+      .then((context) =>
+        setContextResult({ key: contextKey, context, error: null }),
+      )
+      .catch((error: unknown) => {
+        if (error instanceof Error && error.name === "AbortError") return;
+        setContextResult({
+          key: contextKey,
+          context: null,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Não foi possível consultar o cadastro.",
+        });
+      });
+    return () => controller.abort();
+  }, [api, contextKey, detail.form.id, filters.workforceFilterId]);
+  useEffect(() => {
+    if (!needsContext) return;
+    const controller = new AbortController();
+    void Promise.all([
+      api.getWorkforceFilterCatalog(controller.signal),
+      api.listWorkforceFilters(controller.signal),
+    ])
+      .then(([nextCatalog, nextFilters]) => {
+        setCatalog(nextCatalog);
+        setSharedFilters(nextFilters);
+      })
+      .catch(() => {
+        setCatalog(null);
+        setSharedFilters([]);
+      });
+    return () => controller.abort();
+  }, [api, needsContext]);
+  const context =
+    contextResult?.key === contextKey ? contextResult.context : null;
+  const tracking = useMemo(
+    () => computeDtoTracking(detail, context),
+    [detail, context],
+  );
+  const annual = useMemo(
+    () => computeDtoTrackingYear(detail, context, year),
+    [detail, context, year],
+  );
+  const filteredRows = useMemo(
+    () =>
+      annual.rows.filter((row) => {
+        const query = normalizeSearchText(search);
+        const cell = row.months[month];
+        return (
+          (!query ||
+            normalizeSearchText(
+              `${row.subject.name} ${row.subject.function || ""}`,
+            ).includes(query)) &&
+          (!filters.location || row.location === filters.location) &&
+          (!filters.employeeKey || row.subject.key === filters.employeeKey) &&
+          (!filters.area || row.area === filters.area) &&
+          (!filters.status || cell.status === filters.status)
+        );
+      }),
+    [annual.rows, filters, month, search],
+  );
+  const rowBySubjectKey = useMemo(
+    () => new Map(filteredRows.map((row) => [row.subject.key, row])),
+    [filteredRows],
+  );
+  const summary = useMemo(
+    () => computeDtoTrackingMonthSummary(filteredRows, year, month),
+    [filteredRows, year, month],
+  );
+  if (!tracking.configured)
+    return (
+      <DtoStatePanel
+        title="Defina a forma de acompanhamento"
+        description="Configure a periodicidade e a população para exibir a visão histórica."
+        action={
+          <DtoButton tone="accent" onClick={onConfigure}>
+            <Settings2 aria-hidden="true" /> Configurar acompanhamento
+          </DtoButton>
+        }
+      />
+    );
+  if (needsContext && contextKey !== contextResult?.key)
+    return (
+      <DtoStatePanel
+        title="Consultando o cadastro de colaboradores"
+        description="A população oficial e os vínculos das realizações estão sendo carregados."
+      />
+    );
+  if (needsContext && contextResult?.error)
+    return (
+      <DtoStatePanel
+        title="Não foi possível montar o acompanhamento"
+        description={contextResult.error}
+        action={
+          <DtoButton onClick={() => setContextReload((value) => value + 1)}>
+            <RefreshCw aria-hidden="true" /> Tentar novamente
+          </DtoButton>
+        }
+      />
+    );
+  const pieOption: EChartsOption = {
+    color: [
+      STATUS_COLORS.realized,
+      STATUS_COLORS.realizedLate,
+      STATUS_COLORS.covered,
+      STATUS_COLORS.due,
+      STATUS_COLORS.missed,
+    ],
+    tooltip: { trigger: "item" },
+    legend: { bottom: 0, textStyle: { color: "#94a3b8" } },
+    series: [
+      {
+        type: "pie",
+        radius: ["48%", "72%"],
+        center: ["50%", "43%"],
+        data: [
+          { name: "Realizados", value: summary.realized },
+          { name: "Realizados fora do prazo", value: summary.realizedLate },
+          { name: "Cobertos", value: summary.covered },
+          { name: "Vencendo", value: summary.due },
+          { name: "Pendentes", value: summary.missed },
+        ],
+      },
+    ],
+  };
+  const matrixOption: EChartsOption = {
+    animation: false,
+    tooltip: {
+      position: "top",
+      formatter: (raw) => {
+        const params = raw as MatrixEvent;
+        const point = params.data;
+        if (!point) return "";
+        const row = filteredRows[point[1]];
+        const cell = row?.months[point[0]];
+        if (!row || !cell) return "";
+        return `<strong>${escapeHtml(row.subject.name)}</strong><br/>${MONTHS[cell.month]}/${cell.year}<br/><strong>${STATUS_LABELS[cell.status]}</strong><br/>Função: ${escapeHtml(row.subject.function || "—")}<br/>Local: ${escapeHtml(row.location || "—")}<br/>Setor: ${escapeHtml(row.area || "—")}<br/>Realizações do mês: ${escapeHtml(formatDates(cell.realizations))}<br/>Origem da cobertura: ${escapeHtml(formatDtoDate(cell.coverageRealization))}<br/>Vencimento: ${escapeHtml(formatDtoDate(cell.dueDate))}<br/>Fim da cobertura: ${escapeHtml(formatDtoDate(cell.coverageEndDate))}<br/>Dias de atraso: ${cell.overdueDays ?? "—"}<br/>${escapeHtml(cellDescription(cell))}`;
+      },
+    },
+    grid: { top: 20, right: 22, bottom: 70, left: 180 },
+    xAxis: {
+      type: "category",
+      data: MONTHS,
+      triggerEvent: true,
+      axisLabel: { color: "#94a3b8" },
+      splitArea: { show: true },
+    },
+    yAxis: {
+      type: "category",
+      data: filteredRows.map((row) => row.subject.key),
+      triggerEvent: true,
+      axisLabel: {
+        color: "#94a3b8",
+        width: 155,
+        overflow: "truncate",
+        formatter: (key: string) => rowBySubjectKey.get(key)?.subject.name || key,
+      },
+      splitArea: { show: true },
+    },
+    visualMap: {
+      show: false,
+      pieces: STATUS_ORDER.map((status, index) => ({
+        value: index,
+        color: STATUS_COLORS[status],
+      })),
+    },
+    dataZoom: [
+      { type: "inside", yAxisIndex: 0 },
+      { type: "slider", yAxisIndex: 0, right: 2, width: 12 },
+    ],
+    series: [
+      {
+        type: "heatmap",
+        data: filteredRows.flatMap((row, rowIndex) =>
+          row.months.map((cell, cellMonth) => [
+            cellMonth,
+            rowIndex,
+            STATUS_ORDER.indexOf(cell.status),
+          ]),
+        ),
+        label: { show: false },
+        emphasis: { itemStyle: { borderColor: "#f8fafc", borderWidth: 1 } },
+      },
+    ],
+  };
+  const onMatrixEvent = (raw: unknown) => {
+    const params = raw as MatrixEvent;
+    if (params.seriesType === "heatmap") setMonth(Number(params.data?.[0]));
+    if (params.componentType === "xAxis") {
+      const next = MONTHS.indexOf(params.value || "");
+      if (next >= 0) setMonth(next);
+    }
+  };
+  const onMatrixHover = (raw: unknown) => {
+    const params = raw as MatrixEvent;
+    if (params.componentType === "xAxis") {
+      const index = MONTHS.indexOf(params.value || "");
+      if (index < 0) return;
+      const value = computeDtoTrackingMonthSummary(filteredRows, year, index);
+      setHoverInfo(
+        `${MONTHS[index]}/${year}: ${value.applicable} aplicáveis, ${value.realized} realizados, ${value.realizedLate} realizados fora do prazo, ${value.covered} cobertos, ${value.due} vencendo, ${value.missed} pendentes e ${formatDtoPercentage(value.coveragePercentage)} de cobertura.`,
+      );
+      return;
+    }
+    if (params.componentType === "yAxis") {
+      const row = getDtoTrackingRowBySubjectKey(
+        filteredRows,
+        String(params.value || ""),
+      );
+      if (!row) return;
+      const isCurrentYear = year === new Date().getFullYear();
+      const dates = getDtoTrackingYearDates(
+        row,
+        isCurrentYear ? snapshotPeriod.end || new Date() : new Date(year, 11, 31),
+      );
+      const dueLabel = isCurrentYear
+        ? "Próximo vencimento conhecido"
+        : "Último vencimento conhecido no ano";
+      const dueDate = isCurrentYear ? dates.nextDueDate : dates.lastDueDate;
+      setHoverInfo(
+        `${row.subject.name} · ${row.subject.function || "Função não informada"} · ${row.location || "Local não informado"} · Setor: ${row.area || "não informado"} · Admissão: ${formatDtoDate(row.subject.admissionDate)} · ${row.realizations} realização(ões) no ano · Última realização no ano: ${formatDtoDate(dates.lastRealization)} · ${row.realizedMonths} meses realizados · ${row.coveredMonths} meses cobertos · ${row.pendingMonths} meses pendentes · ${dueLabel}: ${formatDtoDate(dueDate)}.`,
+      );
+    }
+  };
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <DtoBadge tone="accent">
+          {tracking.mode === "ENVIRONMENT"
+            ? "Acompanhamento por ambiente"
+            : "Acompanhamento por colaborador"}
+        </DtoBadge>
+        <select
+          aria-label="Ano do acompanhamento"
+          value={year}
+          onChange={(event) => {
+            const nextYear = Number(event.target.value);
+            setYear(nextYear);
+            setMonth(
+              nextYear === sourceEnd.getFullYear() ? sourceEnd.getMonth() : 11,
+            );
+          }}
+          className="h-10 rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface)] px-3 text-sm font-semibold text-[var(--shell-text)]"
+        >
+          {years.map((item) => (
+            <option key={item} value={item}>
+              {item}
+            </option>
+          ))}
+        </select>
+      </div>
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <DtoMetricCard
+          label="Aplicáveis"
+          value={formatDtoNumber(summary.applicable)}
+        />
+        <DtoMetricCard
+          label="Realizados"
+          tone="accent"
+          value={formatDtoNumber(summary.realized + summary.realizedLate)}
+        />
+        <DtoMetricCard
+          label="Cobertos"
+          tone="accent"
+          value={formatDtoNumber(summary.covered)}
+        />
+        <DtoMetricCard
+          label="Pendentes"
+          tone={summary.missed ? "danger" : "default"}
+          value={formatDtoNumber(summary.missed + summary.due)}
+        />
+        <DtoMetricCard
+          label="Cobertura"
+          tone="accent"
+          value={formatDtoPercentage(summary.coveragePercentage)}
+        />
+      </section>
+      <div className="grid gap-4 xl:grid-cols-[0.75fr_1.25fr]">
+        <DtoPanel className="p-5 sm:p-6">
+          <Typography variant="overline">Cobertura mensal</Typography>
+          <Typography as="h2" variant="cardTitle" className="mt-2">
+            Situação em {MONTHS[month]}/{year}
+          </Typography>
+          <DtoEChart
+            ariaLabel={`Situação da periodicidade em ${MONTHS[month]} de ${year}`}
+            className="mt-3 h-80"
+            option={pieOption}
+          />
+        </DtoPanel>
+        <DtoPanel className="p-5 sm:p-6">
+          <Typography variant="overline">Visão histórica</Typography>
+          <Typography as="h2" variant="cardTitle" className="mt-2">
+            Matriz anual de acompanhamento
+          </Typography>
+          <Typography variant="caption" className="mt-1">
+            Clique em uma célula ou mês para alterar o período em foco.
+          </Typography>
+          <DtoEChart
+            ariaLabel={`Matriz anual para ${year}`}
+            className="mt-3 h-[40rem] min-h-96"
+            option={matrixOption}
+            onEvents={{ click: onMatrixEvent, mouseover: onMatrixHover }}
+          />
+          <aside
+            role="status"
+            className="mt-3 rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] px-3 py-2 text-xs leading-5 text-[var(--shell-muted)]"
+          >
+            {hoverInfo}
+          </aside>
+        </DtoPanel>
+      </div>
+      <DtoPanel className="p-5 sm:p-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <Typography variant="overline">Recorte histórico</Typography>
+            <Typography as="h2" variant="cardTitle" className="mt-2">
+              {MONTHS[month]}/{year}
+            </Typography>
+          </div>
+          <div className="flex flex-1 flex-wrap justify-end gap-2">
+            <label className="relative min-w-60 flex-1 sm:max-w-sm">
+              <span className="sr-only">Buscar colaborador</span>
+              <Search
+                aria-hidden="true"
+                className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--shell-muted)]"
+              />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Buscar colaborador"
+                className="w-full rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] py-2.5 pl-10 pr-3 text-sm text-[var(--shell-text)]"
+              />
+            </label>
+            {tracking.mode === "COLLABORATOR" ? (
+              <DtoButton onClick={() => setFiltersOpen(true)}>
+                <ListFilter aria-hidden="true" />
+                Filtros
+              </DtoButton>
+            ) : null}
+          </div>
+        </div>
+        <FilterChips
+          filters={filters}
+          rows={annual.rows}
+          sharedFilters={sharedFilters}
+          onChange={setFilters}
+        />
+        <p className="mt-5 text-sm text-[var(--shell-muted)]">
+          {formatDtoNumber(filteredRows.length)} item(ns) no recorte. A matriz
+          representa o histórico mensal; a tabela abaixo representa a situação
+          atual.
+        </p>
+      </DtoPanel>
+      <CurrentStatusTable rows={filteredRows} />
+      {filtersOpen ? (
+        <FilterDialog
+          catalog={catalog}
+          filters={filters}
+          onChange={setFilters}
+          onClose={() => setFiltersOpen(false)}
+          rows={annual.rows}
+          sharedFilters={sharedFilters}
+        />
+      ) : null}
+    </div>
+  );
+}

@@ -13,7 +13,7 @@ import type {
   DtoRecurringGap,
   DtoTimelinePoint,
   DtoTrend,
-} from "@/features/dpo/lib/dtoTypes";
+} from "@/features/dpo/model/dtoTypes";
 import {
   formatDtoPercentage,
   formatDtoValue,
