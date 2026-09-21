@@ -8,6 +8,8 @@ export const APP_ROUTES = {
   FORGOT_PASSWORD: "/forgot-password",
   PASSWORD_RECOVERY_RESET: "/forgot-password/reset",
   DPO: "/dpo",
+  SPO: "/spo",
+  SPO_FINANCEIRO: "/spo/financeiro",
   DPO_MANAGEMENT: "/dpo/gestao",
   DPO_DTO_MANAGER: "/dpo/gestao/gerenciador-dto",
   DPO_BLITZ_MANAGER: "/dpo/seguranca/gerenciador-blitz",

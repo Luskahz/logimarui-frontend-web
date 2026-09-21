@@ -9,6 +9,7 @@ const featureSlices = [
   "dpo",
   "extrator-manager",
   "server-manager",
+  "spo",
 ];
 
 const temporaryAuthConsumers = new Set(["authorization", "dpo"]);

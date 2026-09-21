@@ -1,8 +1,12 @@
 import { APP_ROUTES, getRouteSegment, matchesRoute } from "@/shared/config/routes";
 import { DPO_PILLARS } from "@/features/dpo/lib/dpoConfig";
+import { SPO_CONTEXTS } from "@/features/spo/lib/spoConfig";
 
 const DPO_PILLAR_LABELS = Object.fromEntries(
   DPO_PILLARS.map((pillar) => [pillar.slug, pillar.label]),
+);
+const SPO_CONTEXT_LABELS = Object.fromEntries(
+  SPO_CONTEXTS.map((context) => [context.slug, context.label]),
 );
 
 const BREADCRUMB_LABELS = {
@@ -32,6 +36,15 @@ export const APP_SIDEBAR_ITEMS = [
     href: APP_ROUTES.DPO,
     activePath: APP_ROUTES.DPO,
     icon: "house",
+  },
+  {
+    id: "spo",
+    label: "SPO",
+    description: "Contextos globais para organizacao de ferramentas.",
+    type: "link",
+    href: APP_ROUTES.SPO,
+    activePath: APP_ROUTES.SPO,
+    icon: "clipboard",
   },
   {
     id: "authorization-roles",
@@ -192,6 +205,11 @@ export function buildAppBreadcrumbs(pathname) {
       continue;
     }
 
+    if (segment === getRouteSegment(APP_ROUTES.SPO)) {
+      items.push({ href: currentPath, label: "SPO" });
+      continue;
+    }
+
     if (segments[0] === getRouteSegment(APP_ROUTES.DPO)) {
       items.push({
         href: currentPath,
@@ -199,6 +217,14 @@ export function buildAppBreadcrumbs(pathname) {
           BREADCRUMB_LABELS[currentPath] ||
           DPO_PILLAR_LABELS[segment] ||
           formatBreadcrumbLabel(segment),
+      });
+      continue;
+    }
+
+    if (segments[0] === getRouteSegment(APP_ROUTES.SPO)) {
+      items.push({
+        href: currentPath,
+        label: SPO_CONTEXT_LABELS[segment] || formatBreadcrumbLabel(segment),
       });
       continue;
     }
