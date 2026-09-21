@@ -489,8 +489,77 @@ const lateRow = historicalYear.rows.find((row) => row.subject.key === "late");
 assert.equal(lateRow.months[7].status, "realized");
 const newRow = historicalYear.rows.find((row) => row.subject.key === "new");
 assert.equal(newRow.months[4].status, "notApplicable");
-assert.equal(newRow.months[6].status, "covered");
+assert.equal(newRow.months[6].status, "missed");
 const monthSummary = tracking.computeDtoTrackingMonthSummary(historicalYear.rows, 2026, 8);
 assert.equal(monthSummary.covered, 2);
+
+function trackingFixture({ start = "2026-01-01", end = "2026-10-10", admission = "2024-01-01", records = [], intervalDays = 60, firstDueDays = 30 } = {}) {
+  return {
+    detail: {
+      source_period_start: start,
+      source_period_end: end,
+      configuration: { tracking: {
+        mode: "COLLABORATOR", collaborator_source: "CPF", roster_field_key: "cpf",
+        realization_date_field_key: "realized-at", interval_days: intervalDays,
+        applicable_functions: ["MOTORISTA"], new_employee_window_days: null,
+        new_employee_first_due_days: firstDueDays, excluded_collaborators: [], manual_collaborators: [],
+      } },
+      records: records.map((date, index) => ({ id: `realization-${index}`, values: { "realized-at": date } })),
+    },
+    context: {
+      collaborator_source: "CPF",
+      employees: [{ key: "employee", name: "Colaborador", function: "MOTORISTA", location: "Caraguatatuba", area: "Entrega", admission_date: admission }],
+      record_employee_keys: Object.fromEntries(records.map((_, index) => [`realization-${index}`, ["employee"]])),
+      employees_without_cpf: 0,
+      unmatched_records: 0,
+    },
+  };
+}
+
+// A: the first due date comes from admission + configured first-due days, not current snapshot state.
+const firstLate = trackingFixture({ start: "2026-06-01", admission: "2026-06-15", records: ["2026-08-05"] });
+const firstLateYear = tracking.computeDtoTrackingYear(firstLate.detail, firstLate.context, 2026);
+assert.equal(firstLateYear.rows[0].months[6].status, "missed");
+assert.equal(firstLateYear.rows[0].months[7].status, "realizedLate");
+assert.equal(firstLateYear.rows[0].months[7].dueDate.toISOString().slice(0, 10), "2026-07-15");
+assert.equal(firstLateYear.rows[0].months[7].overdueDays, 21);
+
+// B: a later realization begins a new cycle but never changes the missed month.
+const lateCycle = trackingFixture({ records: ["2026-05-15", "2026-08-05"] });
+const lateCycleYear = tracking.computeDtoTrackingYear(lateCycle.detail, lateCycle.context, 2026);
+assert.equal(lateCycleYear.rows[0].months[6].status, "missed");
+assert.equal(lateCycleYear.rows[0].months[7].status, "realizedLate");
+
+// C: valid coverage ends at the actual next due date.
+const coverage = trackingFixture({ end: "2026-10-10", records: ["2026-08-15"] });
+const coverageYear = tracking.computeDtoTrackingYear(coverage.detail, coverage.context, 2026);
+assert.equal(coverageYear.rows[0].months[7].status, "realized");
+assert.equal(coverageYear.rows[0].months[8].status, "covered");
+assert.equal(coverageYear.rows[0].months[9].status, "due");
+const expiredCoverage = trackingFixture({ end: "2026-10-31", records: ["2026-08-15"] });
+assert.equal(tracking.computeDtoTrackingYear(expiredCoverage.detail, expiredCoverage.context, 2026).rows[0].months[9].status, "missed");
+
+// D/E/F/G/H/I/J: neutral boundaries, multiple dates, derived years and summary semantics.
+const neverRealized = trackingFixture({ admission: "2026-06-15", records: [] });
+const neverRealizedYear = tracking.computeDtoTrackingYear(neverRealized.detail, neverRealized.context, 2026);
+assert.equal(neverRealizedYear.rows[0].months[4].status, "notApplicable");
+assert.equal(neverRealizedYear.rows[0].months[6].status, "missed");
+assert.ok(neverRealizedYear.rows[0].months.every((cell) => cell.status !== "covered" || cell.coverageRealization !== null));
+const snapshotBoundary = trackingFixture({ start: "2025-07-01", end: "2026-10-10", records: ["2026-03-10"] });
+const boundaryYear = tracking.computeDtoTrackingYear(snapshotBoundary.detail, snapshotBoundary.context, 2025);
+assert.equal(boundaryYear.rows[0].months[0].status, "outOfSnapshot");
+assert.deepEqual(boundaryYear.availableYears, [2025, 2026]);
+const unknownHistory = trackingFixture({ start: "2026-01-01", records: ["2026-03-10"] });
+const unknownYear = tracking.computeDtoTrackingYear(unknownHistory.detail, unknownHistory.context, 2026);
+assert.equal(unknownYear.rows[0].months[0].status, "unknown");
+assert.equal(unknownYear.rows[0].months[1].status, "unknown");
+assert.equal(unknownYear.rows[0].months[2].status, "realized");
+const multipleRealizations = trackingFixture({ records: ["2026-08-05", "2026-08-18"] });
+const multipleYear = tracking.computeDtoTrackingYear(multipleRealizations.detail, multipleRealizations.context, 2026);
+assert.equal(multipleYear.rows[0].months[7].realizations.length, 2);
+assert.equal(multipleYear.rows[0].months[7].coverageRealization.toISOString().slice(0, 10), "2026-08-18");
+const summaryWithNeutralStates = tracking.computeDtoTrackingMonthSummary(boundaryYear.rows, 2025, 0);
+assert.equal(summaryWithNeutralStates.applicable, 0);
+assert.equal(summaryWithNeutralStates.outOfSnapshot, 1);
 
 console.log("DTO analytics, acompanhamento histórico e planejamento: cenários validados com sucesso.");

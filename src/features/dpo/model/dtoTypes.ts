@@ -397,7 +397,9 @@ export type DtoTrackingMonthStatus =
   | "missed"
   | "realizedLate"
   | "notApplicable"
-  | "future";
+  | "future"
+  | "outOfSnapshot"
+  | "unknown";
 
 export interface DtoTrackingMonthCell {
   year: number;
@@ -439,6 +441,8 @@ export interface DtoTrackingMonthSummary {
   missed: number;
   realizedLate: number;
   future: number;
+  outOfSnapshot: number;
+  unknown: number;
   coveragePercentage: number | null;
 }
 
