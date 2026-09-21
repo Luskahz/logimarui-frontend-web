@@ -284,33 +284,42 @@ function uniqueSortedDates(values: Date[]): Date[] {
     .sort((left, right) => left.getTime() - right.getTime());
 }
 
-function sourceBoundary(detail: DtoFormDetail, fallback: Date): Date {
-  return parseDtoDate(detail.source_period_end) || fallback;
+export interface DtoTrackingSnapshotPeriod {
+  start: Date | null;
+  end: Date | null;
 }
 
-function sourceStartBoundary(detail: DtoFormDetail, fallback: Date): Date {
-  return parseDtoDate(detail.source_period_start) || fallback;
+function trackingRealizationDates(detail: DtoFormDetail): Date[] {
+  const dateKey = detail.configuration.tracking.realization_date_field_key;
+  return uniqueSortedDates(
+    dateKey
+      ? detail.records
+          .map((record) => parseDtoDate(record.values[dateKey]))
+          .filter((date): date is Date => date !== null)
+      : [],
+  );
+}
+
+/** Resolves the loaded snapshot boundaries without inventing a period from today. */
+export function resolveTrackingSnapshotPeriod(detail: DtoFormDetail): DtoTrackingSnapshotPeriod {
+  const realizations = trackingRealizationDates(detail);
+  const start = parseDtoDate(detail.source_period_start) || realizations[0] || null;
+  const end = parseDtoDate(detail.source_period_end) || realizations.at(-1) || null;
+  return start && end && start > end ? { start: null, end: null } : { start, end };
 }
 
 /** Years are bounded by the snapshot whenever it declares a period. */
 export function getDtoTrackingYears(detail: DtoFormDetail): number[] {
-  const start = parseDtoDate(detail.source_period_start);
-  const end = parseDtoDate(detail.source_period_end);
+  const { start, end } = resolveTrackingSnapshotPeriod(detail);
   if (start && end && start <= end) {
     return Array.from(
       { length: end.getFullYear() - start.getFullYear() + 1 },
       (_, index) => start.getFullYear() + index,
     );
   }
-  const dateKey = detail.configuration.tracking.realization_date_field_key;
-  const years = new Set(
-    dateKey
-      ? detail.records
-          .map((record) => parseDtoDate(record.values[dateKey]))
-          .filter((date): date is Date => date !== null)
-          .map((date) => date.getFullYear())
-      : [],
-  );
+  const years = new Set(trackingRealizationDates(detail).map((date) => date.getFullYear()));
+  if (start) years.add(start.getFullYear());
+  if (end) years.add(end.getFullYear());
   return [...years].sort((left, right) => left - right);
 }
 
@@ -364,8 +373,8 @@ function classifyMonth({
   intervalDays: number;
   month: number;
   realizations: Date[];
-  snapshotStart: Date;
-  snapshotEnd: Date;
+  snapshotStart: Date | null;
+  snapshotEnd: Date | null;
   year: number;
 }): DtoTrackingMonthCell {
   const start = monthStart(year, month);
@@ -384,6 +393,7 @@ function classifyMonth({
     dueDate: null,
     overdueDays: null,
   };
+  if (!snapshotStart || !snapshotEnd) return cell;
   if (end < snapshotStart) return { ...cell, status: "outOfSnapshot" };
   if (start > snapshotEnd) return { ...cell, status: "future" };
   if (admissionDate && end < admissionDate) return { ...cell, status: "notApplicable" };
@@ -450,13 +460,13 @@ export function computeDtoTrackingYear(
   context: DtoTrackingContext | null,
   year: number,
 ): DtoTrackingYearSummary {
-  const current = computeDtoTracking(detail, context, sourceBoundary(detail, new Date()));
+  const snapshotPeriod = resolveTrackingSnapshotPeriod(detail);
+  const current = computeDtoTracking(detail, context, snapshotPeriod.end || new Date());
   const intervalDays = detail.configuration.tracking.interval_days || 0;
   const firstDueDays = detail.configuration.tracking.new_employee_first_due_days;
   const datesBySubject = collectRealizationsBySubject(detail, context, current.subjects);
   const employeeByKey = new Map((context?.employees || []).map((employee) => [employee.key, employee]));
-  const snapshotEnd = sourceBoundary(detail, new Date());
-  const snapshotStart = sourceStartBoundary(detail, snapshotEnd);
+  const { start: snapshotStart, end: snapshotEnd } = snapshotPeriod;
   const rows: DtoTrackingYearRow[] = current.subjects.map((subject) => {
     const employee = employeeByKey.get(subject.key);
     const dates = datesBySubject.get(subject.key) || [];
@@ -482,6 +492,32 @@ export function computeDtoTrackingYear(
     };
   });
   return { year, mode: current.mode, rows, availableYears: getDtoTrackingYears(detail) };
+}
+
+/** Returns annual-only dates for the matrix row hover, never snapshot-wide values. */
+export function getDtoTrackingYearDates(
+  row: DtoTrackingYearRow,
+  referenceDate: Date,
+): { lastRealization: Date | null; nextDueDate: Date | null; lastDueDate: Date | null } {
+  const realizations = uniqueSortedDates(row.months.flatMap((cell) => cell.realizations));
+  const dueDates = uniqueSortedDates(
+    row.months
+      .map((cell) => cell.dueDate)
+      .filter((date): date is Date => date !== null),
+  );
+  return {
+    lastRealization: realizations.at(-1) || null,
+    nextDueDate: dueDates.find((date) => date >= referenceDate) || null,
+    lastDueDate: dueDates.at(-1) || null,
+  };
+}
+
+/** Matrix category values are subject keys, so duplicate display names stay distinct. */
+export function getDtoTrackingRowBySubjectKey(
+  rows: DtoTrackingYearRow[],
+  subjectKey: string,
+): DtoTrackingYearRow | null {
+  return rows.find((row) => row.subject.key === subjectKey) || null;
 }
 
 export function computeDtoTrackingMonthSummary(

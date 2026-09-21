@@ -14,14 +14,16 @@ import {
   computeDtoTracking,
   computeDtoTrackingMonthSummary,
   computeDtoTrackingYear,
+  getDtoTrackingRowBySubjectKey,
+  getDtoTrackingYearDates,
   getDtoTrackingYears,
+  resolveTrackingSnapshotPeriod,
 } from "@/features/dpo/lib/dtoTracking";
 import {
   formatDtoDate,
   formatDtoNumber,
   formatDtoPercentage,
   normalizeSearchText,
-  parseDtoDate,
 } from "@/features/dpo/lib/dtoFormatters";
 import type {
   DtoFormDetail,
@@ -424,9 +426,10 @@ export default function DtoTrackingPanel({
 }) {
   const { api } = useFormManagerConfig();
   const years = useMemo(() => getDtoTrackingYears(detail), [detail]);
+  const snapshotPeriod = useMemo(() => resolveTrackingSnapshotPeriod(detail), [detail]);
   const sourceEnd = useMemo(
-    () => parseDtoDate(detail.source_period_end) || new Date(),
-    [detail.source_period_end],
+    () => snapshotPeriod.end || new Date(),
+    [snapshotPeriod.end],
   );
   const [year, setYear] = useState(
     () => years.at(-1) || new Date().getFullYear(),
@@ -529,6 +532,10 @@ export default function DtoTrackingPanel({
       }),
     [annual.rows, filters, month, search],
   );
+  const rowBySubjectKey = useMemo(
+    () => new Map(filteredRows.map((row) => [row.subject.key, row])),
+    [filteredRows],
+  );
   const summary = useMemo(
     () => computeDtoTrackingMonthSummary(filteredRows, year, month),
     [filteredRows, year, month],
@@ -613,9 +620,14 @@ export default function DtoTrackingPanel({
     },
     yAxis: {
       type: "category",
-      data: filteredRows.map((row) => row.subject.name),
+      data: filteredRows.map((row) => row.subject.key),
       triggerEvent: true,
-      axisLabel: { color: "#94a3b8", width: 155, overflow: "truncate" },
+      axisLabel: {
+        color: "#94a3b8",
+        width: 155,
+        overflow: "truncate",
+        formatter: (key: string) => rowBySubjectKey.get(key)?.subject.name || key,
+      },
       splitArea: { show: true },
     },
     visualMap: {
@@ -664,17 +676,22 @@ export default function DtoTrackingPanel({
       return;
     }
     if (params.componentType === "yAxis") {
-      const row = filteredRows.find(
-        (item) => item.subject.name === params.value,
+      const row = getDtoTrackingRowBySubjectKey(
+        filteredRows,
+        String(params.value || ""),
       );
       if (!row) return;
-      const nextDue =
-        row.months
-          .map((cell) => cell.dueDate)
-          .filter((date): date is Date => date !== null)
-          .at(-1) || null;
+      const isCurrentYear = year === new Date().getFullYear();
+      const dates = getDtoTrackingYearDates(
+        row,
+        isCurrentYear ? snapshotPeriod.end || new Date() : new Date(year, 11, 31),
+      );
+      const dueLabel = isCurrentYear
+        ? "Próximo vencimento conhecido"
+        : "Último vencimento conhecido no ano";
+      const dueDate = isCurrentYear ? dates.nextDueDate : dates.lastDueDate;
       setHoverInfo(
-        `${row.subject.name} · ${row.subject.function || "Função não informada"} · ${row.location || "Local não informado"} · Setor: ${row.area || "não informado"} · Admissão: ${formatDtoDate(row.subject.admissionDate)} · ${row.realizations} realização(ões) no ano · Última: ${formatDtoDate(row.subject.lastRealization)} · ${row.realizedMonths} meses realizados · ${row.coveredMonths} meses cobertos · ${row.pendingMonths} meses pendentes · Próximo vencimento conhecido: ${formatDtoDate(nextDue)}.`,
+        `${row.subject.name} · ${row.subject.function || "Função não informada"} · ${row.location || "Local não informado"} · Setor: ${row.area || "não informado"} · Admissão: ${formatDtoDate(row.subject.admissionDate)} · ${row.realizations} realização(ões) no ano · Última realização no ano: ${formatDtoDate(dates.lastRealization)} · ${row.realizedMonths} meses realizados · ${row.coveredMonths} meses cobertos · ${row.pendingMonths} meses pendentes · ${dueLabel}: ${formatDtoDate(dueDate)}.`,
       );
     }
   };

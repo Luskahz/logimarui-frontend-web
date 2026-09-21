@@ -562,4 +562,63 @@ const summaryWithNeutralStates = tracking.computeDtoTrackingMonthSummary(boundar
 assert.equal(summaryWithNeutralStates.applicable, 0);
 assert.equal(summaryWithNeutralStates.outOfSnapshot, 1);
 
+// Snapshot fallback: metadata and realizations compose one effective period.
+const derivedSnapshot = trackingFixture({ records: ["2026-03-10", "2026-09-20"] });
+delete derivedSnapshot.detail.source_period_start;
+delete derivedSnapshot.detail.source_period_end;
+const derivedPeriod = tracking.resolveTrackingSnapshotPeriod(derivedSnapshot.detail);
+assert.equal(derivedPeriod.start.toISOString().slice(0, 10), "2026-03-10");
+assert.equal(derivedPeriod.end.toISOString().slice(0, 10), "2026-09-20");
+assert.deepEqual(tracking.getDtoTrackingYears(derivedSnapshot.detail), [2026]);
+const derivedYear = tracking.computeDtoTrackingYear(derivedSnapshot.detail, derivedSnapshot.context, 2026);
+assert.equal(derivedYear.rows[0].months[1].status, "outOfSnapshot");
+assert.equal(derivedYear.rows[0].months[9].status, "future");
+
+const startOnlySnapshot = trackingFixture({ start: "2026-02-01", records: ["2026-09-20"] });
+delete startOnlySnapshot.detail.source_period_end;
+const startOnlyPeriod = tracking.resolveTrackingSnapshotPeriod(startOnlySnapshot.detail);
+assert.equal(startOnlyPeriod.start.toISOString().slice(0, 10), "2026-02-01");
+assert.equal(startOnlyPeriod.end.toISOString().slice(0, 10), "2026-09-20");
+const endOnlySnapshot = trackingFixture({ end: "2026-10-15", records: ["2026-03-10"] });
+delete endOnlySnapshot.detail.source_period_start;
+const endOnlyPeriod = tracking.resolveTrackingSnapshotPeriod(endOnlySnapshot.detail);
+assert.equal(endOnlyPeriod.start.toISOString().slice(0, 10), "2026-03-10");
+assert.equal(endOnlyPeriod.end.toISOString().slice(0, 10), "2026-10-15");
+
+// Annual hover values are derived only from cells in the selected year.
+const annualDatesFixture = trackingFixture({ records: ["2025-12-20", "2026-02-10"], intervalDays: 60 });
+annualDatesFixture.detail.source_period_start = "2025-01-01";
+annualDatesFixture.detail.source_period_end = "2026-12-31";
+const annualDates2025 = tracking.computeDtoTrackingYear(
+  annualDatesFixture.detail,
+  annualDatesFixture.context,
+  2025,
+).rows[0];
+const hoverDates2025 = tracking.getDtoTrackingYearDates(annualDates2025, new Date(2025, 11, 31));
+assert.equal(hoverDates2025.lastRealization.toISOString().slice(0, 10), "2025-12-20");
+const dueDateRow = {
+  ...annualDates2025,
+  months: annualDates2025.months.map((cell, index) => ({
+    ...cell,
+    dueDate: index === 0 ? new Date(2025, 0, 15) : index === 11 ? new Date(2025, 11, 30) : null,
+  })),
+};
+const hoverDueDates = tracking.getDtoTrackingYearDates(dueDateRow, new Date(2025, 5, 1));
+assert.equal(hoverDueDates.nextDueDate.toISOString().slice(0, 10), "2025-12-30");
+assert.equal(hoverDueDates.lastDueDate.toISOString().slice(0, 10), "2025-12-30");
+
+// Display names are not matrix identity: equal names retain separate subject keys.
+const duplicateNames = trackingFixture({ records: ["2026-03-10", "2026-04-20"] });
+duplicateNames.context.employees = [
+  { ...duplicateNames.context.employees[0], key: "123", name: "José Carlos" },
+  { ...duplicateNames.context.employees[0], key: "456", name: "José Carlos" },
+];
+duplicateNames.context.record_employee_keys = {
+  "realization-0": ["123"],
+  "realization-1": ["456"],
+};
+const duplicateRows = tracking.computeDtoTrackingYear(duplicateNames.detail, duplicateNames.context, 2026).rows;
+assert.equal(tracking.getDtoTrackingRowBySubjectKey(duplicateRows, "123").months[2].realizations.length, 1);
+assert.equal(tracking.getDtoTrackingRowBySubjectKey(duplicateRows, "456").months[3].realizations.length, 1);
+
 console.log("DTO analytics, acompanhamento histórico e planejamento: cenários validados com sucesso.");
