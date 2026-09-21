@@ -451,4 +451,46 @@ assert.deepEqual(
   [31, 28, 31],
 );
 
-console.log("DTO analytics, acompanhamento e planejamento: 13 cenários validados com sucesso.");
+const historicalDetail = {
+  source_period_start: "2025-01-01",
+  source_period_end: "2026-10-10",
+  configuration: {
+    tracking: {
+      mode: "COLLABORATOR", collaborator_source: "CPF", roster_field_key: "cpf",
+      realization_date_field_key: "realized-at", interval_days: 60,
+      applicable_functions: ["MOTORISTA"], new_employee_window_days: 45,
+      new_employee_first_due_days: 30, excluded_collaborators: [], manual_collaborators: [],
+    },
+  },
+  records: [
+    { id: "aug", values: { "realized-at": "2026-08-05" } },
+    { id: "late", values: { "realized-at": "2026-08-05" } },
+    { id: "multiple", values: { "realized-at": "2026-08-18" } },
+  ],
+};
+const historicalContext = {
+  collaborator_source: "CPF",
+  employees: [
+    { key: "covered", name: "Coberta", function: "MOTORISTA", location: "Base", area: "Entrega", admission_date: "2024-01-10" },
+    { key: "late", name: "Atrasada", function: "MOTORISTA", location: "Base", area: "Entrega", admission_date: "2024-01-10" },
+    { key: "new", name: "Nova", function: "MOTORISTA", location: "Base", area: "Entrega", admission_date: "2026-06-15" },
+  ],
+  record_employee_keys: { aug: ["covered"], late: ["late"], multiple: ["covered"] },
+  employees_without_cpf: 0, unmatched_records: 0,
+};
+const historicalYear = tracking.computeDtoTrackingYear(historicalDetail, historicalContext, 2026);
+assert.deepEqual(historicalYear.availableYears, [2025, 2026]);
+const coveredRow = historicalYear.rows.find((row) => row.subject.key === "covered");
+assert.equal(coveredRow.months[7].status, "realized");
+assert.equal(coveredRow.months[8].status, "covered");
+assert.equal(coveredRow.months[9].status, "due");
+assert.equal(coveredRow.months[7].realizations.length, 2);
+const lateRow = historicalYear.rows.find((row) => row.subject.key === "late");
+assert.equal(lateRow.months[7].status, "realized");
+const newRow = historicalYear.rows.find((row) => row.subject.key === "new");
+assert.equal(newRow.months[4].status, "notApplicable");
+assert.equal(newRow.months[6].status, "covered");
+const monthSummary = tracking.computeDtoTrackingMonthSummary(historicalYear.rows, 2026, 8);
+assert.equal(monthSummary.covered, 2);
+
+console.log("DTO analytics, acompanhamento histórico e planejamento: cenários validados com sucesso.");

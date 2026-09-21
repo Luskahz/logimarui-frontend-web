@@ -390,6 +390,58 @@ export interface DtoTrackingSummary {
   lastRealization: Date | null;
 }
 
+export type DtoTrackingMonthStatus =
+  | "realized"
+  | "covered"
+  | "due"
+  | "missed"
+  | "realizedLate"
+  | "notApplicable"
+  | "future";
+
+export interface DtoTrackingMonthCell {
+  year: number;
+  month: number;
+  status: DtoTrackingMonthStatus;
+  realizations: Date[];
+  coverageRealization: Date | null;
+  coverageStartDate: Date | null;
+  coverageEndDate: Date | null;
+  dueDate: Date | null;
+  overdueDays: number | null;
+}
+
+export interface DtoTrackingYearRow {
+  subject: DtoTrackedSubject;
+  location: string | null;
+  area: string | null;
+  months: DtoTrackingMonthCell[];
+  realizations: number;
+  realizedMonths: number;
+  coveredMonths: number;
+  pendingMonths: number;
+}
+
+export interface DtoTrackingYearSummary {
+  year: number;
+  mode: DtoTrackingMode;
+  rows: DtoTrackingYearRow[];
+  availableYears: number[];
+}
+
+export interface DtoTrackingMonthSummary {
+  year: number;
+  month: number;
+  applicable: number;
+  realized: number;
+  covered: number;
+  due: number;
+  missed: number;
+  realizedLate: number;
+  future: number;
+  coveragePercentage: number | null;
+}
+
 export interface DtoAttentionPoint {
   id: string;
   title: string;

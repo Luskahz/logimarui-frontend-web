@@ -31,6 +31,13 @@ function preset(days: number): DtoRefreshRequest {
   return { start_date: toInputDate(start), end_date: toInputDate(end) };
 }
 
+function calendarYearPreset(years: number): DtoRefreshRequest {
+  const end = new Date();
+  const start = new Date(end);
+  start.setFullYear(start.getFullYear() - years);
+  return { start_date: toInputDate(start), end_date: toInputDate(end) };
+}
+
 function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === "AbortError";
 }
@@ -161,7 +168,21 @@ export default function DtoRefreshDialog({
             >
               Ano atual
             </DtoButton>
+            {[1, 2, 3].map((years) => (
+              <DtoButton
+                key={years}
+                type="button"
+                size="sm"
+                disabled={running}
+                onClick={() => applyPreset(calendarYearPreset(years))}
+              >
+                {years} {years === 1 ? "ano" : "anos"}
+              </DtoButton>
+            ))}
           </div>
+          <p className="mt-3 text-xs leading-5 text-[var(--shell-muted)]">
+            Atualizações de dois ou três anos podem levar mais tempo para o SAVI concluir.
+          </p>
 
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <label className="text-sm font-semibold text-[var(--shell-text)]">
