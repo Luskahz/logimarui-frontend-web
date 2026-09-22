@@ -543,6 +543,12 @@ export default function DtoTrackingPanel({
     () => computeDtoTrackingMonthSummary(filteredRows, year, month),
     [filteredRows, year, month],
   );
+  const subjectLabel =
+    tracking.mode === "ENVIRONMENT" ? "ambientes" : "colaboradores";
+  const historicalSubjectLabel =
+    tracking.mode === "ENVIRONMENT"
+      ? "ambientes no histórico"
+      : "colaboradores no histórico";
   if (!tracking.configured)
     return (
       <DtoStatePanel
@@ -656,7 +662,11 @@ export default function DtoTrackingPanel({
           ]),
         ),
         label: { show: false },
-        emphasis: { itemStyle: { borderColor: "#f8fafc", borderWidth: 1 } },
+        emphasis: { itemStyle: { borderColor: "#f8fafc", borderWidth: 2 } },
+        itemStyle: {
+          borderColor: "#17212b",
+          borderWidth: 2,
+        },
       },
     ],
   };
@@ -805,9 +815,13 @@ export default function DtoTrackingPanel({
             />
 
             <p className="text-sm text-[var(--shell-muted)]">
-              {formatDtoNumber(filteredRows.length)} item(ns) no recorte. A
-              matriz representa o histórico mensal; a tabela abaixo representa a
-              situação atual.
+              <strong className="text-[var(--shell-text)]">
+                {formatDtoNumber(summary.applicable)} {subjectLabel} aplicáveis
+              </strong>{" "}
+              em {MONTHS[month]}/{year}, de {formatDtoNumber(filteredRows.length)}{" "}
+              {historicalSubjectLabel}. O gráfico considera somente os aplicáveis
+              no mês; a matriz preserva o histórico anual e a tabela abaixo
+              representa a situação do período selecionado.
             </p>
           </div>
         </div>

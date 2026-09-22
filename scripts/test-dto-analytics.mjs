@@ -492,6 +492,8 @@ assert.equal(newRow.months[4].status, "notApplicable");
 assert.equal(newRow.months[6].status, "missed");
 const monthSummary = tracking.computeDtoTrackingMonthSummary(historicalYear.rows, 2026, 8);
 assert.equal(monthSummary.covered, 2);
+assert.equal(monthSummary.applicable, 3);
+assert.equal(monthSummary.coveragePercentage, (2 / 3) * 100);
 
 function trackingFixture({ start = "2026-01-01", end = "2026-10-10", admission = "2024-01-01", records = [], intervalDays = 60, firstDueDays = 30 } = {}) {
   return {
@@ -561,6 +563,7 @@ assert.equal(multipleYear.rows[0].months[7].coverageRealization.toISOString().sl
 const summaryWithNeutralStates = tracking.computeDtoTrackingMonthSummary(boundaryYear.rows, 2025, 0);
 assert.equal(summaryWithNeutralStates.applicable, 0);
 assert.equal(summaryWithNeutralStates.outOfSnapshot, 1);
+assert.equal(summaryWithNeutralStates.coveragePercentage, null);
 
 // Snapshot fallback: metadata and realizations compose one effective period.
 const derivedSnapshot = trackingFixture({ records: ["2026-03-10", "2026-09-20"] });
