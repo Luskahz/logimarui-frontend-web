@@ -426,7 +426,10 @@ export default function DtoTrackingPanel({
 }) {
   const { api } = useFormManagerConfig();
   const years = useMemo(() => getDtoTrackingYears(detail), [detail]);
-  const snapshotPeriod = useMemo(() => resolveTrackingSnapshotPeriod(detail), [detail]);
+  const snapshotPeriod = useMemo(
+    () => resolveTrackingSnapshotPeriod(detail),
+    [detail],
+  );
   const sourceEnd = useMemo(
     () => snapshotPeriod.end || new Date(),
     [snapshotPeriod.end],
@@ -626,7 +629,8 @@ export default function DtoTrackingPanel({
         color: "#94a3b8",
         width: 155,
         overflow: "truncate",
-        formatter: (key: string) => rowBySubjectKey.get(key)?.subject.name || key,
+        formatter: (key: string) =>
+          rowBySubjectKey.get(key)?.subject.name || key,
       },
       splitArea: { show: true },
     },
@@ -684,7 +688,9 @@ export default function DtoTrackingPanel({
       const isCurrentYear = year === new Date().getFullYear();
       const dates = getDtoTrackingYearDates(
         row,
-        isCurrentYear ? snapshotPeriod.end || new Date() : new Date(year, 11, 31),
+        isCurrentYear
+          ? snapshotPeriod.end || new Date()
+          : new Date(year, 11, 31),
       );
       const dueLabel = isCurrentYear
         ? "Próximo vencimento conhecido"
@@ -748,6 +754,64 @@ export default function DtoTrackingPanel({
           value={formatDtoPercentage(summary.coveragePercentage)}
         />
       </section>
+      <DtoPanel className="p-5 sm:p-6">
+        <div className="space-y-4">
+          {/* Cabeçalho */}
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="shrink-0">
+              <Typography variant="overline">Recorte histórico</Typography>
+
+              <Typography as="h2" variant="cardTitle" className="mt-2">
+                {MONTHS[month]}/{year}
+              </Typography>
+            </div>
+
+            <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center lg:w-auto">
+              <label className="relative w-full sm:w-80">
+                <span className="sr-only">Buscar colaborador</span>
+
+                <Search
+                  aria-hidden="true"
+                  className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--shell-muted)]"
+                />
+
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Buscar colaborador"
+                  className="w-full rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] py-2.5 pl-10 pr-3 text-sm text-[var(--shell-text)]"
+                />
+              </label>
+
+              {tracking.mode === "COLLABORATOR" ? (
+                <DtoButton
+                  onClick={() => setFiltersOpen(true)}
+                  className="shrink-0"
+                >
+                  <ListFilter aria-hidden="true" />
+                  Filtros
+                </DtoButton>
+              ) : null}
+            </div>
+          </div>
+
+          {/* Filtros + informação do recorte */}
+          <div className="flex flex-col gap-3">
+            <FilterChips
+              filters={filters}
+              rows={annual.rows}
+              sharedFilters={sharedFilters}
+              onChange={setFilters}
+            />
+
+            <p className="text-sm text-[var(--shell-muted)]">
+              {formatDtoNumber(filteredRows.length)} item(ns) no recorte. A
+              matriz representa o histórico mensal; a tabela abaixo representa a
+              situação atual.
+            </p>
+          </div>
+        </div>
+      </DtoPanel>
       <div className="grid gap-4 xl:grid-cols-[0.75fr_1.25fr]">
         <DtoPanel className="p-5 sm:p-6">
           <Typography variant="overline">Cobertura mensal</Typography>
@@ -782,48 +846,6 @@ export default function DtoTrackingPanel({
           </aside>
         </DtoPanel>
       </div>
-      <DtoPanel className="p-5 sm:p-6">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <Typography variant="overline">Recorte histórico</Typography>
-            <Typography as="h2" variant="cardTitle" className="mt-2">
-              {MONTHS[month]}/{year}
-            </Typography>
-          </div>
-          <div className="flex flex-1 flex-wrap justify-end gap-2">
-            <label className="relative min-w-60 flex-1 sm:max-w-sm">
-              <span className="sr-only">Buscar colaborador</span>
-              <Search
-                aria-hidden="true"
-                className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--shell-muted)]"
-              />
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Buscar colaborador"
-                className="w-full rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] py-2.5 pl-10 pr-3 text-sm text-[var(--shell-text)]"
-              />
-            </label>
-            {tracking.mode === "COLLABORATOR" ? (
-              <DtoButton onClick={() => setFiltersOpen(true)}>
-                <ListFilter aria-hidden="true" />
-                Filtros
-              </DtoButton>
-            ) : null}
-          </div>
-        </div>
-        <FilterChips
-          filters={filters}
-          rows={annual.rows}
-          sharedFilters={sharedFilters}
-          onChange={setFilters}
-        />
-        <p className="mt-5 text-sm text-[var(--shell-muted)]">
-          {formatDtoNumber(filteredRows.length)} item(ns) no recorte. A matriz
-          representa o histórico mensal; a tabela abaixo representa a situação
-          atual.
-        </p>
-      </DtoPanel>
       <CurrentStatusTable rows={filteredRows} />
       {filtersOpen ? (
         <FilterDialog
