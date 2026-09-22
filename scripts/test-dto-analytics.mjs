@@ -553,9 +553,27 @@ assert.equal(boundaryYear.rows[0].months[0].status, "outOfSnapshot");
 assert.deepEqual(boundaryYear.availableYears, [2025, 2026]);
 const unknownHistory = trackingFixture({ start: "2026-01-01", records: ["2026-03-10"] });
 const unknownYear = tracking.computeDtoTrackingYear(unknownHistory.detail, unknownHistory.context, 2026);
-assert.equal(unknownYear.rows[0].months[0].status, "unknown");
-assert.equal(unknownYear.rows[0].months[1].status, "unknown");
+assert.equal(unknownYear.rows[0].months[0].status, "missed");
+assert.equal(unknownYear.rows[0].months[1].status, "missed");
 assert.equal(unknownYear.rows[0].months[2].status, "realized");
+const collaboratorJanuary = tracking.computeDtoTrackingMonthSummary(unknownYear.rows, 2026, 0);
+assert.equal(collaboratorJanuary.applicable, 1);
+assert.equal(collaboratorJanuary.missed, 1);
+assert.equal(collaboratorJanuary.unknown, 0);
+const environmentHistory = tracking.computeDtoTrackingYear({
+  source_period_start: "2026-01-01",
+  source_period_end: "2026-09-30",
+  configuration: { tracking: {
+    mode: "ENVIRONMENT", environment_source: "FIELD", roster_field_key: "environment",
+    realization_date_field_key: "realized-at", interval_days: 60,
+    applicable_functions: [], new_employee_window_days: null,
+    new_employee_first_due_days: null, excluded_collaborators: [],
+    manual_collaborators: ["Sem registros"],
+  } },
+  records: [{ id: "environment-record", values: { environment: "Com registro", "realized-at": "10/03/2026" } }],
+}, null, 2026);
+const environmentWithoutHistory = environmentHistory.rows.find((row) => row.subject.name === "Sem registros");
+assert.equal(environmentWithoutHistory.months[0].status, "unknown");
 const multipleRealizations = trackingFixture({ records: ["2026-08-05", "2026-08-18"] });
 const multipleYear = tracking.computeDtoTrackingYear(multipleRealizations.detail, multipleRealizations.context, 2026);
 assert.equal(multipleYear.rows[0].months[7].realizations.length, 2);

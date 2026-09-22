@@ -360,6 +360,7 @@ function collectRealizationsBySubject(
 
 function classifyMonth({
   admissionDate,
+  assumePendingWithoutHistory,
   firstDueDays,
   intervalDays,
   month,
@@ -369,6 +370,7 @@ function classifyMonth({
   year,
 }: {
   admissionDate: Date | null;
+  assumePendingWithoutHistory: boolean;
   firstDueDays: number | null;
   intervalDays: number;
   month: number;
@@ -429,7 +431,12 @@ function classifyMonth({
 
   if (!dueDate) {
     if (firstDue && firstDue > end) return { ...cell, status: "future" };
-    return { ...cell, status: "unknown" };
+    // A collaborator is the analysis target: no known realization in a loaded
+    // month is actionable as pending. Environments retain historical uncertainty.
+    return {
+      ...cell,
+      status: assumePendingWithoutHistory ? "missed" : "unknown",
+    };
   }
   if (dueDate > end) {
     return {
@@ -472,6 +479,7 @@ export function computeDtoTrackingYear(
     const dates = datesBySubject.get(subject.key) || [];
     const months = Array.from({ length: 12 }, (_, month) => classifyMonth({
       admissionDate: subject.admissionDate,
+      assumePendingWithoutHistory: current.mode === "COLLABORATOR",
       firstDueDays,
       intervalDays,
       month,

@@ -196,6 +196,10 @@ function FilterDialog({
             <X aria-hidden="true" />
           </DtoButton>
         </header>
+        <p className="mt-3 text-sm leading-6 text-[var(--shell-muted)]">
+          Os filtros atualizam em conjunto os cartões, o gráfico mensal, a
+          matriz histórica e a tabela. O status considera o mês selecionado.
+        </p>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           <label className="text-sm font-semibold text-[var(--shell-text)]">
             Local
