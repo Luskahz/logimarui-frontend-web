@@ -99,6 +99,16 @@ export const DPO_TOOL_SCOPES = {
 // A lista pode crescer sem criar blocos ou perguntas artificiais para preencher a tela.
 export const DPO_TOOL_DEFINITIONS = [
   {
+    id: "journey-manager",
+    pillarSlug: "entrega",
+    scope: DPO_TOOL_SCOPES.BLOCK,
+    blockCode: "1.0",
+    locationLabel: "Bloco 1.0",
+    href: "/dpo/entrega/gerenciador-jornada",
+    label: "Gerenciador de Jornada",
+    description: "Acompanhamento operacional de TML, TR, TI e JL por mapa e equipe.",
+  },
+  {
     id: "dto-manager",
     pillarSlug: "gestao",
     scope: DPO_TOOL_SCOPES.PILLAR,

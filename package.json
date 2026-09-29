@@ -10,6 +10,8 @@
     "start": "node ./scripts/run-next-with-port.mjs start",
     "lint": "eslint",
     "test:dto-analytics": "node ./scripts/test-dto-analytics.mjs",
+    "test:journey": "node ./scripts/test-journey.mjs",
+    "test": "npm run test:dto-analytics && npm run test:journey",
     "typecheck": "tsc --noEmit",
     "build-start": "next build && node ./scripts/run-next-with-port.mjs start"
   },
