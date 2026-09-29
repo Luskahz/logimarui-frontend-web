@@ -12,6 +12,7 @@ const SPO_CONTEXT_LABELS = Object.fromEntries(
 const BREADCRUMB_LABELS = {
   [APP_ROUTES.DPO_DTO_MANAGER]: "Gerenciador de DTOs",
   [APP_ROUTES.DPO_DELIVERY_ROUTE_CME]: "Acompanhamento de rota CME",
+  [APP_ROUTES.DPO_JOURNEY_MANAGER]: "Gerenciador de Jornada",
 };
 
 export const APP_SIDEBAR_ITEMS = [
@@ -175,6 +176,7 @@ const DPO_MANAGER_ROUTES = [
   APP_ROUTES.DPO_BLITZ_MANAGER,
   APP_ROUTES.DPO_SECURITY_TEMPLATES_MANAGER,
   APP_ROUTES.DPO_DELIVERY_ROUTE_CME,
+  APP_ROUTES.DPO_JOURNEY_MANAGER,
 ];
 
 function formatBreadcrumbLabel(segment) {
