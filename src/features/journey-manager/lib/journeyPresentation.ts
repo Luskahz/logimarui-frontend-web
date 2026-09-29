@@ -1,4 +1,58 @@
-import type { Checklist, IndicatorResult, JourneyItem, TrItem } from "../model/types";
+import type { Checklist, Indicator, IndicatorResult, JlItem, JourneyItem, TiItem, TmlItem, TrItem } from "../model/types";
+
+export type LiveScope = "all" | "d0" | "earlier";
+
+const STATUS_LABELS: Record<string, string> = {
+  EM_ANDAMENTO: "Em andamento",
+  FINALIZADO: "Finalizado",
+  CONCLUIDO: "Concluído",
+  ATINGIDO: "Dentro da meta",
+  DENTRO_DA_META: "Dentro da meta",
+  ESTOURADO: "Meta excedida",
+  INCOMPLETO: "Incompleto",
+  SEM_DADOS: "Sem dados",
+  SEM_PONTO_FINAL: "Sem ponto final",
+  SEM_PFIS: "Sem fechamento físico",
+  SEM_PFIN: "Sem fechamento financeiro",
+  SEM_RETORNO: "Sem retorno",
+};
+
+export function statusLabel(value: string | null | undefined): string {
+  if (value == null || value === "") return "—";
+  return STATUS_LABELS[value] ?? value;
+}
+
+export function statusTone(value: string | null | undefined): "neutral" | "live" | "positive" | "warning" {
+  if (value === "EM_ANDAMENTO") return "live";
+  if (value === "ATINGIDO" || value === "DENTRO_DA_META" || value === "FINALIZADO") return "positive";
+  if (["ESTOURADO", "INCOMPLETO", "SEM_DADOS", "SEM_PONTO_FINAL", "SEM_PFIS",
+    "SEM_PFIN", "SEM_RETORNO"].includes(value ?? "")) return "warning";
+  return "neutral";
+}
+
+export function primaryResult(item: JourneyItem, indicator: Indicator): IndicatorResult {
+  switch (indicator) {
+    case "tml": return (item as TmlItem).tml;
+    case "tr": return (item as TrItem).tr;
+    case "ti": return (item as TiItem).ti;
+    case "jl": return (item as JlItem).jl;
+  }
+}
+
+export function hasLiveRows(items: readonly JourneyItem[], indicator: Indicator): boolean {
+  return items.some((item) => {
+    if (primaryResult(item, indicator)?.lifecycleStatus === "EM_ANDAMENTO") return true;
+    if (indicator !== "ti") return false;
+    const ti = item as TiItem;
+    return ti.physicalClose?.lifecycleStatus === "EM_ANDAMENTO" ||
+      ti.financialClose?.lifecycleStatus === "EM_ANDAMENTO";
+  });
+}
+
+export function shouldPollJourney(items: readonly JourneyItem[], indicator: Indicator,
+                                  visibility: DocumentVisibilityState): boolean {
+  return visibility === "visible" && hasLiveRows(items, indicator);
+}
 
 export interface MapGroup<T extends JourneyItem> {
   key: string;
@@ -27,6 +81,14 @@ export function groupByMap<T extends JourneyItem>(items: readonly T[]): MapGroup
 /** TR belongs to the map; employee rows only supply its associated crew. */
 export function mapTrFact(group: MapGroup<TrItem>): TrItem | undefined {
   return group.items[0];
+}
+
+/** Only rows explicitly marked LIVE can enter a D0 or earlier-pending view. */
+export function filterMapGroups<T extends JourneyItem>(groups: readonly MapGroup<T>[],
+                                                       scope: LiveScope, today: string): MapGroup<T>[] {
+  if (scope === "all") return [...groups];
+  return groups.filter((group) => group.mapOrigin === "LIVE" &&
+    (scope === "d0" ? group.date === today : group.date < today));
 }
 
 export function formatDuration(seconds: number | null | undefined): string {
