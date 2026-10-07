@@ -2,12 +2,12 @@
 
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
-import { Button } from "@/shared/ui/button";
 import type { Indicator, JourneyItem, TrItem } from "../model/types";
 import { formatDateTime, groupByMap, mapTrFact, primaryResult, statusLabel } from "../lib/journeyPresentation";
 import { formatClockDuration, mapDriver, mapHelperCount, mapRepresentative,
   timelineView, type SegmentKind, type TimelineView } from "../lib/journeyTimeline";
 import { ExpurgeContext, JourneyDetails } from "./JourneyDetails";
+import { actionButtonClass } from "./journeyControls";
 
 type Group = ReturnType<typeof groupByMap<JourneyItem>>[number];
 
@@ -78,10 +78,10 @@ export function JourneyMapRow({ group, indicator, now, onOpen }: {
         {formatClockDuration(view.seconds)}
       </span>
     </div>
-    <Button type="button" variant="outline" onClick={onOpen}
+    <button type="button" className={actionButtonClass} onClick={onOpen}
       aria-label={`Abrir detalhes de ${indicator.toUpperCase()} do mapa ${group.map ?? "sem número"}`}>
       Abrir detalhes
-    </Button>
+    </button>
   </article>;
 }
 
@@ -105,7 +105,7 @@ export function JourneyMapDialog({ group, indicator, now, onClose }: {
         <h2 id="journey-map-dialog-title" className="mt-1 text-xl font-semibold">Mapa {group.map ?? "não informado"}</h2>
         <p className="mt-1 text-xs text-[var(--shell-muted)]">{group.date} · Veículo {vehicle ?? "—"} · {group.mapOrigin ?? "origem não informada"}</p>
       </div>
-      <Button type="button" variant="outline" size="icon" onClick={() => dialogRef.current?.close()} aria-label="Fechar detalhes do mapa"><X /></Button>
+      <button type="button" className={`${actionButtonClass} w-9 px-0`} onClick={() => dialogRef.current?.close()} aria-label="Fechar detalhes do mapa"><X size={18} /></button>
     </div>
     <div className="space-y-5 p-4 sm:p-6">
       {indicator === "tr" && fact && <>

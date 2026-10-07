@@ -130,6 +130,27 @@ const dated = lib.groupByMap([
 assert.equal(lib.filterMapGroups(dated, "all", "2026-09-28").length, 3);
 assert.deepEqual(lib.filterMapGroups(dated, "d0", "2026-09-28").map((group) => group.map), [30]);
 assert.deepEqual(lib.filterMapGroups(dated, "earlier", "2026-09-28").map((group) => group.map), [31]);
+const searchCrew = lib.groupByMap([
+  { ...item(50, 500), context: { ...context(50, 500), employeeName: "João da Silva", vehicle: 17, plate: "ABC1234" } },
+  { ...item(50, 501, "ajudante"), context: { ...context(50, 501, "ajudante"), employeeName: "Maria Souza", vehicle: 17 } },
+  item(51, 510),
+]);
+assert.deepEqual(lib.searchMapGroups(searchCrew, "joao").map((group) => group.map), [50]);
+assert.deepEqual(lib.searchMapGroups(searchCrew, "maria").map((group) => group.map), [50]);
+assert.deepEqual(lib.searchMapGroups(searchCrew, "ABC1234").map((group) => group.map), [50]);
+assert.deepEqual(lib.searchMapGroups(searchCrew, "51").map((group) => group.map), [51]);
+assert.equal(lib.searchMapGroups(searchCrew, "sem correspondência").length, 0);
+const manyMaps = lib.groupByMap(Array.from({ length: 106 }, (_, index) => item(1000 + index, 2000 + index)));
+for (const size of [25, 50, 75, 100]) {
+  const first = lib.paginateMapGroups(manyMaps, 1, size);
+  assert.equal(first.groups.length, size);
+  assert.equal(first.totalPages, Math.ceil(106 / size));
+  assert.equal(first.start, 1);
+  assert.equal(first.end, size);
+  assert.equal(lib.paginateMapGroups(manyMaps, first.totalPages, size).end, 106);
+}
+assert.equal(lib.paginateMapGroups(manyMaps, 999, 25).page, 5);
+assert.equal(lib.paginateMapGroups([], 1, 25).start, 0);
 assert.equal(api.buildJourneyPath({ ...query, indicator: "jl", mode: "mpd" }).includes("mode=mpd"), true);
 assert.equal(api.buildJourneyPath({ ...query, indicator: "jl", mode: "ponto" }).includes("mode=ponto"), true);
 const rowTime = Date.parse("2026-09-28T08:15:00Z");
