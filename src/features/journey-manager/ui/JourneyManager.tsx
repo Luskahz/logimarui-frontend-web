@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { RefreshCw } from "lucide-react";
 import { journeyApi } from "../api/journeyApi";
-import { filterMapGroups, formatDateTime, formatDuration, groupByMap, hasLiveRows, liveSeconds,
-  mapTrFact, primaryResult, shouldPollJourney, type LiveScope } from "../lib/journeyPresentation";
-import type { Indicator, JourneyItem, JourneyQuery, PeriodResponse, TrItem } from "../model/types";
-import { ExpurgeContext, JourneyDetails, StatusBadge } from "./JourneyDetails";
+import { filterMapGroups, formatDateTime, groupByMap, hasLiveRows, shouldPollJourney,
+  type LiveScope } from "../lib/journeyPresentation";
+import type { Indicator, JourneyItem, JourneyQuery, PeriodResponse } from "../model/types";
+import { JourneyMapDialog, JourneyMapRow } from "./JourneyMapRow";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 
@@ -40,6 +40,7 @@ export default function JourneyManager() {
   const [refreshing, setRefreshing] = useState(false);
   const [refreshNotice, setRefreshNotice] = useState<string | null>(null);
   const [scope, setScope] = useState<LiveScope>("all");
+  const [selectedMapKey, setSelectedMapKey] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const requestRef = useRef<AbortController | null>(null);
   const lastSuccessRef = useRef(0);
@@ -89,6 +90,7 @@ export default function JourneyManager() {
   const groups = useMemo(() => groupByMap(data?.items ?? []), [data]);
   const today = localDate();
   const visibleGroups = useMemo(() => filterMapGroups(groups, scope, today), [groups, scope, today]);
+  const selectedGroup = visibleGroups.find((group) => group.key === selectedMapKey);
   const visibleItems = useMemo(() => visibleGroups.flatMap((group) => group.items), [visibleGroups]);
   const live = hasLiveRows(visibleItems, query.indicator);
   const hasExplicitLiveOrigin = groups.some((group) => group.mapOrigin === "LIVE");
@@ -126,6 +128,7 @@ export default function JourneyManager() {
     setData(null);
     setRefreshNotice(null);
     setScope("all");
+    setSelectedMapKey(null);
   }
 
   function reload() {
@@ -214,72 +217,13 @@ export default function JourneyManager() {
           <span>{refreshing ? "Atualizando snapshot… · " : ""}Snapshot: {formatDateTime(data.snapshotAt)}</span>
         </div>
         {visibleGroups.length === 0 ? <p className="rounded-2xl border border-dashed border-[color:var(--shell-line)] p-8 text-center text-sm">Nenhum mapa encontrado no período e filtros selecionados.</p> :
-          <div className="space-y-3">{visibleGroups.map((group) => <details key={group.key} className="group rounded-[22px] border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-4 open:shadow-sm">
-            <summary className="cursor-pointer list-none rounded-lg focus-visible:outline-2 focus-visible:outline-[var(--shell-accent)]">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div><h3 className="text-lg font-semibold">Mapa {group.map ?? "não informado"}</h3>
-                  <p className="text-sm text-[var(--shell-muted)]">{group.date} · {group.mapOrigin ?? "origem não informada"} · {group.items.length} integrante{group.items.length === 1 ? "" : "s"}
-                    {group.items[0]?.context.plate ? ` · ${group.items[0].context.plate}` : ""}
-                    {group.items[0]?.context.vehicle != null ? ` · veículo ${group.items[0].context.vehicle}` : ""}</p></div>
-                <MapSummary indicator={query.indicator} group={group} now={now} />
-                <span className="text-sm text-[var(--shell-accent)]">Abrir detalhes</span>
-              </div>
-            </summary>
-            <div className="mt-4 border-t border-[color:var(--shell-line)] pt-4">
-              {query.indicator === "tr" ? <TrMap group={group} now={now} /> :
-                <div className="space-y-3">{group.items.map((item, index) => <details key={`${item.context.employeeCode ?? "unknown"}:${item.context.role ?? "unknown"}:${index}`} className="rounded-2xl border border-[color:var(--shell-line)] p-3">
-                  <summary className="cursor-pointer font-semibold focus-visible:outline-2 focus-visible:outline-[var(--shell-accent)]">{item.context.employeeName ?? `Colaborador ${item.context.employeeCode ?? "não informado"}`} · {item.context.role ?? "função não informada"}</summary>
-                  <div className="mt-3"><JourneyDetails indicator={query.indicator} item={item} now={now} /></div>
-                </details>)}</div>}
-            </div>
-          </details>)}</div>}
+          <div className="space-y-3">{visibleGroups.map((group) =>
+            <JourneyMapRow key={group.key} group={group} indicator={query.indicator} now={now}
+              onOpen={() => setSelectedMapKey(group.key)} />)}</div>}
       </>}
+      {selectedGroup && <JourneyMapDialog key={`${query.indicator}:${selectedGroup.key}`}
+        group={selectedGroup} indicator={query.indicator} now={now}
+        onClose={() => setSelectedMapKey(null)} />}
     </section>
   </main>;
-}
-
-function MapSummary({ indicator, group, now }: {
-  indicator: Indicator; group: ReturnType<typeof groupByMap<JourneyItem>>[number]; now: number;
-}) {
-  const representative = indicator === "tr" ?
-    mapTrFact(group as ReturnType<typeof groupByMap<TrItem>>[number]) :
-    group.items.length === 1 ? group.items[0] : undefined;
-  if (representative) {
-    const result = primaryResult(representative, indicator);
-    return <div className="flex flex-wrap items-center gap-2 text-sm">
-      <strong>{formatDuration(liveSeconds(result, representative.snapshotAt, now))}</strong>
-      <StatusBadge value={result.lifecycleStatus} />
-      <span className="text-[var(--shell-muted)]">Meta:</span><StatusBadge value={result.targetStatus} />
-    </div>;
-  }
-  const running = group.items.filter((item) => primaryResult(item, indicator)?.lifecycleStatus === "EM_ANDAMENTO").length;
-  return <div className="text-sm text-[var(--shell-muted)]">
-    {group.items.length} durações individuais · {running} em andamento · metas individuais
-  </div>;
-}
-
-function TrMap({ group, now }: { group: ReturnType<typeof groupByMap<JourneyItem>>[number]; now: number }) {
-  const fact = mapTrFact(group as ReturnType<typeof groupByMap<TrItem>>[number]);
-  if (!fact) return null;
-  return <div className="space-y-4">
-    <JourneyDetails indicator="tr" item={fact} now={now} showExpurge={false} />
-    <section className="rounded-xl border border-[color:var(--shell-line)] p-3">
-      <h4 className="font-semibold">Contexto do mapa</h4>
-      <dl className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-        <div><dt className="text-[var(--shell-muted)]">Veículo</dt><dd>{fact.context.vehicle ?? "—"}</dd></div>
-        <div><dt className="text-[var(--shell-muted)]">Placa</dt><dd>{fact.context.plate ?? "—"}</dd></div>
-        <div><dt className="text-[var(--shell-muted)]">Frota</dt><dd>{fact.context.fleet ?? "—"}</dd></div>
-        <div><dt className="text-[var(--shell-muted)]">Supervisor</dt><dd>{fact.context.routeSupervisorName ?? fact.context.routeSupervisorCode ?? "—"}</dd></div>
-        <div><dt className="text-[var(--shell-muted)]">Origem</dt><dd>{group.mapOrigin ?? "—"}</dd></div>
-      </dl>
-    </section>
-    <section><h4 className="font-semibold">Equipe associada</h4>
-      <ul className="mt-2 grid gap-3 md:grid-cols-2">{group.items.map((item, index) => <li key={`${item.context.employeeCode ?? "unknown"}:${index}`}
-        className="rounded-xl border border-[color:var(--shell-line)] p-3 text-sm">
-        <p className="font-semibold">{item.context.employeeName ?? `#${item.context.employeeCode ?? "?"}`} · {item.context.role ?? "função não informada"}</p>
-        <p className="mt-1 text-[var(--shell-muted)]">Código {item.context.employeeCode ?? "—"}</p>
-        <div className="mt-3"><ExpurgeContext item={item} /></div>
-      </li>)}</ul>
-    </section>
-  </div>;
 }

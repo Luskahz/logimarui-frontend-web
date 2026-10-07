@@ -22,6 +22,9 @@ function evaluate(relativePath, dependencies = {}) {
 }
 
 const lib = evaluate("src/features/journey-manager/lib/journeyPresentation.ts");
+const timeline = evaluate("src/features/journey-manager/lib/journeyTimeline.ts", {
+  "./journeyPresentation": lib,
+});
 const api = evaluate("src/features/journey-manager/api/journeyApi.ts", {
   "@/features/auth": {},
   "@/shared/network/gatewayUrl": {},
@@ -129,4 +132,44 @@ assert.deepEqual(lib.filterMapGroups(dated, "d0", "2026-09-28").map((group) => g
 assert.deepEqual(lib.filterMapGroups(dated, "earlier", "2026-09-28").map((group) => group.map), [31]);
 assert.equal(api.buildJourneyPath({ ...query, indicator: "jl", mode: "mpd" }).includes("mode=mpd"), true);
 assert.equal(api.buildJourneyPath({ ...query, indicator: "jl", mode: "ponto" }).includes("mode=ponto"), true);
+const rowTime = Date.parse("2026-09-28T08:15:00Z");
+const tmlRow = { ...item(40, 400), snapshotAt: "2026-09-28T08:15:00Z",
+  startedAt: "2026-09-28T08:00:00Z", entryAt: "2026-09-28T08:00:00Z",
+  mapDepartureAt: null, endedAt: null,
+  tml: { ...result, seconds: 900, targetSeconds: 1800, targetStatus: "DENTRO_DA_META" },
+  loadChecklist: { effectiveStartedAt: "2026-09-28T08:05:00Z",
+    effectiveEndedAt: "2026-09-28T08:10:00Z" }, maintenanceChecklist: null };
+const openTml = timeline.timelineView(tmlRow, "tml", rowTime);
+assert.equal(openTml.progress, 50);
+assert.equal(openTml.closed, false);
+assert.equal(openTml.exceeded, false);
+assert.equal(Math.round(openTml.segments[0].left), 17);
+assert.equal(Math.round(openTml.segments[0].width), 17);
+assert.equal(timeline.timelineView({ ...tmlRow, tml: { ...tmlRow.tml, seconds: 1900 } }, "tml", rowTime).exceeded, true);
+assert.equal(timeline.timelineView({ ...tmlRow, tml: { ...tmlRow.tml, targetSeconds: null } }, "tml", rowTime).progress, 50);
+const closedTml = timeline.timelineView({ ...tmlRow,
+  mapDepartureAt: "2026-09-28T08:20:00Z",
+  tml: { ...tmlRow.tml, seconds: 1200, lifecycleStatus: "FINALIZADO", achieved: true } }, "tml", rowTime);
+assert.equal(closedTml.closed, true);
+assert.equal(closedTml.finalTone, "positive");
+assert.equal(closedTml.progress, 100);
+assert.equal(timeline.formatClockDuration(90001), "25:00");
+assert.equal(timeline.formatClockDuration(null), "--:--");
+const crew = lib.groupByMap([item(41, 401, "ajudante"), item(41, 400, "motorista")])[0];
+assert.equal(timeline.mapDriver(crew).context.employeeCode, 400);
+assert.equal(timeline.mapHelperCount(crew), 1);
+assert.equal(timeline.mapRepresentative(crew, "tml").context.employeeCode, 400);
+assert.equal(timeline.mapDriver(lib.groupByMap([item(42, 402, "ajudante")])[0]), undefined);
+const tiRow = { ...item(43, 403), vehicleEntryAt: "2026-09-28T17:00:00Z",
+  physicalCloseAt: "2026-09-28T17:10:00Z", financialCloseAt: "2026-09-28T17:20:00Z",
+  pointExitAt: "2026-09-28T17:30:00Z", ti: { ...result, seconds: 1800,
+    targetSeconds: 1800, lifecycleStatus: "FINALIZADO" } };
+assert.deepEqual(timeline.timelineView(tiRow, "ti", rowTime).segments.map((part) => part.kind),
+  ["physical", "financial"]);
+const jlTimelineRow = { ...item(44, 404), mode: "ponto", startedAt: "2026-09-28T08:00:00Z",
+  endedAt: "2026-09-28T18:00:00Z", mapDepartureAt: "2026-09-28T08:30:00Z",
+  mapReturnAt: "2026-09-28T17:30:00Z", pointExitAt: "2026-09-28T18:00:00Z",
+  jl: { ...result, seconds: 36000, targetSeconds: 37200, lifecycleStatus: "FINALIZADO" } };
+assert.deepEqual(timeline.timelineView(jlTimelineRow, "jl", rowTime).segments.map((part) => part.kind),
+  ["tml", "tr", "ti"]);
 console.log("Journey contract and presentation checks passed");
