@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight, ListFilter, RefreshCw, Search, X } from "lucide-react";
+import { BarChart3, CalendarDays, ChevronLeft, ChevronRight, ListChecks, ListFilter, RefreshCw, Search, X } from "lucide-react";
 import { journeyApi } from "../api/journeyApi";
 import { filterMapGroups, formatDateTime, groupByMap, hasLiveRows, paginateMapGroups,
   searchMapGroups, shouldPollJourney,
   type LiveScope } from "../lib/journeyPresentation";
-import type { Indicator, JourneyItem, JourneyQuery, PeriodResponse } from "../model/types";
+import type { AnalysisRole, Indicator, JourneyItem, JourneyQuery, PeriodResponse } from "../model/types";
+import JourneyAnalysis from "./JourneyAnalysis";
+import { useJourneyHistory } from "./useJourneyHistory";
 import { JourneyMapDialog, JourneyMapRow } from "./JourneyMapRow";
 import { actionButtonClass, fieldClass, primaryButtonClass } from "./journeyControls";
 
@@ -46,6 +48,10 @@ export default function JourneyManager() {
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [dateMode, setDateMode] = useState<"day" | "period">("day");
   const [search, setSearch] = useState("");
+  const [view, setView] = useState<"accompaniment" | "analysis">("accompaniment");
+  const [analysisRole, setAnalysisRole] = useState<AnalysisRole>("motorista");
+  const effectiveRole = query.role === "all" ? analysisRole : query.role;
+  const analysis = useJourneyHistory(view === "analysis", query, effectiveRole, search, scope);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [selectedMapKey, setSelectedMapKey] = useState<string | null>(null);
@@ -84,6 +90,7 @@ export default function JourneyManager() {
   }, []);
 
   useEffect(() => {
+    if (view !== "accompaniment") return;
     let active = true;
     requestRef.current?.abort();
     requestRef.current = null;
@@ -93,7 +100,7 @@ export default function JourneyManager() {
       requestRef.current?.abort();
       requestRef.current = null;
     };
-  }, [query, loadSnapshot]);
+  }, [query, view, loadSnapshot]);
 
   const groups = useMemo(() => groupByMap(data?.items ?? []), [data]);
   const today = localDate();
@@ -104,13 +111,13 @@ export default function JourneyManager() {
   const visibleItems = useMemo(() => visibleGroups.flatMap((group) => group.items), [visibleGroups]);
   const pageItems = useMemo(() => pagination.groups.flatMap((group) => group.items), [pagination]);
   const live = hasLiveRows(pageItems, query.indicator);
-  const hasExplicitLiveOrigin = groups.some((group) => group.mapOrigin === "LIVE");
+  const hasExplicitLiveOrigin = view === "analysis" ? !!analysis.data?.hasLiveOrigin : groups.some((group) => group.mapOrigin === "LIVE");
   const selectedTab = tabs.find((tab) => tab.id === query.indicator) ?? tabs[0];
   const dateLabel = query.from === query.to ? displayDate(query.from) :
     `${displayDate(query.from)} – ${displayDate(query.to)}`;
 
   useEffect(() => {
-    if (!live) return;
+    if (!live || view !== "accompaniment") return;
     const tick = () => {
       if (!requestRef.current && shouldPollJourney(pageItems, query.indicator, document.visibilityState)) {
         setRefreshing(true);
@@ -126,7 +133,7 @@ export default function JourneyManager() {
       window.clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [live, pageItems, query, loadSnapshot]);
+  }, [live, pageItems, query, view, loadSnapshot]);
 
   function setField<K extends keyof JourneyQuery>(key: K, value: JourneyQuery[K]) {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -146,10 +153,18 @@ export default function JourneyManager() {
   }
 
   function reload() {
+    if (view === "analysis") { analysis.reload(); return; }
     if (requestRef.current) return;
     if (!data) { setLoading(true); setError(null); }
     else setRefreshing(true);
     void loadSnapshot(query, data !== null);
+  }
+
+  function selectView(next: typeof view) {
+    if (view === next) return;
+    setSelectedMapKey(null);
+    if (next === "accompaniment") { setLoading(true); setError(null); }
+    setView(next);
   }
 
   function selectTab(tab: Indicator) {
@@ -193,6 +208,14 @@ export default function JourneyManager() {
       employeeCode: draft.employeeCode, role: draft.role, expurge: draft.expurge });
   }
 
+  const activeLoading = view === "analysis" ? analysis.loading : loading;
+  const activeRefreshing = view === "analysis" ? analysis.refreshing : refreshing;
+  const activeError = view === "analysis" ? analysis.error : error;
+  const activeNotice = view === "analysis" ? analysis.notice : refreshNotice;
+  const activeSnapshot = view === "analysis" ? analysis.data?.snapshotAt : data?.snapshotAt;
+  const countLabel = view === "analysis" ? (analysis.data ? `${analysis.data.summary.distinctMaps} mapas · ${analysis.data.summary.total} observações` : "Análise ainda não carregada") :
+    (data ? `${visibleGroups.length} mapa${visibleGroups.length === 1 ? "" : "s"} · ${visibleItems.length} linha${visibleItems.length === 1 ? "" : "s"} de equipe` : "Mapas ainda não carregados");
+
   return <main className="space-y-5 text-[var(--shell-text)]">
     <header className="rounded-[26px] border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-5 sm:p-6">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--shell-accent)]">DPO · Entrega · Bloco 1.0</p>
@@ -213,16 +236,22 @@ export default function JourneyManager() {
       <div className="rounded-[26px] border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div><h2 className="text-xl font-semibold">{selectedTab.label}</h2><p className="text-sm text-[var(--shell-muted)]">{selectedTab.description}</p></div>
-          <button type="button" className={actionButtonClass} onClick={reload} disabled={loading || refreshing} aria-label="Atualizar dados da Jornada"><RefreshCw size={16} /> {refreshing ? "Atualizando" : "Atualizar"}</button>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex gap-1 rounded-xl border border-[color:var(--shell-line)] p-1" aria-label="Visualização do indicador">
+              <button type="button" className={view === "accompaniment" ? primaryButtonClass : actionButtonClass} aria-pressed={view === "accompaniment"} onClick={() => selectView("accompaniment")}><ListChecks size={16} /> Acompanhamento</button>
+              <button type="button" className={view === "analysis" ? primaryButtonClass : actionButtonClass} aria-pressed={view === "analysis"} onClick={() => selectView("analysis")}><BarChart3 size={16} /> Análise</button>
+            </div>
+            <button type="button" className={actionButtonClass} onClick={reload} disabled={activeLoading || activeRefreshing} aria-label="Atualizar dados da Jornada"><RefreshCw size={16} /> {activeRefreshing ? "Atualizando" : "Atualizar"}</button>
+          </div>
         </div>
       </div>
 
-      {loading && <p role="status" className="rounded-2xl border border-[color:var(--shell-line)] p-6">Carregando dados de Jornada…</p>}
-      {error && <div role="alert" className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm"><p>{error}</p><button type="button" className={`${actionButtonClass} mt-3`} onClick={reload}>Tentar novamente</button></div>}
-      {refreshNotice && data && <p role="status" className="text-xs text-amber-700 dark:text-amber-200">{refreshNotice} Os dados anteriores continuam visíveis.</p>}
+      {activeLoading && <p role="status" className="rounded-2xl border border-[color:var(--shell-line)] p-6">Carregando {view === "analysis" ? "análise" : "dados"} de Jornada…</p>}
+      {activeError && <div role="alert" className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm"><p>{activeError}</p><button type="button" className={`${actionButtonClass} mt-3`} onClick={reload}>Tentar novamente</button></div>}
+      {activeNotice && <p role="status" className="text-xs text-[var(--shell-muted)]">{activeNotice} Os dados anteriores continuam visíveis.</p>}
       <div className="grid items-center gap-3 lg:grid-cols-[auto_minmax(20rem,1fr)_auto]">
         <div role="status" className="text-sm text-[var(--shell-muted)]">
-          {data ? `${visibleGroups.length} mapa${visibleGroups.length === 1 ? "" : "s"} · ${visibleItems.length} linha${visibleItems.length === 1 ? "" : "s"} de equipe` : "Mapas ainda não carregados"}
+          {countLabel}
         </div>
         <div className="flex min-w-0 flex-wrap items-center gap-2 lg:justify-center">
           <button type="button" className={actionButtonClass} onClick={() => openDialog("calendar")}
@@ -237,9 +266,11 @@ export default function JourneyManager() {
           </label>
           <button type="button" className={actionButtonClass} onClick={() => openDialog("filters")} aria-label="Abrir filtros"><ListFilter size={16} /> <span className="hidden sm:inline">Filtros</span></button>
         </div>
-        <span className="text-sm text-[var(--shell-muted)] lg:text-right">{refreshing ? "Atualizando snapshot… · " : ""}Snapshot: {formatDateTime(data?.snapshotAt)}</span>
+        <span className="text-sm text-[var(--shell-muted)] lg:text-right">{activeRefreshing ? "Atualizando snapshot… · " : ""}Snapshot: {formatDateTime(activeSnapshot)}</span>
       </div>
-      {!loading && !error && data && <>
+      {view === "analysis" && !analysis.loading && analysis.data && <JourneyAnalysis history={analysis.data}
+        indicator={query.indicator} role={effectiveRole} onRoleChange={setAnalysisRole} roleLocked={query.role !== "all"} />}
+      {view === "accompaniment" && !loading && !error && data && <>
         {visibleGroups.length === 0 ? <p className="rounded-2xl border border-dashed border-[color:var(--shell-line)] p-8 text-center text-sm">Nenhum mapa encontrado no período e filtros selecionados.</p> :
           <div className="space-y-3">{pagination.groups.map((group) =>
             <JourneyMapRow key={group.key} group={group} indicator={query.indicator} now={now}

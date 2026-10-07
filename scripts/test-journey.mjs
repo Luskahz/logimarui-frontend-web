@@ -22,6 +22,7 @@ function evaluate(relativePath, dependencies = {}) {
 }
 
 const lib = evaluate("src/features/journey-manager/lib/journeyPresentation.ts");
+const analysis = evaluate("src/features/journey-manager/lib/journeyAnalysis.ts");
 const timeline = evaluate("src/features/journey-manager/lib/journeyTimeline.ts", {
   "./journeyPresentation": lib,
 });
@@ -194,3 +195,71 @@ const jlTimelineRow = { ...item(44, 404), mode: "ponto", startedAt: "2026-09-28T
 assert.deepEqual(timeline.timelineView(jlTimelineRow, "jl", rowTime).segments.map((part) => part.kind),
   ["tml", "tr", "ti"]);
 console.log("Journey contract and presentation checks passed");
+
+const counts = (attained, notAttained, pending = 0, unavailable = 0) => ({
+  total: attained + notAttained + pending + unavailable, attained, notAttained, pending, unavailable,
+  evaluated: attained + notAttained, adherence: attained + notAttained ? attained * 100 / (attained + notAttained) : null,
+  distinctMaps: attained + notAttained + pending + unavailable, expurged: 0, anomalies: 0,
+});
+const history = (from, to, days = [], previous = []) => ({ from, to, contextFrom: from, contextTo: to,
+  asOf: "2026-10-07", snapshotAt: null, population: "MAP", role: "motorista", hasLiveOrigin: false,
+  summary: analysis.sumCounts(days.filter(d => d.date >= from && d.date <= to).map(d => d.counts)),
+  daily: days, collaborators: [], previousYearDaily: previous });
+assert.equal(analysis.weekStart("2026-09-30"), "2026-09-28");
+assert.equal(analysis.weekStart("2026-01-01"), "2025-12-29");
+assert.equal(analysis.weekStart("2026-10-04"), "2026-09-28");
+assert.equal(analysis.addDays("2024-02-28", 1), "2024-02-29");
+assert.equal(analysis.addDays("2024-02-29", 1), "2024-03-01");
+assert.equal(analysis.monthEnd("2024-02-01"), "2024-02-29");
+assert.equal(analysis.sumCounts([counts(1, 0), counts(0, 9)]).adherence, 10);
+assert.equal(analysis.sumCounts([counts(0, 0, 3, 2)]).adherence, null);
+const boundary = analysis.weeklyPoints(history("2026-09-30", "2026-09-30", [
+  { date: "2026-09-28", counts: counts(1, 0) }, { date: "2026-09-29", counts: counts(0, 1) },
+]));
+assert.equal(boundary.granular, true);
+assert.deepEqual(boundary.points.map(p => p.key), ["2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02", "2026-10-03"]);
+assert.equal(boundary.points[1].accumulated, 50);
+assert.equal(boundary.points[2].counts.adherence, null);
+assert.equal(boundary.points[2].selected, true);
+const threeWeeks = analysis.weeklyPoints(history("2026-09-28", "2026-10-17"));
+assert.equal(threeWeeks.points.length, 18);
+assert.equal(threeWeeks.granular, true);
+const month = analysis.weeklyPoints(history("2026-09-01", "2026-09-30"));
+assert.equal(month.granular, false);
+assert.equal(month.points.length, 5);
+const sixWeeks = analysis.weeklyPoints(history("2026-08-01", "2026-08-31"));
+assert.equal(sixWeeks.points.length, 6); // Preserve both boundary fragments rather than lose days.
+const fullYearDays = analysis.dateRange("2026-01-01", "2026-12-31").map(date => ({ date, counts: counts(1, 0) }));
+const yearWeekly = analysis.weeklyPoints(history("2026-01-01", "2026-12-31", fullYearDays));
+assert.equal(yearWeekly.granular, false);
+const coveredDays = yearWeekly.points.flatMap(p => analysis.dateRange(p.from, p.to));
+assert.equal(new Set(coveredDays).size, coveredDays.length);
+assert.equal(coveredDays.length, fullYearDays.filter(d => analysis.calendarDate(d.date).getUTCDay() !== 0).length);
+const yearMonthly = analysis.monthlyPoints(history("2026-01-01", "2026-12-31", fullYearDays));
+assert.equal(yearMonthly.granular, false);
+assert.equal(yearMonthly.points.length, 12);
+assert.equal(analysis.sumCounts(yearMonthly.points.map(p => p.counts)).total, 365);
+const oneMonth = analysis.monthlyPoints(history("2026-10-06", "2026-10-06", [{ date: "2026-10-06", counts: counts(2, 2) }]));
+assert.equal(oneMonth.granular, true);
+assert.equal(oneMonth.points.length, 31);
+assert.equal(oneMonth.points[5].counts.adherence, 50);
+assert.equal(oneMonth.points[7].counts.adherence, null);
+const comparison = analysis.annualComparison(history("2026-10-06", "2026-10-06", [
+  { date: "2026-10-06", counts: counts(2, 2) }], [
+  { date: "2025-10-06", counts: counts(1, 3) }, { date: "2025-10-08", counts: counts(20, 0) }]));
+assert.equal(comparison[0].to, "2026-10-07");
+assert.equal(comparison[0].previousTo, "2025-10-07");
+assert.equal(comparison[0].previous.adherence, 25);
+const leap = analysis.annualComparison({ ...history("2024-02-29", "2024-02-29"), asOf: "2024-02-29" });
+assert.equal(leap[0].previousTo, "2023-02-28");
+const historyPath = api.buildJourneyHistoryPath({ ...query, indicator: "tr" }, "ajudante", "João", "earlier", false);
+assert.ok(historyPath.startsWith("/api/v1/journey/history/tr?"));
+assert.ok(historyPath.includes("populationRole=ajudante"));
+assert.ok(!historyPath.includes("&role="));
+assert.ok(api.buildJourneyHistoryPath({ ...query, role: "motorista" }, "ajudante", "", "all").includes("role=motorista"));
+assert.ok(historyPath.includes("includePrevious=false"));
+assert.ok(!historyPath.includes("mode="));
+assert.equal(api.normalizeJourneyHistory(history("2026-10-06", "2026-10-06")).summary.adherence, null);
+assert.throws(() => api.normalizeJourneyHistory({ ...history("2026-10-06", "2026-10-06"), summary: { ...counts(0, 0), adherence: 0 } }), /inválida/);
+assert.throws(() => api.normalizeJourneyHistory({ ...history("2026-10-06", "2026-10-06"), summary: { ...counts(1, 0), attained: -1 } }), /inválida/);
+console.log("Journey analytical calendar, weighted aggregation and history contract checks passed");
