@@ -1,22 +1,31 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { ListFilter, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ListFilter, X } from "lucide-react";
 import { percent, shortDate } from "../lib/journeyAnalysis";
-import { formatTeamAverage, teamReportRows, initialTeamReportFilters, type TeamReportFilters } from "../lib/journeyTeamReport";
+import { formatTeamAverage, teamReportRows, sortTeamReportRows, initialTeamReportFilters, type TeamReportFilters, type TeamReportSort, type TeamReportSortColumn } from "../lib/journeyTeamReport";
 import type { Indicator, JourneyHistory } from "../model/types";
 import { actionButtonClass, fieldClass, primaryButtonClass } from "./journeyControls";
 
 const columns = "grid grid-cols-2 gap-x-3 gap-y-2 @2xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1.8fr)_minmax(0,.7fr)_minmax(0,.55fr)_minmax(0,.8fr)_minmax(0,.65fr)]";
 
-export default function JourneyTeamReport({ history, indicator, filters, onFiltersChange }: {
+export default function JourneyTeamReport({ history, indicator, filters, onFiltersChange, sort, onSortChange }: {
   history: JourneyHistory; indicator: Indicator; filters: TeamReportFilters;
   onFiltersChange: (filters: TeamReportFilters) => void;
+  sort: TeamReportSort; onSortChange: (sort: TeamReportSort) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const rows = useMemo(() => teamReportRows(history.team ?? [], filters), [history.team, filters]);
+  const rows = useMemo(() => sortTeamReportRows(teamReportRows(history.team ?? [], filters), sort), [history.team, filters, sort]);
   const personLabel = history.role === "motorista" ? "Motorista" : "Ajudante";
   const unit = indicator === "tml" || indicator === "ti" ? "mm:ss" : "hh:mm";
+  const headers: { column: TeamReportSortColumn; label: string; hint?: string }[] = [
+    { column: "name", label: personLabel },
+    { column: "dates", label: "Dias de saída", hint: "Ordena pela primeira data de saída no período" },
+    { column: "attained", label: "Atingimento", hint: "Ordena pela quantidade atingida; em empate, pela quantidade avaliada" },
+    { column: "adherence", label: "%" },
+    { column: "average", label: `Média ${indicator.toUpperCase()} (${unit})` },
+    { column: "journeyExceeded", label: "Estouros JL" },
+  ];
   const activeCount = filters.excluded.length + filters.fleets.length + Number(filters.expurge !== "all") + Number(filters.view !== "all");
   const missingJourneys = rows.reduce((total, row) => total + row.journeyUnknown, 0);
   return <section className="@container min-w-0 rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-4 sm:p-5" aria-label="Status das equipes para os educadores">
@@ -35,7 +44,18 @@ export default function JourneyTeamReport({ history, indicator, filters, onFilte
     </p>}
     <div role="table" aria-label={`Status da equipe em ${indicator.toUpperCase()}`} className="mt-4 w-full min-w-0 text-xs">
       <div role="row" className={`${columns} border-b border-[color:var(--shell-line)] pb-2 font-medium text-[var(--shell-muted)]`}>
-        {[personLabel, "Dias de saída", "Atingimento", "%", `Média ${indicator.toUpperCase()} (${unit})`, "Estouros JL"].map(label => <div role="columnheader" key={label} className="min-w-0 break-words">{label}</div>)}
+        {headers.map(({ column, label, hint }) => {
+          const active = sort.column === column;
+          const nextDirection = active && sort.direction === "asc" ? "desc" : "asc";
+          const Icon = active ? sort.direction === "asc" ? ArrowUp : ArrowDown : ArrowUpDown;
+          return <div role="columnheader" key={column} aria-sort={active ? sort.direction === "asc" ? "ascending" : "descending" : "none"} className="min-w-0">
+            <button type="button" title={hint} aria-label={`Ordenar ${label} em ordem ${nextDirection === "asc" ? "crescente" : "decrescente"}`}
+              onClick={() => onSortChange({ column, direction: nextDirection })}
+              className={`flex min-w-0 max-w-full items-center gap-1 rounded py-1 text-left hover:text-[var(--shell-text)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--shell-accent)] ${active ? "text-[var(--shell-text)]" : ""}`}>
+              <span className="min-w-0 break-words">{label}</span><Icon size={12} className="shrink-0" aria-hidden="true" />
+            </button>
+          </div>;
+        })}
       </div>
       {rows.map(row => <div role="row" key={row.employeeCode} className={`${columns} items-center border-b border-[color:var(--shell-line)]/60 py-3 last:border-b-0`}>
         <div role="cell" className="min-w-0 break-words font-medium">{row.employeeName}</div>

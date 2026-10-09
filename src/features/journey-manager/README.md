@@ -66,6 +66,13 @@ indicator time and official JL overruns, in that order. Dates wrap within their
 column and increase row height. TML/TI means use mm:ss; TR/JL use hh:mm. Missing
 or open JL remains unknown and partial coverage is labelled.
 
+All six report headers toggle ascending/descending sorting and indicate the
+active direction. Sorting persists across filters, dates and indicators while
+the manager is open. Departure dates sort by the earliest departure in the
+period; attainment sorts by attained count, then evaluated count. Percentages,
+means and overruns compare raw numeric values. Missing results stay last in
+both directions, with names and employee codes providing stable tie breaks.
+
 Its modal filters visibility, individual people, fleet and expurge. Filters
 persist across indicator and date changes for the open manager. Fleet/expurge
 filters select map observations before weighted aggregation, so a person who

@@ -9,6 +9,40 @@ export interface TeamReportFilters {
 }
 export const initialTeamReportFilters: TeamReportFilters = { excluded: [], fleets: [], expurge: "all", view: "all" };
 
+export type TeamReportSortColumn = "name" | "dates" | "attained" | "adherence" | "average" | "journeyExceeded";
+export interface TeamReportSort {
+  column: TeamReportSortColumn;
+  direction: "asc" | "desc";
+}
+export const initialTeamReportSort: TeamReportSort = { column: "name", direction: "asc" };
+type TeamReportRow = ReturnType<typeof teamReportRows>[number];
+
+/** Compare raw values; missing results stay last in either direction. */
+export function sortTeamReportRows(rows: TeamReportRow[], sort: TeamReportSort) {
+  const value = (row: TeamReportRow): string | number | null => {
+    switch (sort.column) {
+      case "name": return row.employeeName;
+      case "dates": return row.dates[0] ?? null;
+      case "attained": return row.counts.evaluated ? row.counts.attained : null;
+      case "adherence": return row.counts.adherence;
+      case "average": return row.averageSeconds;
+      case "journeyExceeded": return row.journeyKnown ? row.journeyExceeded : null;
+    }
+  };
+  const direction = sort.direction === "asc" ? 1 : -1;
+  return [...rows].sort((a, b) => {
+    const left = value(a), right = value(b);
+    if (left === null && right !== null) return 1;
+    if (right === null && left !== null) return -1;
+    let comparison = typeof left === "number" && typeof right === "number" ? left - right :
+      typeof left === "string" && typeof right === "string" ? left.localeCompare(right, "pt-BR") : 0;
+    if (comparison === 0 && left !== null && right !== null && sort.column === "attained") {
+      comparison = a.counts.evaluated - b.counts.evaluated;
+    }
+    return comparison * direction || a.employeeName.localeCompare(b.employeeName, "pt-BR") || a.employeeCode - b.employeeCode;
+  });
+}
+
 /** Filter individual observations before rolling up, including people who changed fleet. */
 export function teamReportRows(observations: JourneyTeamObservation[], filters: TeamReportFilters) {
   const grouped = new Map<number, JourneyTeamObservation[]>();

@@ -9,7 +9,7 @@ import { annualComparison, countsBetween, emptyCounts, monthLabel, monthlyPoints
 import type { AnalysisRole, Indicator, JourneyCounts, JourneyHistory } from "../model/types";
 import { actionButtonClass, fieldClass, primaryButtonClass } from "./journeyControls";
 import JourneyTeamReport from "./JourneyTeamReport";
-import type { TeamReportFilters } from "../lib/journeyTeamReport";
+import type { TeamReportFilters, TeamReportSort } from "../lib/journeyTeamReport";
 
 const EChart = dynamic(() => import("echarts-for-react"), { ssr: false,
   loading: () => <div className="flex h-72 items-center justify-center text-sm text-[var(--shell-muted)]">Preparando gráfico…</div> });
@@ -125,9 +125,10 @@ function Stat({ label, value, detail, tone }: { label: string; value: string; de
   </div>;
 }
 
-export default function JourneyAnalysis({ history, indicator, role, onRoleChange, roleLocked, reportFilters, onReportFiltersChange }: {
+export default function JourneyAnalysis({ history, indicator, role, onRoleChange, roleLocked, reportFilters, onReportFiltersChange, reportSort, onReportSortChange }: {
   history: JourneyHistory; indicator: Indicator; role: AnalysisRole; onRoleChange: (role: AnalysisRole) => void; roleLocked: boolean;
   reportFilters: TeamReportFilters; onReportFiltersChange: (filters: TeamReportFilters) => void;
+  reportSort: TeamReportSort; onReportSortChange: (sort: TeamReportSort) => void;
 }) {
   const { ref, palette } = usePalette();
   const [sort, setSort] = useState("adherence");
@@ -214,7 +215,7 @@ export default function JourneyAnalysis({ history, indicator, role, onRoleChange
         </div>)}</div>
       </ChartCard>
     </div>
-    <JourneyTeamReport history={history} indicator={indicator} filters={reportFilters} onFiltersChange={onReportFiltersChange} />
+    <JourneyTeamReport history={history} indicator={indicator} filters={reportFilters} onFiltersChange={onReportFiltersChange} sort={reportSort} onSortChange={onReportSortChange} />
     <div>
       <section className="rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-5"><h3 className="flex items-center gap-2 font-semibold"><CircleHelp size={16} /> Leitura dos dados</h3>
         <ul className="mt-3 space-y-2 text-xs leading-5 text-[var(--shell-muted)]"><li>Sem resultado não equivale a 0% de aderência. Ciclos abertos aguardam o fechamento oficial.</li>
